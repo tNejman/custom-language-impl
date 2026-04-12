@@ -1,0 +1,57 @@
+Checks: >
+  bugprone-*,          # detects common bugs, e.g. use after move, uninitialized members
+  performance-*,       # flags unnecessary copies; inefficient constructs
+  modernize-*,         # recomends C++11-20 features
+  readability-*,       # improves code clarity and structure
+  clang-analyzer-*,    # static analysis from Clang
+  cppcoreguidelines-*, # enforces C++ Core Guidelines
+
+  misc-assert-side-effect,
+  readability-container-side-empty,
+  readability-identifier-naming,
+
+  # -bugprone-easily-swappable-parameters,
+  # -modernize-use-trailing-return-type,
+  # -cppcoreguidelines-avoid-magic-numbers,
+  # -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  # -cppcoreguidelines-owning-memory,
+  # -cppcoreguidelines-pro-type-union-access
+
+WarningsAsErrors: "*"
+HeaderFilterRegex: '^(?!.*\/build\/).*$'
+# HeaderFilterRegex: '^(?!.*(test|Test|_test)\.cc$).*'
+FormatStyle: file
+
+CheckOptions:
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypedefCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.TestCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.IgnoredRegexp
+    value: "^(TEST)$"
+
+  - key: misc-assert-side-effect.CheckFunctionCalls
+    value: 1
+  - key: misc-assert-side-effect.AssertMacros
+    value: "assert"
+
+  - key: modernize-loop-convert.MaxCopySize
+    value: "16"
