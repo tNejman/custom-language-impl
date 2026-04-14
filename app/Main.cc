@@ -19,6 +19,6 @@ int main() {
     }
   }
   {
-    Lexer lexer(std::cin);
+    Lexer lexer( std::cin );
   }
 }

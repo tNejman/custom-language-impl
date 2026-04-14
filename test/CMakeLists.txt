@@ -18,6 +18,8 @@ foreach(module ${MODULES})
 
     target_include_directories(${module} PUBLIC
         ${gtest_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/include/Lexer
+        ${CMAKE_SOURCE_DIR}/include/Exceptions/LexerExceptions
         ${CMAKE_SOURCE_DIR}/include
     )
     
