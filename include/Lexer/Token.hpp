@@ -3,6 +3,10 @@
 #include <ostream>
 #include <string>
 #include <variant>
+#include <climits>
+
+constexpr unsigned int MAX_IDENTIFIER_LENGTH = 128u;
+constexpr unsigned int MAX_STRING_LITERAL_LENGTH = 128u;
 
 enum class TokenType {
   COMMENT,

@@ -1,6 +1,11 @@
 #pragma once
 
 #include <istream>
+#include <string>
+#include <vector>
+#include <array>
+#include <string_view>
+#include <algorithm>
 
 #include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
 #include "Exceptions/LexerExceptions/InvalidCharLiteralException.hpp"
@@ -24,6 +29,14 @@ class Lexer : public ILexer {
   bool isWhiteSpace( const char c ) const;
   bool isDigit( const char c ) const;
   bool isLetter( const char c ) const;
+
+  std::string buildStringLiteral();
+  char buildCharLiteral();
+  char buildEscapeCharacter(const char c) const;
+  std::variant<int,float> buildNumericLiteral();
+
+  std::string buildIdentifier();
+  TokenType getSpecialIdentifierType(const std::string& identifier) const;
 
  public:
   explicit Lexer( std::istream& input );

@@ -2,7 +2,12 @@
 
 void Lexer::nextChar() {
   if ( input_stream_.get( current_char_ ) ) {
-    this->current_pos_.column_ += 1;
+    if (current_char_ == '\n') {
+      this->current_pos_.line_ += 1;
+      this->current_pos_.column_ = 1;
+    } else {
+      this->current_pos_.column_ += 1;
+    }
   } else {
     current_char_ = '\0';
   }
@@ -25,6 +30,138 @@ bool Lexer::isDigit( const char c ) const {
 bool Lexer::isLetter( const char c ) const {
   return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' );
 }
+
+std::string Lexer::buildStringLiteral() {
+  std::string str;
+  str.reserve(MAX_STRING_LITERAL_LENGTH + 1);
+  unsigned int str_literal_length = 0u;
+  while (current_char_ != '\"' && current_char_ != '\n') {
+    // @TODO handle escapable characters
+    str.push_back(current_char_);
+    ++str_literal_length;
+    nextChar();
+
+    if (str_literal_length > MAX_STRING_LITERAL_LENGTH) {
+      throw TooLongStringLiteralException("");
+    }
+  }
+  if (current_char_ == '\n') {
+    throw UnterminatedStringLiteralException("");
+  }
+  return std::string{str.begin(), str.end()};
+}
+
+char Lexer::buildCharLiteral() {
+  char c;
+  if (current_char_ == '\\') {
+    nextChar();
+    c = buildEscapeCharacter(current_char_);
+  } else {
+    c = current_char_;
+  }
+  nextChar();
+  if (current_char_ != '\'') {
+    throw UnterminatedCharLiteralException("");
+  }
+  nextChar();
+
+  return c;
+}
+
+char Lexer::buildEscapeCharacter(const char c) const {
+  switch (c) {
+    case 'n': return '\n';
+    case 't': return '\t';
+    case '\\': return '\\';
+    case '\"': return '\"';
+    default:
+      throw UnknownEscapedCharacterException("");
+  }
+}
+
+std::variant<int,float> Lexer::buildNumericLiteral() {
+  std::string buf;
+  bool is_float = false;
+
+  while (isDigit(current_char_) || current_char_ == '_') {
+    if (current_char_ != '_') {
+      buf += current_char_;
+    }
+    nextChar();
+  }
+
+  if (current_char_ == '.') {
+    is_float = true;
+    buf += current_char_;
+    nextChar();
+
+    while (isDigit(current_char_) || current_char_ == '_') {
+      if (current_char_ != '_') {
+        buf += current_char_;
+      }
+      nextChar();
+    }
+  }
+
+  if (is_float) {
+    try {
+      return std::stof(buf);
+    } catch (const std::out_of_range&) {
+      throw MalformedNumericLiteralException("");
+    }
+  } else {
+    try {
+      return std::stoi(buf);
+    } catch (const std::out_of_range&) {
+      throw IntLiteralOutOfBoundsException("");
+    }
+  }
+}
+
+std::string Lexer::buildIdentifier() {
+  std::string buf;
+  buf.reserve(MAX_IDENTIFIER_LENGTH + 1);
+  while (isLetter(current_char_) || current_char_ == '_') {
+    buf.push_back(current_char_);
+    nextChar();
+
+    if (buf.size() > MAX_IDENTIFIER_LENGTH) {
+      throw TooLongIdentifierException("");
+    }
+  }
+  return buf;
+}
+
+TokenType Lexer::getSpecialIdentifierType(const std::string& identifier) const {
+  static constexpr std::array<std::pair<std::string_view, TokenType>, 14> keywords = {{
+    {"if", TokenType::KW_IF},
+    {"elseif", TokenType::KW_ELSEIF},
+    {"else", TokenType::KW_ELSE},
+    {"while", TokenType::KW_WHILE},
+    {"do", TokenType::KW_DO},
+    {"done", TokenType::KW_DONE},
+    {"break", TokenType::KW_BREAK},
+    {"continue", TokenType::KW_CONTINUE},
+    {"ret", TokenType::KW_RET},
+    {"def", TokenType::KW_DEF},
+    {"var", TokenType::KW_VAR},
+    {"copy", TokenType::KW_COPY},
+    {"cast_to", TokenType::KW_CAST_TO},
+    {"mut", TokenType::KW_MUT}
+  }};
+
+  auto it = std::find_if(keywords.begin(), keywords.end(),
+    [&identifier](const std::pair<std::string_view,TokenType>& pos) {
+      return pos.first == identifier;
+    });
+
+  if (it != keywords.end() && it->first == identifier) {
+    return it->second;
+  }
+
+  return TokenType::IDENTIFIER;
+}
+
 
 Lexer::Lexer( std::istream& input ) : input_stream_( input ) {
   nextChar();
@@ -146,19 +283,30 @@ Token Lexer::getNextToken() {
       throw UnknownSymbolException( "" );
 
     case '\"':
-      // return buildStringLiteral();
+      return Token{start_pos, TokenType::STRING_LITERAL, buildStringLiteral()};
     case '\'':
-      // return buildCharLiteral();
+      return Token{start_pos, TokenType::CHAR_LITERAL, buildCharLiteral()};
     case '#':
-      // make comment Token and drop everything until the end of line
+      while (current_char_ != '\n' && current_char_ != '\0') nextChar();
   }
 
   if ( isDigit( this->current_char_ ) ) {
-    // return buildNumericToken();
+    std::variant<int,float> lit = buildNumericLiteral();
+    try {
+      return Token{start_pos, TokenType::INT_LITERAL, std::get<int>(lit)};
+    } catch (std::bad_variant_access&) {
+      return Token{start_pos, TokenType::FLOAT_LITERAL, std::get<float>(lit)};
+    }
   }
 
   if ( isLetter( this->current_char_ ) ) {
-    // make identifier then check for keywords
+    std::string identifier = buildIdentifier();
+    TokenType type = getSpecialIdentifierType(identifier);
+    if (type == TokenType::IDENTIFIER) {
+      return Token{start_pos, type, identifier};
+    } else {
+      return Token{start_pos, type};
+    }
   }
 
   throw UnknownSymbolException( "" );
