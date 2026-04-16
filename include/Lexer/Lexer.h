@@ -1,11 +1,12 @@
 #pragma once
 
-#include <istream>
-#include <string>
-#include <vector>
-#include <array>
-#include <string_view>
 #include <algorithm>
+#include <array>
+#include <istream>
+#include <map>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
 #include "Exceptions/LexerExceptions/InvalidCharLiteralException.hpp"
@@ -21,8 +22,9 @@
 class Lexer : public ILexer {
  private:
   std::istream& input_stream_;
-  Position current_pos_{ 0, 0 };
+  Position current_pos_{ 1, 0 };
   char current_char_{ '\0' };
+  bool is_eof_ = false;
 
   void nextChar();
   char peek() const;
@@ -32,11 +34,11 @@ class Lexer : public ILexer {
 
   std::string buildStringLiteral();
   char buildCharLiteral();
-  char buildEscapeCharacter(const char c) const;
-  std::variant<int,float> buildNumericLiteral();
+  char buildEscapeCharacter( const char c ) const;
+  std::variant<int, float> buildNumericLiteral();
 
   std::string buildIdentifier();
-  TokenType getSpecialIdentifierType(const std::string& identifier) const;
+  TokenType getSpecialIdentifierType( const std::string& identifier ) const;
 
  public:
   explicit Lexer( std::istream& input );

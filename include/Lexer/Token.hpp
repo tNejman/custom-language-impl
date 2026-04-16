@@ -1,14 +1,15 @@
 #pragma once
 
+#include <climits>
+#include <magic_enum/magic_enum.hpp>
 #include <ostream>
 #include <string>
 #include <variant>
-#include <climits>
 
 constexpr unsigned int MAX_IDENTIFIER_LENGTH = 128u;
 constexpr unsigned int MAX_STRING_LITERAL_LENGTH = 128u;
 
-enum class TokenType {
+enum class TokenType : int {
   COMMENT,
   INT_LITERAL,
   FLOAT_LITERAL,
@@ -81,6 +82,11 @@ enum class TokenType {
   WS,
   END_OF_FILE
 };
+
+inline std::ostream& operator<<( std::ostream& stream, const TokenType& tt ) {
+  stream << magic_enum::enum_name( tt );
+  return stream;
+}
 
 struct Position {
   unsigned int line_;

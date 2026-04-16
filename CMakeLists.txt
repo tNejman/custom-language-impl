@@ -10,6 +10,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 find_package(TBB REQUIRED)
 find_package(Threads REQUIRED)
 
+set(PROJ_HEADER_FILTER "^${CMAKE_SOURCE_DIR}/(include|src)/")
+find_program(CLANG_TIDY_EXE NAMES clang-tidy-19 clang-tidy-18 clang-tidy)
+if(NOT CLANG_TIDY_EXE)
+    message(WARNING "clang-tidy not found. Linting disabled.")
+endif()
+
+set(BACKUP_C_FLAGS "${CMAKE_C_FLAGS}")
+set(BACKUP_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -D_CRT_SECURE_NO_WARNINGS")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -D_CRT_SECURE_NO_WARNINGS")
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -18,6 +32,30 @@ FetchContent_Declare(
     GIT_TAG v1.17.0
 )
 FetchContent_MakeAvailable(googletest)
+
+FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
+    GIT_TAG v0.9.7
+)
+FetchContent_MakeAvailable(magic_enum)
+
+set(EXTERNAL_TARGETS gtest gtest_main gmock gmock_main)
+
+foreach(target_name ${EXTERNAL_TARGETS})
+    if(TARGET ${t})
+        set_target_properties(${t} PROPERTIES CXX_CLANG_TIDY "")
+        get_target_property(inc_dirs ${t} INTERFACE_INCLUDE_DIRECTORIES)
+        
+        if(inc_dirs)
+            set_target_properties(${t} PROPERTIES
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${inc_dirs}")
+        endif()
+    endif()
+endforeach()
+
+set(CMAKE_C_FLAGS "${BACKUP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${BACKUP_CXX_FLAGS}")
 
 set(MODULES
     Lexer

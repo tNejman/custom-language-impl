@@ -14,6 +14,11 @@
 #include "Exceptions/LexerExceptions/UnterminatedStringLiteralException.hpp"
 #include "Lexer/Lexer.h"
 
+int main( int argc, char** argv ) {
+  ::testing::InitGoogleTest( &argc, argv );
+  return RUN_ALL_TESTS();
+}
+
 class LexerTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -44,43 +49,42 @@ TEST_F( LexerTest, check_init ) {
 }
 
 TEST_F( LexerTest, check_1 ) {
-  assertTokensTypeAndPos( "int x = 5", { { { 1, 0 }, TokenType::T_INT },
+  assertTokensTypeAndPos( "int x = 5", { { { 1, 1 }, TokenType::T_INT },
                                          { { 1, 5 }, TokenType::IDENTIFIER },
                                          { { 1, 7 }, TokenType::OP_ASSIGN },
                                          { { 1, 9 }, TokenType::INT_LITERAL } } );
 }
 
 TEST_F( LexerTest, VariableDeclarations ) {
-  assertTokensTypeAndPos( "var counter = 0", { { { 1, 0 }, TokenType::KW_VAR },
-                                               { { 1, 4 }, TokenType::IDENTIFIER },
-                                               { { 1, 12 }, TokenType::OP_ASSIGN },
-                                               { { 1, 14 }, TokenType::INT_LITERAL } } );
+  assertTokensTypeAndPos( "var counter = 0", { { { 1, 1 }, TokenType::KW_VAR },
+                                               { { 1, 5 }, TokenType::IDENTIFIER },
+                                               { { 1, 13 }, TokenType::OP_ASSIGN },
+                                               { { 1, 15 }, TokenType::INT_LITERAL } } );
 
-  assertTokensTypeAndPos( "float pi = 3.14_15_926", { { { 1, 0 }, TokenType::T_FLOAT },
-                                                      { { 1, 6 }, TokenType::IDENTIFIER },
-                                                      { { 1, 9 }, TokenType::OP_ASSIGN },
-                                                      { { 1, 11 }, TokenType::FLOAT_LITERAL } } );
+  assertTokensTypeAndPos( "float pi = 3.14_15_926", { { { 1, 1 }, TokenType::T_FLOAT },
+                                                      { { 1, 7 }, TokenType::IDENTIFIER },
+                                                      { { 1, 10 }, TokenType::OP_ASSIGN },
+                                                      { { 1, 12 }, TokenType::FLOAT_LITERAL } } );
 }
 
 TEST_F( LexerTest, Literals ) {
-  assertTokensTypeAndPos( "char newline = '\\n'", { { { 1, 0 }, TokenType::T_CHAR },
-                                                    { { 1, 5 }, TokenType::IDENTIFIER },
-                                                    { { 1, 13 }, TokenType::OP_ASSIGN },
-                                                    { { 1, 15 }, TokenType::CHAR_LITERAL },
-                                                    { { 1, 21 }, TokenType::END_OF_FILE } } );
-
-  assertTokensTypeAndPos( "bool is_ready = true", { { { 1, 0 }, TokenType::T_BOOL },
-                                                    { { 1, 5 }, TokenType::IDENTIFIER },
+  assertTokensTypeAndPos( "char newline = '\\n'", { { { 1, 1 }, TokenType::T_CHAR },
+                                                    { { 1, 6 }, TokenType::IDENTIFIER },
                                                     { { 1, 14 }, TokenType::OP_ASSIGN },
-                                                    { { 1, 16 }, TokenType::BOOL_LITERAL },
-                                                    { { 1, 20 }, TokenType::END_OF_FILE } } );
+                                                    { { 1, 16 }, TokenType::CHAR_LITERAL } } );
+
+  assertTokensTypeAndPos( "bool is_ready = true", { { { 1, 1 }, TokenType::T_BOOL },
+                                                    { { 1, 6 }, TokenType::IDENTIFIER },
+                                                    { { 1, 15 }, TokenType::OP_ASSIGN },
+                                                    { { 1, 17 }, TokenType::BOOL_LITERAL },
+                                                    { { 1, 21 }, TokenType::END_OF_FILE } } );
 }
 
 TEST_F( LexerTest, FunctionDefinition ) {
   assertTokensType(
-      "def int calculate(int x, int y) do \
-          ret x + y \
-       done",
+      R"(def int calculate(int x, int y) do
+    ret x + y
+done)",
       { TokenType::KW_DEF, TokenType::T_INT, TokenType::IDENTIFIER, TokenType::LPAREN, TokenType::T_INT,
         TokenType::IDENTIFIER, TokenType::COMMA, TokenType::T_INT, TokenType::IDENTIFIER, TokenType::RPAREN,
         TokenType::KW_DO, TokenType::NEWLINE,
@@ -92,15 +96,14 @@ TEST_F( LexerTest, FunctionDefinition ) {
 
 TEST_F( LexerTest, ControlFlow ) {
   assertTokensType(
-      " \
-      if (a >= 10 and b <= 20) do \
-          a += 1 \
-      done elseif (a != b or not c) do \
-          b -= 1 \
-      done else do \
-          a = 2 \
-          b /= 2 \
-      done",
+      R"end(if (a >= 10 and b <= 20) do
+    a += 1
+done elseif (a != b or not c) do
+    b -= 1
+done else do
+    a = 2
+    b /= 2
+done)end",
       { TokenType::KW_IF,       TokenType::LPAREN,        TokenType::IDENTIFIER,  TokenType::OP_GEQ,
         TokenType::INT_LITERAL, TokenType::OP_AND,        TokenType::IDENTIFIER,  TokenType::OP_LEQ,
         TokenType::INT_LITERAL, TokenType::RPAREN,        TokenType::KW_DO,       TokenType::NEWLINE,
@@ -162,13 +165,13 @@ TEST_F( LexerTest, OperatorReverse ) {
 
 TEST_F( LexerTest, WhileBreakContinue ) {
   assertTokensType(
-      "while (i > 0) do \
-         if (i == 10) do \
-           break \
-         done elseif (i == 17) do \
-           continue \
-         done \
-       done",
+      R"(while (i > 0) do
+  if (i == 10) do
+    break
+  done elseif (i == 17) do
+    continue
+  done
+done)",
       { TokenType::KW_WHILE,    TokenType::LPAREN,     TokenType::IDENTIFIER, TokenType::OP_GT,
         TokenType::INT_LITERAL, TokenType::RPAREN,     TokenType::KW_DO,      TokenType::NEWLINE,
 
@@ -189,9 +192,9 @@ TEST_F( LexerTest, WhileBreakContinue ) {
 
 TEST_F( LexerTest, FullLineComment ) {
   assertTokensType(
-      " #this is a full line comment \
-#int x = 5 \
-#previous line was also a comment ",
+      R"(#this is a full line comment
+#int x = 5
+#previous line was also a comment)",
       { TokenType::COMMENT, TokenType::NEWLINE, TokenType::COMMENT, TokenType::NEWLINE, TokenType::COMMENT,
         TokenType::END_OF_FILE } );
 }
@@ -307,22 +310,20 @@ TEST_F( LexerTest, MajorCodeChunk ) {
   // cout << r;
 
   assertTokensType(
-      " \
-    [int] v = [1, 2, 5] \
-    int x = 5 \
-    var int l = 0 \
-    var int r = $v - 1 \
-    while (l < r) do \
-      int mid = (l + r) / 2 \
-      if (v[mid] <= x) do \
-        l = mid \
-      done else do \
-        r = mid - 1 \
-      done \
-    done \
-    write(r) \
-    write('\n') \
-    ",
+      R"end([int] v = [1, 2, 5]
+int x = 5
+var int l = 0
+var int r = $v - 1
+while (l < r) do
+  int mid = (l + r) / 2
+  if (v[mid] <= x) do
+    l = mid
+  done else do
+    r = mid - 1
+  done
+done
+write(r)
+write('\n'))end",
       { TokenType::LBRACKET,    TokenType::T_INT,      TokenType::RBRACKET,     TokenType::IDENTIFIER,
         TokenType::OP_ASSIGN,   TokenType::LBRACKET,   TokenType::INT_LITERAL,  TokenType::COMMA,
         TokenType::INT_LITERAL, TokenType::COMMA,      TokenType::INT_LITERAL,  TokenType::RBRACKET,
@@ -401,8 +402,8 @@ TEST_F( LexerTest, MalformedStringsAndChars ) {
   }
   {
     std::stringstream ss(
-        "var [char] v = \" my name is... \
-         v = v ++ \"Tomek\"" );
+        R"(var [char] v = \" my name is... \
+v = v ++ \"Tomek\")" );
     Lexer lexer{ ss };
     ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnterminatedStringLiteralException );
   }
