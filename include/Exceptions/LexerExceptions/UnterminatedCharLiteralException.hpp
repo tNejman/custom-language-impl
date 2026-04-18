@@ -1,17 +1,22 @@
 #pragma once
 
-#include <exception>
-#include <string>
+#include "Exceptions/LexerExceptions/_LexerException.hpp"
 
-class UnterminatedCharLiteralException : public std::exception {
+class UnterminatedCharLiteralException : public LexerException {
  private:
-  std::string message_;
+  const char c_found_;
 
  public:
-  UnterminatedCharLiteralException( const std::string& msg ) : message_( msg ) {
+  UnterminatedCharLiteralException( const Position pos, const char c_found )
+      : LexerException( pos ), c_found_( c_found ) {
   }
 
-  const char* what() const noexcept override {
-    return message_.c_str();
+  virtual std::string_view getExceptionName() const override {
+    return "Unterminated char literal.";
+  }
+  virtual std::string_view getMessageAddon() const override {
+    static const std::string msg_addon{
+        std::format( "Expected a closing single quote but found '{}' instead.", c_found_ ) };
+    return msg_addon;
   }
 };

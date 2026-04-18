@@ -1,6 +1,6 @@
 #pragma once
 
-#include <climits>
+#include <format>
 #include <magic_enum/magic_enum.hpp>
 #include <ostream>
 #include <string>
@@ -83,7 +83,7 @@ enum class TokenType : int {
   END_OF_FILE
 };
 
-inline std::ostream& operator<<( std::ostream& stream, const TokenType& tt ) {
+inline std::ostream &operator<<( std::ostream &stream, const TokenType &tt ) {
   stream << magic_enum::enum_name( tt );
   return stream;
 }
@@ -92,16 +92,18 @@ struct Position {
   unsigned int line_;
   unsigned int column_;
 
-  auto operator==( const Position& other ) const {
+  auto operator==( const Position &other ) const {
     return this->line_ == other.line_ && this->column_ == other.column_;
   }
-  bool operator==( const std::initializer_list<unsigned int>& other ) const {
+  bool operator==( const std::initializer_list<unsigned int> &other ) const {
     return other.size() == 2 && this->line_ == *( other.begin() ) && this->column_ == *( other.begin() + 1 );
   }
 
-  friend std::ostream& operator<<( std::ostream& stream, const Position& position ) {
-    stream << "Line: " << position.line_ << " Column: " << position.column_;
-    return stream;
+  std::string toString() const {
+    return std::format( "Line: {}, Column: {}.", this->line_, this->column_ );
+  }
+  friend std::ostream &operator<<( std::ostream &stream, const Position &position ) {
+    return stream << position.toString();
   }
 };
 
@@ -112,15 +114,10 @@ struct Token {
   TokenType type_;
   TokenVal value_;
 
-  Token( Position p, TokenType t ) : position_( p ), type_( t ), value_() {
-  }
-  Token( Position p, TokenType t, TokenVal v ) : position_( p ), type_( t ), value_( v ) {
-  }
-
-  bool operator==( const Token& other ) const {
+  bool operator==( const Token &other ) const {
     return this->position_ == other.position_ && this->type_ == other.type_;
   }
-  friend std::ostream& operator<<( std::ostream& stream, const Token& token ) {
+  friend std::ostream &operator<<( std::ostream &stream, const Token &token ) {
     // @TODO maybe replace with std::visit
     stream << "Token repr. Type: " << int( token.type_ ) << ", Position: " << token.position_;
     if ( token.type_ == TokenType::STRING_LITERAL || token.type_ == TokenType::IDENTIFIER

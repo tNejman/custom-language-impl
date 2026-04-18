@@ -1,17 +1,18 @@
 #pragma once
 
-#include <exception>
-#include <string>
+#include "Exceptions/LexerExceptions/_LexerException.hpp"
 
-class InvalidCharLiteralException : public std::exception {
+class InvalidCharLiteralException : public LexerException {
  private:
-  std::string message_;
-
  public:
-  InvalidCharLiteralException( const std::string& msg ) : message_( msg ) {
+  InvalidCharLiteralException( const Position pos ) : LexerException( pos ) {
   }
 
-  const char* what() const noexcept override {
-    return message_.c_str();
+  virtual std::string_view getExceptionName() const override {
+    return "Invalid char literal.";
+  }
+  virtual std::string_view getMessageAddon() const override {
+    static const std::string msg_addon{ std::format( "Expected a character between single quotes." ) };
+    return msg_addon;
   }
 };

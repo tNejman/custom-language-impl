@@ -1,4 +1,4 @@
-#include <fstream>
+// #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <magic_enum/magic_enum.hpp>
@@ -6,10 +6,10 @@
 
 #include "Lexer/Lexer.h"
 
-void assertTokensType( const std::string&& code, const std::vector<TokenType>&& expected ) {
+void assertTokensType( const std::string &&code, const std::vector<TokenType> &&expected ) {
   std::stringstream ss{ code };
   Lexer lexer{ ss };
-  for ( const auto& exp : expected ) {
+  for ( const auto &exp : expected ) {
     std::cout << "Excpected: " << std::left << std::setw( 12 ) << exp << "Actual: " << lexer.getNextToken().type_
               << std::endl;
   }
@@ -33,20 +33,14 @@ int main() {
   //   Lexer lexer( std::cin );
   // }
 
-  assertTokensType(
-      R"end(if (a >= 10 and b <= 20) do
-    a += 1
-done elseif (a != b or not c) do
-    b -= 1
-done else do
-    a = 2
-    b /= 2
-done)end",
-      { TokenType::KW_DEF, TokenType::T_INT, TokenType::IDENTIFIER, TokenType::LPAREN, TokenType::T_INT,
-        TokenType::IDENTIFIER, TokenType::COMMA, TokenType::T_INT, TokenType::IDENTIFIER, TokenType::RPAREN,
-        TokenType::KW_DO, TokenType::NEWLINE,
+  // assertTokensType("12.34.56", {
+  //                                  TokenType::FLOAT_LITERAL,
+  //                                  TokenType::END_OF_FILE,
+  //                                  TokenType::END_OF_FILE,
+  //                                  TokenType::END_OF_FILE,
+  //                                  TokenType::END_OF_FILE,
+  //                              });
 
-        TokenType::KW_RET, TokenType::IDENTIFIER, TokenType::OP_PLUS, TokenType::IDENTIFIER, TokenType::NEWLINE,
-
-        TokenType::KW_DONE, TokenType::END_OF_FILE } );
+  assertTokensType( "var counter = 0",
+                    { TokenType::KW_VAR, TokenType::IDENTIFIER, TokenType::OP_ASSIGN, TokenType::INT_LITERAL } );
 }

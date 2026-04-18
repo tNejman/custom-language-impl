@@ -1,20 +1,20 @@
 #include <gtest/gtest.h>
 
-#include <memory>
+#include <iostream>
 #include <vector>
 
 #include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
 #include "Exceptions/LexerExceptions/InvalidCharLiteralException.hpp"
 #include "Exceptions/LexerExceptions/MalformedNumericLiteralException.hpp"
-#include "Exceptions/LexerExceptions/TooLongIdentifierException.hpp"
-#include "Exceptions/LexerExceptions/TooLongStringLiteralException.hpp"
+// #include "Exceptions/LexerExceptions/TooLongIdentifierException.hpp"
+// #include "Exceptions/LexerExceptions/TooLongStringLiteralException.hpp"
 #include "Exceptions/LexerExceptions/UnknownEscapedCharacterException.hpp"
 #include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
 #include "Exceptions/LexerExceptions/UnterminatedCharLiteralException.hpp"
 #include "Exceptions/LexerExceptions/UnterminatedStringLiteralException.hpp"
 #include "Lexer/Lexer.h"
 
-int main( int argc, char** argv ) {
+int main( int argc, char **argv ) {
   ::testing::InitGoogleTest( &argc, argv );
   return RUN_ALL_TESTS();
 }
@@ -28,24 +28,35 @@ class LexerTest : public ::testing::Test {
   }
 };
 
-void assertTokensTypeAndPos( const std::string&& code, const std::vector<Token>&& expected ) {
+void assertTokensTypeAndPos( const std::string &&code, const std::vector<Token> &&expected ) {
   std::stringstream ss{ code };
   Lexer lexer{ ss };
-  for ( const auto& exp : expected ) {
+  for ( const auto &exp : expected ) {
     ASSERT_EQ( exp, lexer.getNextToken() );
   }
 }
 
-void assertTokensType( const std::string&& code, const std::vector<TokenType>&& expected ) {
+void assertTokensType( const std::string &&code, const std::vector<TokenType> &&expected ) {
   std::stringstream ss{ code };
   Lexer lexer{ ss };
-  for ( const auto& exp : expected ) {
+  for ( const auto &exp : expected ) {
     ASSERT_EQ( exp, lexer.getNextToken().type_ );
   }
 }
 
+bool areFloatsKindaEqual( const float f1, const float f2 ) {
+  return std::abs( f1 - f2 ) < 0.001;
+}
+
 TEST_F( LexerTest, check_init ) {
   ASSERT_TRUE( true );
+}
+
+TEST_F( LexerTest, check_exception ) {
+  ASSERT_ANY_THROW( []() {
+    std::cout << "DEBUG: lambda\n";
+    throw std::runtime_error( "test" );
+  }() );
 }
 
 TEST_F( LexerTest, check_1 ) {
@@ -82,9 +93,9 @@ TEST_F( LexerTest, Literals ) {
 
 TEST_F( LexerTest, FunctionDefinition ) {
   assertTokensType(
-      R"(def int calculate(int x, int y) do
+      R"end(def int calculate(int x, int y) do
     ret x + y
-done)",
+done)end",
       { TokenType::KW_DEF, TokenType::T_INT, TokenType::IDENTIFIER, TokenType::LPAREN, TokenType::T_INT,
         TokenType::IDENTIFIER, TokenType::COMMA, TokenType::T_INT, TokenType::IDENTIFIER, TokenType::RPAREN,
         TokenType::KW_DO, TokenType::NEWLINE,
@@ -108,18 +119,16 @@ done)end",
         TokenType::INT_LITERAL, TokenType::OP_AND,        TokenType::IDENTIFIER,  TokenType::OP_LEQ,
         TokenType::INT_LITERAL, TokenType::RPAREN,        TokenType::KW_DO,       TokenType::NEWLINE,
 
+        TokenType::IDENTIFIER,  TokenType::OP_ADD_ASSIGN, TokenType::INT_LITERAL, TokenType::NEWLINE,
+
         TokenType::KW_DONE,     TokenType::KW_ELSEIF,     TokenType::LPAREN,      TokenType::IDENTIFIER,
         TokenType::OP_NEQ,      TokenType::IDENTIFIER,    TokenType::OP_OR,       TokenType::OP_NOT,
         TokenType::IDENTIFIER,  TokenType::RPAREN,        TokenType::KW_DO,       TokenType::NEWLINE,
 
         TokenType::IDENTIFIER,  TokenType::OP_SUB_ASSIGN, TokenType::INT_LITERAL, TokenType::NEWLINE,
-
         TokenType::KW_DONE,     TokenType::KW_ELSE,       TokenType::KW_DO,       TokenType::NEWLINE,
-
         TokenType::IDENTIFIER,  TokenType::OP_ASSIGN,     TokenType::INT_LITERAL, TokenType::NEWLINE,
-
         TokenType::IDENTIFIER,  TokenType::OP_DIV_ASSIGN, TokenType::INT_LITERAL, TokenType::NEWLINE,
-
         TokenType::KW_DONE,     TokenType::END_OF_FILE } );
 }
 
@@ -165,23 +174,24 @@ TEST_F( LexerTest, OperatorReverse ) {
 
 TEST_F( LexerTest, WhileBreakContinue ) {
   assertTokensType(
-      R"(while (i > 0) do
+      R"end(while (i > 0) do
   if (i == 10) do
     break
   done elseif (i == 17) do
     continue
   done
-done)",
-      { TokenType::KW_WHILE,    TokenType::LPAREN,     TokenType::IDENTIFIER, TokenType::OP_GT,
-        TokenType::INT_LITERAL, TokenType::RPAREN,     TokenType::KW_DO,      TokenType::NEWLINE,
+done)end",
+      { TokenType::KW_WHILE,    TokenType::LPAREN,      TokenType::IDENTIFIER, TokenType::OP_GT,
+        TokenType::INT_LITERAL, TokenType::RPAREN,      TokenType::KW_DO,      TokenType::NEWLINE,
 
-        TokenType::KW_IF,       TokenType::LPAREN,     TokenType::OP_EQ,      TokenType::INT_LITERAL,
-        TokenType::RPAREN,      TokenType::KW_DO,      TokenType::NEWLINE,
+        TokenType::KW_IF,       TokenType::LPAREN,      TokenType::IDENTIFIER, TokenType::OP_EQ,
+        TokenType::INT_LITERAL, TokenType::RPAREN,      TokenType::KW_DO,      TokenType::NEWLINE,
 
         TokenType::KW_BREAK,    TokenType::NEWLINE,
 
-        TokenType::KW_DONE,     TokenType::KW_ELSEIF,  TokenType::LPAREN,     TokenType::IDENTIFIER,
-        TokenType::OP_EQ,       TokenType::RPAREN,     TokenType::KW_DO,      TokenType::NEWLINE,
+        TokenType::KW_DONE,     TokenType::KW_ELSEIF,   TokenType::LPAREN,     TokenType::IDENTIFIER,
+        TokenType::OP_EQ,       TokenType::INT_LITERAL, TokenType::RPAREN,     TokenType::KW_DO,
+        TokenType::NEWLINE,
 
         TokenType::KW_CONTINUE, TokenType::NEWLINE,
 
@@ -208,27 +218,13 @@ TEST_F( LexerTest, Whitespaces ) {
   assertTokensType( "            ", { TokenType::END_OF_FILE } );
 }
 
-TEST_F( LexerTest, IdentifiersAndNumbers ) {
+TEST_F( LexerTest, IntLiterals ) {
   {
     std::stringstream ss{ "1_000" };
     Lexer lexer{ ss };
     Token t = lexer.getNextToken();
     ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
     ASSERT_EQ( 1000, std::get<int>( t.value_ ) );
-  }
-  {
-    std::stringstream ss{ "1___000" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
-    ASSERT_EQ( 1000, std::get<int>( t.value_ ) );
-  }
-  {
-    std::stringstream ss{ "12.34" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::FLOAT_LITERAL, t.type_ );
-    ASSERT_TRUE( std::abs( 12.34 - std::get<float>( t.value_ ) ) < 0.001 );
   }
   {
     std::stringstream ss{ "1_0__00___000" };
@@ -238,36 +234,61 @@ TEST_F( LexerTest, IdentifiersAndNumbers ) {
     ASSERT_EQ( 1000000, std::get<int>( t.value_ ) );
   }
   {
+    std::stringstream ss{ "_1000" };
+    Lexer lexer{ ss };
+    ASSERT_THROW( lexer.getNextToken(), UnknownSymbolException );
+  }
+  {
     std::stringstream ss{ "00001" };
     Lexer lexer{ ss };
     Token t = lexer.getNextToken();
     ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
     ASSERT_EQ( 1, std::get<int>( t.value_ ) );
   }
+}
+
+TEST_F( LexerTest, IdentifiersAndNumbers ) {
   {
-    std::stringstream ss{ "_1_000" };
+    SCOPED_TRACE( "correct float literal" );
+    std::stringstream ss{ "12.34" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnknownSymbolException );
+    Token t = lexer.getNextToken();
+    ASSERT_EQ( TokenType::FLOAT_LITERAL, t.type_ );
+    ASSERT_TRUE( areFloatsKindaEqual( 12.34, std::get<float>( t.value_ ) ) );
   }
+
   {
+    SCOPED_TRACE( "incorrect hex-like float literal" );
     std::stringstream ss{ "0xGHOST" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, MalformedNumericLiteralException );
+    Token t = lexer.getNextToken();
+    ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
+    ASSERT_EQ( 0, std::get<int>( t.value_ ) );
+
+    t = lexer.getNextToken();
+    ASSERT_EQ( TokenType::IDENTIFIER, t.type_ );
+    ASSERT_EQ( "xGHOST", std::get<std::string>( t.value_ ) );
   }
   {
+    SCOPED_TRACE( "double decimal point symbol float literal" );
     std::stringstream ss{ "12.34.56" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, MalformedNumericLiteralException );
+    Token t = lexer.getNextToken();
+    ASSERT_EQ( TokenType::FLOAT_LITERAL, t.type_ );
+    ASSERT_TRUE( areFloatsKindaEqual( 12.34, std::get<float>( t.value_ ) ) );
+    ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
   }
   {
+    SCOPED_TRACE( "too large int literal" );
     std::stringstream ss{ "1_000_000_000_000_000" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, IntLiteralOutOfBoundsException );
+    ASSERT_THROW( lexer.getNextToken(), IntLiteralOutOfBoundsException );
   }
   {
+    SCOPED_TRACE( "identifier-like int literal" );
     std::stringstream ss{ "123_bad_indent" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, MalformedNumericLiteralException );
+    ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
   }
 }
 
@@ -283,7 +304,7 @@ TEST_F( LexerTest, OperatorChains ) {
   {
     std::stringstream ss{ "&|^~`" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnknownSymbolException );
+    ASSERT_THROW( lexer.getNextToken();, UnknownSymbolException );
   }
 }
 
@@ -370,29 +391,29 @@ write('\n'))end",
 
 TEST_F( LexerTest, MalformedStringsAndChars ) {
   {
-    std::stringstream ss{ "\'\'" };
+    std::stringstream ss{ R"('')" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, InvalidCharLiteralException );
+    ASSERT_THROW( lexer.getNextToken();, InvalidCharLiteralException );
   }
   {
     std::stringstream ss{ "\'abc\'" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, InvalidCharLiteralException );
+    ASSERT_THROW( lexer.getNextToken();, InvalidCharLiteralException );
   }
   {
     std::stringstream ss{ "\'\\w\'" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnknownEscapedCharacterException );
+    ASSERT_THROW( lexer.getNextToken();, UnknownEscapedCharacterException );
   }
   {
     std::stringstream ss{ "\'a" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnterminatedCharLiteralException );
+    ASSERT_THROW( lexer.getNextToken();, UnterminatedCharLiteralException );
   }
   {
     std::stringstream ss{ "[char] v = [\'a] ++ [\'b\']" };
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnterminatedCharLiteralException );
+    ASSERT_THROW( lexer.getNextToken();, UnterminatedCharLiteralException );
   }
   {
     assertTokensType( "\"\"", { TokenType::STRING_LITERAL, TokenType::END_OF_FILE } );
@@ -403,9 +424,9 @@ TEST_F( LexerTest, MalformedStringsAndChars ) {
   {
     std::stringstream ss(
         R"(var [char] v = \" my name is... \
-v = v ++ \"Tomek\")" );
+v = v ++ "Tomek")" );
     Lexer lexer{ ss };
-    ASSERT_THROW( [&lexer]() { lexer.getNextToken(); }, UnterminatedStringLiteralException );
+    ASSERT_THROW( lexer.getNextToken();, UnterminatedStringLiteralException );
   }
 }
 

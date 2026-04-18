@@ -1,17 +1,20 @@
 #pragma once
 
-#include <exception>
-#include <string>
+#include "Exceptions/LexerExceptions/_LexerException.hpp"
 
-class UnknownEscapedCharacterException : public std::exception {
+class UnknownEscapedCharacterException : public LexerException {
  private:
-  std::string message_;
+  const char c_;
 
  public:
-  UnknownEscapedCharacterException( const std::string& msg ) : message_( msg ) {
+  UnknownEscapedCharacterException( const Position pos, const char c ) : LexerException( pos ), c_( c ) {
   }
 
-  const char* what() const noexcept override {
-    return message_.c_str();
+  virtual std::string_view getExceptionName() const override {
+    return "Unknown escaped char.";
+  }
+  virtual std::string_view getMessageAddon() const override {
+    static const std::string msg_addon{ std::format( "'{}' Supported escapes are \', \", \\, \n.", c_ ) };
+    return msg_addon;
   }
 };
