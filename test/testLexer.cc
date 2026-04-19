@@ -12,7 +12,10 @@
 #include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
 #include "Exceptions/LexerExceptions/UnterminatedCharLiteralException.hpp"
 #include "Exceptions/LexerExceptions/UnterminatedStringLiteralException.hpp"
+#include "FloatLiteralOutOfBoundsException.hpp"
+#include "InvalidCommentStyleException.hpp"
 #include "Lexer/Lexer.h"
+#include "Token.hpp"
 
 int main( int argc, char **argv ) {
   ::testing::InitGoogleTest( &argc, argv );
@@ -27,6 +30,9 @@ class LexerTest : public ::testing::Test {
   void TearDown() override {
   }
 };
+
+class LexerLiteralTest : public LexerTest {};
+class LexerPositionTest : public LexerTest {};
 
 void assertTokensTypeAndPos( const std::string &&code, const std::vector<Token> &&expected ) {
   std::stringstream ss{ code };
@@ -59,36 +65,209 @@ TEST_F( LexerTest, check_exception ) {
   }() );
 }
 
-TEST_F( LexerTest, check_1 ) {
+TEST_F( LexerTest, OperatorsAndSymbols ) {
+  assertTokensType( "+", { TokenType::OP_PLUS } );
+  assertTokensType( "++", { TokenType::OP_CONCAT } );
+  assertTokensType( "+=", { TokenType::OP_ADD_ASSIGN } );
+
+  assertTokensType( "-", { TokenType::OP_MINUS } );
+  assertTokensType( "--", { TokenType::OP_DIFF } );
+  assertTokensType( "-=", { TokenType::OP_SUB_ASSIGN } );
+
+  assertTokensType( "*", { TokenType::OP_MUL } );
+  assertTokensType( "*=", { TokenType::OP_MUL_ASSIGN } );
+
+  assertTokensType( "/", { TokenType::OP_DIV } );
+  assertTokensType( "/=", { TokenType::OP_DIV_ASSIGN } );
+
+  assertTokensType( "%", { TokenType::OP_MOD } );
+
+  assertTokensType( "=", { TokenType::OP_ASSIGN } );
+  assertTokensType( "==", { TokenType::OP_EQ } );
+  assertTokensType( "!=", { TokenType::OP_NEQ } );
+
+  assertTokensType( ">", { TokenType::OP_GT } );
+  assertTokensType( ">=", { TokenType::OP_GEQ } );
+  assertTokensType( "<", { TokenType::OP_LT } );
+  assertTokensType( "<=", { TokenType::OP_LEQ } );
+
+  assertTokensType( "(", { TokenType::LPAREN } );
+  assertTokensType( ")", { TokenType::RPAREN } );
+  assertTokensType( "[", { TokenType::LBRACKET } );
+  assertTokensType( "]", { TokenType::RBRACKET } );
+
+  assertTokensType( "?", { TokenType::OP_FILTER } );
+  assertTokensType( "->", { TokenType::OP_MAP } );
+  assertTokensType( "@", { TokenType::OP_REV } );
+  assertTokensType( "$", { TokenType::OP_LEN } );
+
+  assertTokensType( ",", { TokenType::COMMA } );
+  assertTokensType( ":", { TokenType::COLON } );
+  assertTokensType( "\n", { TokenType::NEWLINE } );
+}
+
+TEST_F( LexerTest, Types ) {
+  assertTokensType( "int", { TokenType::T_INT } );
+  assertTokensType( "float", { TokenType::T_FLOAT } );
+  assertTokensType( "char", { TokenType::T_CHAR } );
+  assertTokensType( "bool", { TokenType::T_BOOL } );
+  assertTokensType( "string", { TokenType::T_STR } );
+  assertTokensType( "void", { TokenType::T_VOID } );
+}
+
+TEST_F( LexerTest, Keywords ) {
+  assertTokensType( "if", { TokenType::KW_IF } );
+  assertTokensType( "elseif", { TokenType::KW_ELSEIF } );
+  assertTokensType( "else", { TokenType::KW_ELSE } );
+  assertTokensType( "while", { TokenType::KW_WHILE } );
+  assertTokensType( "do", { TokenType::KW_DO } );
+  assertTokensType( "done", { TokenType::KW_DONE } );
+  assertTokensType( "break", { TokenType::KW_BREAK } );
+  assertTokensType( "continue", { TokenType::KW_CONTINUE } );
+  assertTokensType( "ret", { TokenType::KW_RET } );
+
+  assertTokensType( "and", { TokenType::OP_AND } );
+  assertTokensType( "or", { TokenType::OP_OR } );
+  assertTokensType( "not", { TokenType::OP_NOT } );
+
+  assertTokensType( "def", { TokenType::KW_DEF } );
+  assertTokensType( "var", { TokenType::KW_VAR } );
+  assertTokensType( "copy", { TokenType::KW_COPY } );
+  assertTokensType( "cast_to", { TokenType::KW_CAST_TO } );
+  assertTokensType( "mut", { TokenType::KW_MUT } );
+
+  assertTokensType( "true", { TokenType::BOOL_LITERAL } );
+  assertTokensType( "false", { TokenType::BOOL_LITERAL } );
+}
+
+TEST_F( LexerLiteralTest, IntLiteralWithUnderscore ) {
+  std::stringstream ss{ "1_000" };
+  Lexer lexer{ ss };
+  Token t = lexer.getNextToken();
+  ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
+  ASSERT_EQ( 1000, std::get<int>( t.value_ ) );
+}
+
+TEST_F( LexerLiteralTest, IntLiteralWithManyUnderscores ) {
+  std::stringstream ss{ "1_0__00___000" };
+  Lexer lexer{ ss };
+  Token t = lexer.getNextToken();
+  ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
+  ASSERT_EQ( 1000000, std::get<int>( t.value_ ) );
+}
+
+TEST_F( LexerLiteralTest, IntLiteralBeginingWithUnderscore ) {
+  std::stringstream ss{ "_1000" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), UnknownSymbolException );
+}
+
+TEST_F( LexerLiteralTest, IntLiteralEndingWithUnderscore ) {
+  std::stringstream ss{ "1000_" };
+  Lexer lexer{ ss };
+  Token t = lexer.getNextToken();
+  ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
+  ASSERT_EQ( 1000, std::get<int>( t.value_ ) );
+}
+
+TEST_F( LexerLiteralTest, IntLiteralBeginingWithZeros ) {
+  std::stringstream ss{ "00001" };
+  Lexer lexer{ ss };
+  Token t = lexer.getNextToken();
+  ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
+  ASSERT_EQ( 1, std::get<int>( t.value_ ) );
+}
+TEST_F( LexerLiteralTest, IntLiteralOutOfBounds ) {
+  std::stringstream ss{ "1_000_000_000_000_000" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), IntLiteralOutOfBoundsException );
+}
+
+TEST_F( LexerLiteralTest, FloatLiteral ) {
+  std::stringstream ss{ "12.34" };
+  Lexer lexer{ ss };
+  Token t = lexer.getNextToken();
+  ASSERT_EQ( TokenType::FLOAT_LITERAL, t.type_ );
+  ASSERT_TRUE( areFloatsKindaEqual( 12.34, std::get<float>( t.value_ ) ) );
+}
+
+TEST_F( LexerLiteralTest, FloatLiteralHexLikeIncorrect ) {
+  std::stringstream ss{ "0xGHOST" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
+}
+
+TEST_F( LexerLiteralTest, FloatLiteralDoubleDecimalPoint ) {
+  std::stringstream ss{ "12.34.56" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
+}
+
+TEST_F( LexerLiteralTest, FloatLiteralOutOfBounds ) {
+  std::stringstream ss{
+      "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), FloatLiteralOutOfBoundsException );
+}
+
+TEST_F( LexerLiteralTest, NumericLiteralLikeIdentifier ) {
+  std::stringstream ss{ "123_bad_indent" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
+}
+
+TEST_F( LexerPositionTest, CheckCorrectTokenPositions ) {
   assertTokensTypeAndPos( "int x = 5", { { { 1, 1 }, TokenType::T_INT },
                                          { { 1, 5 }, TokenType::IDENTIFIER },
                                          { { 1, 7 }, TokenType::OP_ASSIGN },
-                                         { { 1, 9 }, TokenType::INT_LITERAL } } );
+                                         { { 1, 9 }, TokenType::INT_LITERAL },
+                                         { { 1, 10 }, TokenType::END_OF_FILE } } );
 }
 
-TEST_F( LexerTest, VariableDeclarations ) {
+TEST_F( LexerPositionTest, CheckCorrectTokenPositions2 ) {
   assertTokensTypeAndPos( "var counter = 0", { { { 1, 1 }, TokenType::KW_VAR },
                                                { { 1, 5 }, TokenType::IDENTIFIER },
                                                { { 1, 13 }, TokenType::OP_ASSIGN },
                                                { { 1, 15 }, TokenType::INT_LITERAL } } );
-
+}
+TEST_F( LexerPositionTest, CheckCorrectTokenPositions3 ) {
   assertTokensTypeAndPos( "float pi = 3.14_15_926", { { { 1, 1 }, TokenType::T_FLOAT },
                                                       { { 1, 7 }, TokenType::IDENTIFIER },
                                                       { { 1, 10 }, TokenType::OP_ASSIGN },
                                                       { { 1, 12 }, TokenType::FLOAT_LITERAL } } );
 }
 
-TEST_F( LexerTest, Literals ) {
+TEST_F( LexerPositionTest, CheckCorrectTokenPositions4 ) {
   assertTokensTypeAndPos( "char newline = '\\n'", { { { 1, 1 }, TokenType::T_CHAR },
                                                     { { 1, 6 }, TokenType::IDENTIFIER },
                                                     { { 1, 14 }, TokenType::OP_ASSIGN },
                                                     { { 1, 16 }, TokenType::CHAR_LITERAL } } );
-
+}
+TEST_F( LexerPositionTest, CheckCorrectTokenPositions5 ) {
   assertTokensTypeAndPos( "bool is_ready = true", { { { 1, 1 }, TokenType::T_BOOL },
                                                     { { 1, 6 }, TokenType::IDENTIFIER },
                                                     { { 1, 15 }, TokenType::OP_ASSIGN },
                                                     { { 1, 17 }, TokenType::BOOL_LITERAL },
                                                     { { 1, 21 }, TokenType::END_OF_FILE } } );
+}
+TEST_F( LexerPositionTest, CheckCorrectTokenPositionsMultiLine ) {
+  assertTokensTypeAndPos(
+      R"end(int x = 5
+int y = 3)end",
+      {
+          { { 1, 1 }, TokenType::T_INT },
+          { { 1, 5 }, TokenType::IDENTIFIER },
+          { { 1, 7 }, TokenType::OP_ASSIGN },
+          { { 1, 9 }, TokenType::INT_LITERAL },
+          { { 1, 10 }, TokenType::NEWLINE },
+
+          { { 2, 1 }, TokenType::T_INT },
+          { { 2, 5 }, TokenType::IDENTIFIER },
+          { { 2, 7 }, TokenType::OP_ASSIGN },
+          { { 2, 9 }, TokenType::INT_LITERAL },
+          { { 2, 10 }, TokenType::END_OF_FILE },
+      } );
 }
 
 TEST_F( LexerTest, FunctionDefinition ) {
@@ -218,85 +397,11 @@ TEST_F( LexerTest, Whitespaces ) {
   assertTokensType( "            ", { TokenType::END_OF_FILE } );
 }
 
-TEST_F( LexerTest, IntLiterals ) {
-  {
-    std::stringstream ss{ "1_000" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
-    ASSERT_EQ( 1000, std::get<int>( t.value_ ) );
-  }
-  {
-    std::stringstream ss{ "1_0__00___000" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
-    ASSERT_EQ( 1000000, std::get<int>( t.value_ ) );
-  }
-  {
-    std::stringstream ss{ "_1000" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken(), UnknownSymbolException );
-  }
-  {
-    std::stringstream ss{ "00001" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
-    ASSERT_EQ( 1, std::get<int>( t.value_ ) );
-  }
-}
-
-TEST_F( LexerTest, IdentifiersAndNumbers ) {
-  {
-    SCOPED_TRACE( "correct float literal" );
-    std::stringstream ss{ "12.34" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::FLOAT_LITERAL, t.type_ );
-    ASSERT_TRUE( areFloatsKindaEqual( 12.34, std::get<float>( t.value_ ) ) );
-  }
-
-  {
-    SCOPED_TRACE( "incorrect hex-like float literal" );
-    std::stringstream ss{ "0xGHOST" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::INT_LITERAL, t.type_ );
-    ASSERT_EQ( 0, std::get<int>( t.value_ ) );
-
-    t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::IDENTIFIER, t.type_ );
-    ASSERT_EQ( "xGHOST", std::get<std::string>( t.value_ ) );
-  }
-  {
-    SCOPED_TRACE( "double decimal point symbol float literal" );
-    std::stringstream ss{ "12.34.56" };
-    Lexer lexer{ ss };
-    Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::FLOAT_LITERAL, t.type_ );
-    ASSERT_TRUE( areFloatsKindaEqual( 12.34, std::get<float>( t.value_ ) ) );
-    ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
-  }
-  {
-    SCOPED_TRACE( "too large int literal" );
-    std::stringstream ss{ "1_000_000_000_000_000" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken(), IntLiteralOutOfBoundsException );
-  }
-  {
-    SCOPED_TRACE( "identifier-like int literal" );
-    std::stringstream ss{ "123_bad_indent" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken(), MalformedNumericLiteralException );
-  }
-}
-
 TEST_F( LexerTest, OperatorChains ) {
   assertTokensType( "+=-==/=++", { TokenType::OP_ADD_ASSIGN, TokenType::OP_SUB_ASSIGN, TokenType::OP_ASSIGN,
                                    TokenType::OP_DIV_ASSIGN, TokenType::OP_CONCAT } );
   assertTokensType( "!===", { TokenType::OP_NEQ, TokenType::OP_EQ } );
-  assertTokensType( "===>", { TokenType::OP_EQ, TokenType::OP_GEQ } );
+  assertTokensType( "===>", { TokenType::OP_EQ, TokenType::OP_ASSIGN, TokenType::OP_GT } );
   assertTokensType( "->->", { TokenType::OP_MAP, TokenType::OP_MAP } );
   assertTokensType( "$?@%+++---",
                     { TokenType::OP_LEN, TokenType::OP_FILTER, TokenType::OP_REV, TokenType::OP_MOD,
@@ -309,9 +414,9 @@ TEST_F( LexerTest, OperatorChains ) {
 }
 
 TEST_F( LexerTest, InvalidCommentStyle ) {
-  assertTokensType( "/* block comment? */",
-                    { TokenType::OP_DIV, TokenType::OP_MUL, TokenType::IDENTIFIER, TokenType::IDENTIFIER,
-                      TokenType::OP_FILTER, TokenType::OP_MUL, TokenType::OP_DIV } );
+  std::stringstream ss{ "/* block comment? */" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken();, InvalidCommentStyleException );
 }
 
 TEST_F( LexerTest, MajorCodeChunk ) {
@@ -389,45 +494,57 @@ write('\n'))end",
         TokenType::END_OF_FILE } );
 };
 
-TEST_F( LexerTest, MalformedStringsAndChars ) {
-  {
-    std::stringstream ss{ R"('')" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken();, InvalidCharLiteralException );
-  }
-  {
-    std::stringstream ss{ "\'abc\'" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken();, InvalidCharLiteralException );
-  }
-  {
-    std::stringstream ss{ "\'\\w\'" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken();, UnknownEscapedCharacterException );
-  }
-  {
-    std::stringstream ss{ "\'a" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken();, UnterminatedCharLiteralException );
-  }
-  {
-    std::stringstream ss{ "[char] v = [\'a] ++ [\'b\']" };
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken();, UnterminatedCharLiteralException );
-  }
-  {
-    assertTokensType( "\"\"", { TokenType::STRING_LITERAL, TokenType::END_OF_FILE } );
-  }
-  {
-    assertTokensType( "Espaced backslash at the end \\\\", { TokenType::STRING_LITERAL, TokenType::END_OF_FILE } );
-  }
-  {
-    std::stringstream ss(
-        R"(var [char] v = \" my name is... \
+TEST_F( LexerTest, EmptyCharLiteral ) {
+  std::stringstream ss{ "''" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), InvalidCharLiteralException );
+}
+
+TEST_F( LexerTest, UnterminatedCharLiteral ) {
+  std::stringstream ss{ "\'abc\'" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), UnterminatedCharLiteralException );
+}
+
+TEST_F( LexerTest, UnknownEscapedCharacterException ) {
+  std::stringstream ss{ "\'\\w\'" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), UnknownEscapedCharacterException );
+}
+
+TEST_F( LexerTest, UnterminatedCharLiteral2 ) {
+  std::stringstream ss{ "\'a" };
+  Lexer lexer{ ss };
+  ASSERT_THROW( lexer.getNextToken(), UnterminatedCharLiteralException );
+}
+
+TEST_F( LexerTest, UnterminatedCharLiteral3 ) {
+  std::stringstream ss{ R"([char] v = ['a] ++ ['b'])" };
+  Lexer lexer{ ss };
+  for ( int i = 0; i < 6; ++i ) lexer.getNextToken();
+  ASSERT_THROW( lexer.getNextToken(), UnterminatedCharLiteralException );
+}
+
+TEST_F( LexerTest, EmptyStringLiteral ) {
+  std::stringstream ss{ R"("")" };
+  Lexer lexer{ ss };
+  Token t = lexer.getNextToken();
+  ASSERT_EQ( TokenType::STRING_LITERAL, t.type_ );
+  ASSERT_EQ( "", std::get<std::string>( t.value_ ) );
+  ASSERT_EQ( TokenType::END_OF_FILE, lexer.getNextToken().type_ );
+}
+
+TEST_F( LexerTest, EsapcedBackslashAtTheEndOfStringLiteral ) {
+  assertTokensType( R"("Espaced backslash at the end \\")", { TokenType::STRING_LITERAL, TokenType::END_OF_FILE } );
+}
+
+TEST_F( LexerTest, UnterminatedStringLiteral ) {
+  std::stringstream ss(
+      R"(var [char] v = "my name is...
 v = v ++ "Tomek")" );
-    Lexer lexer{ ss };
-    ASSERT_THROW( lexer.getNextToken();, UnterminatedStringLiteralException );
-  }
+  Lexer lexer{ ss };
+  for ( int i = 0; i < 6; ++i ) lexer.getNextToken();
+  ASSERT_THROW( lexer.getNextToken();, UnterminatedStringLiteralException );
 }
 
 TEST_F( LexerTest, KeywordAndIdentifierCollison ) {
@@ -439,12 +556,14 @@ TEST_F( LexerTest, KeywordAndIdentifierCollison ) {
 }
 
 TEST_F( LexerTest, UnchangingEndOfFileLocation ) {
-  std::stringstream ss{ "" };
+  std::stringstream ss{ "int x = 5" };
   Lexer lexer{ ss };
-  Position pos_stable{ 1, 1 };
+  Position pos_stable{ 1, 10 };
   for ( int i = 0; i < 10; ++i ) {
     Token t = lexer.getNextToken();
-    ASSERT_EQ( TokenType::END_OF_FILE, t.type_ );
-    ASSERT_EQ( pos_stable, t.position_ );
+    if ( i > 3 ) {
+      ASSERT_EQ( TokenType::END_OF_FILE, t.type_ );
+      ASSERT_EQ( pos_stable, t.position_ );
+    }
   }
 }

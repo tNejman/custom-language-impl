@@ -5,6 +5,7 @@
 #include "Exceptions/LexerExceptions/FloatLiteralOutOfBoundsException.hpp"
 #include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
 #include "Exceptions/LexerExceptions/InvalidCharLiteralException.hpp"
+#include "Exceptions/LexerExceptions/InvalidCommentStyleException.hpp"
 #include "Exceptions/LexerExceptions/MalformedNumericLiteralException.hpp"
 #include "Exceptions/LexerExceptions/TooLongIdentifierException.hpp"
 #include "Exceptions/LexerExceptions/TooLongStringLiteralException.hpp"
@@ -22,8 +23,9 @@ Token Lexer::makeToken( TokenType type, TokenVal value ) const {
 }
 
 void Lexer::nextChar() {
+  char previous = current_char_;
   if ( input_stream_.get( current_char_ ) ) {
-    if ( current_char_ == '\n' ) {
+    if ( previous == '\n' ) {
       this->current_pos_.line_ += 1;
       this->current_pos_.column_ = 1;
     } else {
@@ -54,24 +56,28 @@ bool Lexer::isLetter( const char c ) const {
 }
 
 std::string Lexer::buildStringLiteral() {
-  std::string str;
+  std::string str{};
   str.reserve( MAX_STRING_LITERAL_LENGTH + 1 );
-  unsigned int str_literal_length = 0u;
-  while ( current_char_ != '\"' && current_char_ != '\n' ) {
-    // @TODO handle escapable characters
-    str.push_back( current_char_ );
-    ++str_literal_length;
+  while ( current_char_ != '\"' && current_char_ != '\n' && current_char_ != '\0' ) {
+    if ( current_char_ == '\\' ) {
+      nextChar();
+      if ( current_char_ == '\0' || current_char_ == '\n' ) break;
+      str.push_back( buildEscapeCharacter( current_char_ ) );
+    } else {
+      str.push_back( current_char_ );
+    }
     nextChar();
 
-    if ( str_literal_length > MAX_STRING_LITERAL_LENGTH ) {
+    if ( str.size() > MAX_STRING_LITERAL_LENGTH ) {
       throw TooLongStringLiteralException( start_pos_, str.substr( 0, 16 ) + "..." );
     }
   }
-  if ( current_char_ == '\n' ) {
+  if ( current_char_ == '\n' || current_char_ == '\0' ) {
     throw UnterminatedStringLiteralException( start_pos_,
                                               str.substr( 0, static_cast<size_t>( str.size() / 3 ) ) + "..." );
   }
-  return std::string{ str.begin(), str.end() };
+  nextChar();
+  return str;
 }
 
 char Lexer::buildCharLiteral() {
@@ -105,7 +111,8 @@ char Lexer::buildEscapeCharacter( const char c ) const {
 }
 
 std::variant<int, float> Lexer::buildNumericLiteral() {
-  std::string buf = "";
+  std::string buf{};
+  std::string buf_org{};
   bool is_float = false;
 
   auto consume_digits_and_underscores = [&]() {
@@ -113,6 +120,7 @@ std::variant<int, float> Lexer::buildNumericLiteral() {
       if ( current_char_ != '_' ) {
         buf += current_char_;
       }
+      buf_org += current_char_;
       nextChar();
     }
   };
@@ -126,21 +134,21 @@ std::variant<int, float> Lexer::buildNumericLiteral() {
 
     consume_digits_and_underscores();
   }
-  if ( isLetter( current_char_ ) ) {
-    throw MalformedNumericLiteralException( current_pos_, current_char_ );
+  if ( isLetter( current_char_ ) || current_char_ == '.' ) {
+    throw MalformedNumericLiteralException( current_pos_, current_char_, buf_org );
   }
 
   if ( is_float ) {
     try {
       return std::stof( buf );
     } catch ( const std::out_of_range & ) {
-      throw FloatLiteralOutOfBoundsException( current_pos_ );
+      throw FloatLiteralOutOfBoundsException( current_pos_, buf_org );
     }
   } else {
     try {
       return std::stoi( buf );
     } catch ( const std::out_of_range & ) {
-      throw IntLiteralOutOfBoundsException( current_pos_ );
+      throw IntLiteralOutOfBoundsException( current_pos_, buf_org );
     }
   }
 }
@@ -160,7 +168,7 @@ std::string Lexer::buildIdentifier() {
 }
 
 TokenType Lexer::getSpecialIdentifierType( const std::string &identifier ) const {
-  static std::map<std::string, TokenType> keywords = {
+  static const std::map<std::string, TokenType> keywords = {
       { { "if", TokenType::KW_IF },           { "elseif", TokenType::KW_ELSEIF },
         { "else", TokenType::KW_ELSE },       { "while", TokenType::KW_WHILE },
         { "do", TokenType::KW_DO },           { "done", TokenType::KW_DONE },
@@ -170,7 +178,7 @@ TokenType Lexer::getSpecialIdentifierType( const std::string &identifier ) const
         { "cast_to", TokenType::KW_CAST_TO }, { "mut", TokenType::KW_MUT },
         { "bool", TokenType::T_BOOL },        { "char", TokenType::T_CHAR },
         { "float", TokenType::T_FLOAT },      { "int", TokenType::T_INT },
-        { "str", TokenType::T_STR },          { "void", TokenType::T_VOID },
+        { "string", TokenType::T_STR },       { "void", TokenType::T_VOID },
         { "true", TokenType::BOOL_LITERAL },  { "false", TokenType::BOOL_LITERAL },
         { "and", TokenType::OP_AND },         { "or", TokenType::OP_OR },
         { "not", TokenType::OP_NOT } } };
@@ -254,6 +262,8 @@ Token Lexer::getNextToken() {
       if ( current_char_ == '=' ) {
         nextChar();
         return makeToken( TokenType::OP_DIV_ASSIGN );
+      } else if ( current_char_ == '*' ) {
+        throw InvalidCommentStyleException( current_pos_ );
       }
       return makeToken( TokenType::OP_DIV );
 

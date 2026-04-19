@@ -18,11 +18,12 @@ void assertTokensType( const std::string &&code, const std::vector<TokenType> &&
 int main() {
   // std::cout << "This is main.cc file" << std::endl;
 
-  // {
-  //   std::string code = "int x = 5";
-  //   std::stringstream ss( code );
-  //   Lexer lexer( ss );
-  // }
+  {
+    std::string code = R"("")";
+    std::stringstream ss( code );
+    Lexer lexer( ss );
+    lexer.getNextToken();
+  }
   // {
   //   std::ifstream file( "source.txt" );
   //   if ( file.is_open() ) {
@@ -31,6 +32,9 @@ int main() {
   // }
   // {
   //   Lexer lexer( std::cin );
+  //   while ( true ) {
+  //     std::cout << lexer.getNextToken() << std::endl;
+  //   }
   // }
 
   // assertTokensType("12.34.56", {
@@ -41,6 +45,6 @@ int main() {
   //                                  TokenType::END_OF_FILE,
   //                              });
 
-  assertTokensType( "var counter = 0",
-                    { TokenType::KW_VAR, TokenType::IDENTIFIER, TokenType::OP_ASSIGN, TokenType::INT_LITERAL } );
+  // assertTokensType( "var counter = 0",
+  //                   { TokenType::KW_VAR, TokenType::IDENTIFIER, TokenType::OP_ASSIGN, TokenType::INT_LITERAL } );
 }

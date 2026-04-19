@@ -119,7 +119,7 @@ struct Token {
   }
   friend std::ostream &operator<<( std::ostream &stream, const Token &token ) {
     // @TODO maybe replace with std::visit
-    stream << "Token repr. Type: " << int( token.type_ ) << ", Position: " << token.position_;
+    stream << "Token repr. Type: " << token.type_ << ", Position: " << token.position_;
     if ( token.type_ == TokenType::STRING_LITERAL || token.type_ == TokenType::IDENTIFIER
          || token.type_ == TokenType::COMMENT ) {
       stream << "Value: " << std::get<std::string>( token.value_ );
