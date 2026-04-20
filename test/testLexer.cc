@@ -81,6 +81,7 @@ TEST_F( LexerTest, OperatorsAndSymbols ) {
   assertTokensType( "/=", { TokenType::OP_DIV_ASSIGN } );
 
   assertTokensType( "%", { TokenType::OP_MOD } );
+  assertTokensType( "%=", { TokenType::OP_MOD_ASSIGN } );
 
   assertTokensType( "=", { TokenType::OP_ASSIGN } );
   assertTokensType( "==", { TokenType::OP_EQ } );
@@ -379,7 +380,7 @@ done)end",
         TokenType::KW_DONE,     TokenType::END_OF_FILE } );
 }
 
-TEST_F( LexerTest, FullLineComment ) {
+TEST_F( LexerTest, FullLineComments ) {
   assertTokensType(
       R"(#this is a full line comment
 #int x = 5

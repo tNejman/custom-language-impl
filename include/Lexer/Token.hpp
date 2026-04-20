@@ -4,6 +4,7 @@
 #include <magic_enum/magic_enum.hpp>
 #include <ostream>
 #include <string>
+#include <type_traits>
 #include <variant>
 
 constexpr unsigned int MAX_IDENTIFIER_LENGTH = 128u;
@@ -54,6 +55,7 @@ enum class TokenType : int {
   OP_SUB_ASSIGN,
   OP_MUL_ASSIGN,
   OP_DIV_ASSIGN,
+  OP_MOD_ASSIGN,
 
   OP_CONCAT,
   OP_DIFF,
@@ -118,21 +120,16 @@ struct Token {
     return this->position_ == other.position_ && this->type_ == other.type_;
   }
   friend std::ostream &operator<<( std::ostream &stream, const Token &token ) {
-    // @TODO maybe replace with std::visit
-    stream << "Token repr. Type: " << token.type_ << ", Position: " << token.position_;
-    if ( token.type_ == TokenType::STRING_LITERAL || token.type_ == TokenType::IDENTIFIER
-         || token.type_ == TokenType::COMMENT ) {
-      stream << "Value: " << std::get<std::string>( token.value_ );
-    } else if ( token.type_ == TokenType::CHAR_LITERAL ) {
-      stream << "Value: " << std::get<char>( token.value_ );
-    } else if ( token.type_ == TokenType::INT_LITERAL ) {
-      stream << "Value: " << std::get<int>( token.value_ );
-    } else if ( token.type_ == TokenType::FLOAT_LITERAL ) {
-      stream << "Value: " << std::get<float>( token.value_ );
-    } else if ( token.type_ == TokenType::BOOL_LITERAL ) {
-      stream << "Value: " << std::get<bool>( token.value_ );
-    }
-
+    stream << "Token repr. Type: " << token.type_ << ", Position: " << token.position_ << " Value: ";
+    std::visit(
+        [&stream]( auto &&arg ) {
+          using T = std::decay_t<decltype( arg )>;
+          if constexpr ( !std::is_same_v<T, std::monostate> ) {
+            stream << arg;
+          };
+        },
+        token.value_ );
+    stream << std::endl;
     return stream;
   }
 };

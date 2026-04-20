@@ -1,8 +1,16 @@
-add_executable(${APP_NAME} Main.cc)
+add_executable(LexerApp LexerApp.cc)
+apply_compiler_flags(LexerApp)
 
-target_include_directories(${APP_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_executable(Main Main.cc)
+apply_compiler_flags(Main)
 
-target_link_libraries(${APP_NAME} PRIVATE
+set(EXECUTABLE_TARGETS LexerApp Main)
+
+foreach(exec ${EXECUTABLE_TARGETS})
+    target_include_directories(${exec} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)    
+    target_link_libraries(${exec} PRIVATE
     ${MODULES}
     magic_enum::magic_enum
+    argparse::argparse
 )
+endforeach()

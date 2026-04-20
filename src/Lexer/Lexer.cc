@@ -1,6 +1,6 @@
 #include "Lexer/Lexer.h"
 
-#include <map>
+#include <unordered_map>
 
 #include "Exceptions/LexerExceptions/FloatLiteralOutOfBoundsException.hpp"
 #include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
@@ -19,27 +19,56 @@ Token Lexer::makeToken( TokenType type ) const {
 }
 
 Token Lexer::makeToken( TokenType type, TokenVal value ) const {
-  return Token{ start_pos_, type, value };
+  return Token{ start_pos_, type, std::move( value ) };
 }
+
+// void Lexer::nextChar() {
+//   char previous = current_char_;
+//   if ( input_stream_.get( current_char_ ) ) {
+//     if ( previous == '\n' ) {
+//       this->current_pos_.line_ += 1;
+//       this->current_pos_.column_ = 1;
+//     } else {
+//       this->current_pos_.column_ += 1;
+//     }
+//   } else {
+//     if ( !is_eof_ ) {
+//       this->current_pos_.column_ += 1;
+//       is_eof_ = true;
+//     } else {
+//       this->start_pos_ = this->current_pos_;
+//     }
+//     current_char_ = '\0';
+//   }
+// }
 
 void Lexer::nextChar() {
   char previous = current_char_;
-  if ( input_stream_.get( current_char_ ) ) {
+  while ( input_stream_.get( current_char_ ) ) {
+    if ( current_char_ == '\0' )
+      continue;
+    else if ( current_char_ == '\r' ) {
+      if ( input_stream_.peek() == '\n' ) {
+        input_stream_.get();
+      }
+      current_char_ = '\n';
+    }
     if ( previous == '\n' ) {
       this->current_pos_.line_ += 1;
       this->current_pos_.column_ = 1;
     } else {
       this->current_pos_.column_ += 1;
     }
-  } else {
-    if ( !is_eof_ ) {
-      this->current_pos_.column_ += 1;
-      is_eof_ = true;
-    } else {
-      this->start_pos_ = this->current_pos_;
-    }
-    current_char_ = '\0';
+    return;
   }
+
+  if ( !is_eof_ ) {
+    this->current_pos_.column_ += 1;
+    this->is_eof_ = true;
+  } else {
+    this->start_pos_ = this->current_pos_;
+  }
+  current_char_ = '\0';
 }
 
 bool Lexer::isWhiteSpace( const char c ) const {
@@ -153,10 +182,20 @@ std::variant<int, float> Lexer::buildNumericLiteral() {
   }
 }
 
+std::string Lexer::buildComment() {
+  while ( current_char_ == ' ' ) nextChar();
+  std::string buf{};
+  while ( current_char_ != '\n' && current_char_ != '\0' ) {
+    buf.push_back( current_char_ );
+    nextChar();
+  }
+  return buf;
+}
+
 std::string Lexer::buildIdentifier() {
   std::string buf = "";
   // buf.reserve( MAX_IDENTIFIER_LENGTH + 1 );
-  while ( isLetter( current_char_ ) || current_char_ == '_' ) {
+  while ( isLetter( current_char_ ) || isDigit( current_char_ ) || current_char_ == '_' ) {
     buf.push_back( current_char_ );
     nextChar();
 
@@ -168,7 +207,7 @@ std::string Lexer::buildIdentifier() {
 }
 
 TokenType Lexer::getSpecialIdentifierType( const std::string &identifier ) const {
-  static const std::map<std::string, TokenType> keywords = {
+  static const std::unordered_map<std::string, TokenType> keywords = {
       { { "if", TokenType::KW_IF },           { "elseif", TokenType::KW_ELSEIF },
         { "else", TokenType::KW_ELSE },       { "while", TokenType::KW_WHILE },
         { "do", TokenType::KW_DO },           { "done", TokenType::KW_DONE },
@@ -193,22 +232,20 @@ TokenType Lexer::getSpecialIdentifierType( const std::string &identifier ) const
 }
 
 Lexer::Lexer( std::istream &input ) : input_stream_( input ) {
-  nextChar();
 }
 
 Token Lexer::getNextToken() {
   while ( isWhiteSpace( this->current_char_ ) ) {
     nextChar();
   }
+  this->start_pos_ = this->current_pos_;
+
   if ( this->current_char_ == '\0' ) {
-    this->start_pos_ = this->current_pos_;
     return makeToken( TokenType::END_OF_FILE );
   }
 
-  this->start_pos_ = this->current_pos_;
-
   switch ( this->current_char_ ) {
-    // * Jednoznaki: \n $ ? @ ( ) [ ] : , %
+    // * Jednoznaki: \n $ ? @ ( ) [ ] : ,
     case '\n': nextChar(); return makeToken( TokenType::NEWLINE );
     case '$': nextChar(); return makeToken( TokenType::OP_LEN );
     case '?': nextChar(); return makeToken( TokenType::OP_FILTER );
@@ -218,10 +255,9 @@ Token Lexer::getNextToken() {
     case '[': nextChar(); return makeToken( TokenType::LBRACKET );
     case ']': nextChar(); return makeToken( TokenType::RBRACKET );
     case ':': nextChar(); return makeToken( TokenType::COLON );
-    case ',': nextChar(); return makeToken( TokenType::COMMA );
-    case '%':
+    case ',':
       nextChar();
-      return makeToken( TokenType::OP_MOD );
+      return makeToken( TokenType::COMMA );
 
       // Wieloznaki i ich bazy + += ++ - -= -- -> < <= > >= = == * *= / /=
     case '+':
@@ -267,6 +303,14 @@ Token Lexer::getNextToken() {
       }
       return makeToken( TokenType::OP_DIV );
 
+    case '%':
+      nextChar();
+      if ( current_char_ == '=' ) {
+        nextChar();
+        return makeToken( TokenType::OP_MOD_ASSIGN );
+      }
+      return makeToken( TokenType::OP_MOD );
+
     case '<':
       nextChar();
       if ( current_char_ == '=' ) {
@@ -302,8 +346,10 @@ Token Lexer::getNextToken() {
     case '\"': nextChar(); return makeToken( TokenType::STRING_LITERAL, buildStringLiteral() );
     case '\'': nextChar(); return makeToken( TokenType::CHAR_LITERAL, buildCharLiteral() );
     case '#':
-      while ( current_char_ != '\n' && current_char_ != '\0' ) nextChar();
-      return makeToken( TokenType::COMMENT );
+      nextChar();
+      return makeToken( TokenType::COMMENT, buildComment() );
+      // while ( current_char_ != '\n' && current_char_ != '\0' ) nextChar();
+      // return makeToken( TokenType::COMMENT );
     default: break;
   }
 

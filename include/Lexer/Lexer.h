@@ -10,7 +10,7 @@ class Lexer : public ILexer {
   std::istream &input_stream_;
   Position current_pos_{ 1, 0 };
   Position start_pos_{ current_pos_ };
-  char current_char_{ '\0' };
+  char current_char_{ ' ' };
   bool is_eof_ = false;
 
   Token makeToken( TokenType type ) const;
@@ -25,6 +25,7 @@ class Lexer : public ILexer {
   char buildCharLiteral();
   char buildEscapeCharacter( const char c ) const;
   std::variant<int, float> buildNumericLiteral();
+  std::string buildComment();
 
   std::string buildIdentifier();
   TokenType getSpecialIdentifierType( const std::string &identifier ) const;

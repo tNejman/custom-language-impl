@@ -1,5 +1,6 @@
 add_library(Lexer
     Lexer.cc
+    LexerDriver.cc
 )
 
 target_include_directories(Lexer PUBLIC

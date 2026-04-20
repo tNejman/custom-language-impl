@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
 project(TKOM_project LANGUAGES CXX)
-set(APP_NAME TKOM_project)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) 
@@ -41,6 +40,14 @@ FetchContent_Declare(
     SYSTEM
 )
 FetchContent_MakeAvailable(magic_enum)
+
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    GIT_TAG v3.2
+    SYSTEM
+)
+FetchContent_MakeAvailable(argparse)
 
 # set(EXTERNAL_TARGETS gtest gtest_main gmock gmock_main)
 
@@ -103,7 +110,6 @@ foreach(module ${MODULES})
 endforeach()
 
 add_subdirectory(app)
-apply_compiler_flags(${APP_NAME})
 
 enable_testing()
 add_subdirectory(test)
