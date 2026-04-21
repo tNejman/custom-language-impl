@@ -63,7 +63,12 @@ void Lexer::nextChar() {
   }
 
   if ( !is_eof_ ) {
-    this->current_pos_.column_ += 1;
+    if ( current_char_ == '\n' ) {
+      this->current_pos_.line_ += 1;
+      this->current_pos_.column_ = 1;
+    } else {
+      this->current_pos_.column_ += 1;
+    }
     this->is_eof_ = true;
   } else {
     this->start_pos_ = this->current_pos_;
@@ -240,12 +245,8 @@ Token Lexer::getNextToken() {
   }
   this->start_pos_ = this->current_pos_;
 
-  if ( this->current_char_ == '\0' ) {
-    return makeToken( TokenType::END_OF_FILE );
-  }
-
   switch ( this->current_char_ ) {
-    // * Jednoznaki: \n $ ? @ ( ) [ ] : ,
+    case '\0': return makeToken( TokenType::END_OF_FILE );
     case '\n': nextChar(); return makeToken( TokenType::NEWLINE );
     case '$': nextChar(); return makeToken( TokenType::OP_LEN );
     case '?': nextChar(); return makeToken( TokenType::OP_FILTER );
@@ -255,11 +256,7 @@ Token Lexer::getNextToken() {
     case '[': nextChar(); return makeToken( TokenType::LBRACKET );
     case ']': nextChar(); return makeToken( TokenType::RBRACKET );
     case ':': nextChar(); return makeToken( TokenType::COLON );
-    case ',':
-      nextChar();
-      return makeToken( TokenType::COMMA );
-
-      // Wieloznaki i ich bazy + += ++ - -= -- -> < <= > >= = == * *= / /=
+    case ',': nextChar(); return makeToken( TokenType::COMMA );
     case '+':
       nextChar();
       if ( current_char_ == '+' ) {

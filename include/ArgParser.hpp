@@ -52,7 +52,7 @@ ArgParseLexerResult parseLexerArguments( int argc, const char** argv ) {
   std::string mode_str = program.get<std::string>( "-m" );
   std::vector<std::string> rem_args;
   try {
-    rem_args = program.get<std::vector<std::string>>( "remaining args" );
+    rem_args = program.get<std::vector<std::string>>( "remaining_args" );
   } catch ( const std::logic_error& ) {
   }
 

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <format>
+#include <iomanip>
 #include <magic_enum/magic_enum.hpp>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -120,16 +122,25 @@ struct Token {
     return this->position_ == other.position_ && this->type_ == other.type_;
   }
   friend std::ostream &operator<<( std::ostream &stream, const Token &token ) {
-    stream << "Token repr. Type: " << token.type_ << ", Position: " << token.position_ << " Value: ";
+    std::ostringstream type_ss;
+    type_ss << token.type_ << ",";
+
+    std::ostringstream pos_ss;
+    pos_ss << token.position_;
+
+    stream << std::left << "Token repr. Type: " << std::setw( 15 ) << type_ss.str() << " Position: " << std::setw( 25 )
+           << pos_ss.str();
+
     std::visit(
         [&stream]( auto &&arg ) {
           using T = std::decay_t<decltype( arg )>;
           if constexpr ( !std::is_same_v<T, std::monostate> ) {
-            stream << arg;
+            stream << " Value: " << arg;
           };
         },
         token.value_ );
-    stream << std::endl;
+
+    stream << '\n';
     return stream;
   }
 };
