@@ -15,7 +15,8 @@ LexerDriver::LexerDriver( LexerDriverMode mode, std::string source ) : mode_( mo
       if ( ( static_cast<std::ifstream &>( *source_stream_ ) ).is_open() ) {
         lexer_ = std::make_unique<Lexer>( *source_stream_ );
       } else {
-        std::cout << "Unable to open file: " << source << std::endl;
+        std::cerr << "Unable to open file: " << source << std::endl;
+        std::exit( 1 );
       }
       break;
     }
