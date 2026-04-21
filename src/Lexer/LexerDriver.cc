@@ -62,7 +62,7 @@ void LexerDriver::runOnCinInput() {
         Token t = lexer_->getNextToken();
         std::cout << t;
         if ( t.type_ == TokenType::END_OF_FILE || t.type_ == TokenType::NEWLINE ) {
-          std::cout << lexer_->getNextToken();
+          // std::cout << lexer_->getNextToken();
           break;
         }
       }

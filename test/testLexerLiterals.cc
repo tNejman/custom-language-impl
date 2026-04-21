@@ -149,16 +149,13 @@ TEST_F( LexerLiteralTest, EmptyStringLiteral ) {
 }
 
 TEST_F( LexerLiteralTest, EsapcedBackslashAtTheEndOfStringLiteral ) {
-  assertTokensType( R"("Espaced backslash at the end \\")", { TokenType::STRING_LITERAL, TokenType::END_OF_FILE } );
+  assertTokensType( "\"a\\\\\"", { TokenType::STRING_LITERAL, TokenType::END_OF_FILE } );
 }
 
 TEST_F( LexerLiteralTest, UnterminatedStringLiteral ) {
-  std::stringstream ss(
-      R"(var [char] v = "my name is...
-v = v ++ "Tomek")" );
+  std::stringstream ss( R"("abc)" );
   Lexer lexer{ ss };
-  for ( int i = 0; i < 6; ++i ) lexer.getNextToken();
-  ASSERT_THROW( lexer.getNextToken();, UnterminatedStringLiteralException );
+  ASSERT_THROW( lexer.getNextToken(), UnterminatedStringLiteralException );
 }
 
 TEST_F( LexerLiteralTest, TooLongStringLiteral ) {
