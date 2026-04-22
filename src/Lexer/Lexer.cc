@@ -91,7 +91,7 @@ std::string Lexer::buildStringLiteral() {
   }
   if ( static_cast<char>( input_stream_.peek() ) == '\n' || input_stream_.peek() == -1 ) {
     throw UnterminatedStringLiteralException( start_pos_,
-                                              str.substr( 0, static_cast<size_t>( str.size() / 3 ) ) + "..." );
+                                              str.substr( 0, std::min<size_t>(str.size() / 3, 16)  ) + "..." );
   }
   nextChar();
   return str;
@@ -151,20 +151,20 @@ std::variant<int, float> Lexer::buildNumericLiteral() {
     consume_digits_and_underscores();
   }
   if ( isLetter( static_cast<char>( input_stream_.peek() ) ) || static_cast<char>( input_stream_.peek() ) == '.' ) {
-    throw MalformedNumericLiteralException( current_pos_, current_char_, buf_org );
+    throw MalformedNumericLiteralException(start_pos_, current_pos_, current_char_, buf_org );
   }
 
   if ( is_float ) {
     try {
       return std::stof( buf );
     } catch ( const std::out_of_range & ) {
-      throw FloatLiteralOutOfBoundsException( current_pos_, buf_org );
+      throw FloatLiteralOutOfBoundsException( start_pos_, buf_org );
     }
-  } else {
+  } else { 
     try {
       return std::stoi( buf );
     } catch ( const std::out_of_range & ) {
-      throw IntLiteralOutOfBoundsException( current_pos_, buf_org );
+      throw IntLiteralOutOfBoundsException( start_pos_, buf_org );
     }
   }
 }

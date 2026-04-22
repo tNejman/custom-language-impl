@@ -62,7 +62,6 @@ void LexerDriver::runOnCinInput() {
         Token t = lexer_->getNextToken();
         std::cout << t;
         if ( t.type_ == TokenType::END_OF_FILE || t.type_ == TokenType::NEWLINE ) {
-          // std::cout << lexer_->getNextToken();
           break;
         }
       }
@@ -72,6 +71,8 @@ void LexerDriver::runOnCinInput() {
         std::cin.clear();
       }
       std::cin.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
+      std::cin.putback('\n');
+      std::cout << lexer_->getNextToken();
     } catch ( const std::exception &e ) {
       std::cout << "DEBUG: unexpected system exception: " << e.what();
       std::exit( 1 );

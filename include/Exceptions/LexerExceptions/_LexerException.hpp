@@ -7,11 +7,11 @@
 #include "Lexer/Token.hpp"
 
 class LexerException : public std::exception {
- protected:
-  std::string full_message_;
-
  private:
   const Position position_;
+
+ protected:
+  std::string full_message_;
 
  public:
   LexerException( const Position pos, std::string derived_message )
