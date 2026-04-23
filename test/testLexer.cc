@@ -3,10 +3,10 @@
 #include <iostream>
 #include <vector>
 
-
 #include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
 #include "InvalidCommentStyleException.hpp"
 #include "TestHelper.hpp"
+
 
 // int main( int argc, char **argv ) {
 //   ::testing::InitGoogleTest( &argc, argv );
@@ -62,7 +62,6 @@ TEST_F( LexerTest, OperatorsAndSymbols ) {
   assertTokensType( "$", { TokenType::OP_LEN } );
 
   assertTokensType( ",", { TokenType::COMMA } );
-  assertTokensType( ":", { TokenType::COLON } );
   assertTokensType( "\n", { TokenType::NEWLINE } );
 }
 

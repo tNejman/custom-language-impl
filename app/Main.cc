@@ -1,15 +1,17 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
-#include "LexerDriver.h"
+#include "Drivers/LexerDriver.h"
+#include "Lexer/Token.hpp"
 
-void assertTokensType( const std::string &&code, const std::vector<TokenType> &&expected ) {
+void assertTokensType( std::string &&code, std::vector<TokenType> &&expected ) {
   std::stringstream ss{ code };
   Lexer lexer{ ss };
   for ( const auto &exp : expected ) {
-    std::cout << "Excpected: " << std::left << std::setw( 12 ) << exp << "Actual: " << lexer.getNextToken().type_
-              << std::endl;
+    // std::cout << "Excpected: " << std::left << std::setw( 12 ) << exp << "Actual: " << lexer.getNextToken().type_
+    //           << std::endl;
   }
 }
 

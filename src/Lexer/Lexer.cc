@@ -1,22 +1,9 @@
 #include "Lexer/Lexer.h"
 
-#include <unordered_map>
+#include <array>
+#include <cctype>
 
-#include "Exceptions/LexerExceptions/FloatLiteralOutOfBoundsException.hpp"
-#include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
-#include "Exceptions/LexerExceptions/InvalidCharLiteralException.hpp"
-#include "Exceptions/LexerExceptions/InvalidCommentStyleException.hpp"
-#include "Exceptions/LexerExceptions/MalformedNumericLiteralException.hpp"
-#include "Exceptions/LexerExceptions/TooLongIdentifierException.hpp"
-#include "Exceptions/LexerExceptions/TooLongStringLiteralException.hpp"
-#include "Exceptions/LexerExceptions/UnknownEscapedCharacterException.hpp"
-#include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
-#include "Exceptions/LexerExceptions/UnterminatedCharLiteralException.hpp"
-#include "Exceptions/LexerExceptions/UnterminatedStringLiteralException.hpp"
-
-Token Lexer::makeToken( TokenType type ) const {
-  return Token{ start_pos_, type };
-}
+#include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
 
 Token Lexer::makeToken( TokenType type, TokenVal value ) const {
   return Token{ start_pos_, type, std::move( value ) };
@@ -56,146 +43,26 @@ void Lexer::nextChar() {
   current_char_ = '\0';
 }
 
-bool Lexer::isWhiteSpace( const char c ) const {
-  if ( c == '\n' ) return false;
-  return std::isspace( static_cast<unsigned char>( c ) );
+char Lexer::peek() const {
+  return static_cast<char>( input_stream_.peek() );
 }
 
-bool Lexer::isDigit( const char c ) const {
-  return c >= '0' && c <= '9';
+void Lexer::skipWhitespaces() {
+  while ( std::isblank( current_char_ ) ) nextChar();
 }
 
-bool Lexer::isLetter( const char c ) const {
-  return ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' );
-}
-
-std::string Lexer::buildStringLiteral() {
-  std::string str{};
-  if ( current_char_ == '\"' && static_cast<char>( input_stream_.peek() ) == '\"' ) {
-    nextChar();
-    return str;
-  }
-  while ( static_cast<char>( input_stream_.peek() ) != '\"' && static_cast<char>( input_stream_.peek() ) != '\n'
-          && input_stream_.peek() != -1 ) {
-    nextChar();
-    if ( current_char_ == '\\' ) {
-      if ( input_stream_.peek() == -1 || static_cast<char>( input_stream_.peek() ) == '\n' ) break;
-      str.push_back( buildEscapeCharacter() );
-    } else {
-      str.push_back( current_char_ );
-    }
-
-    if ( str.size() > MAX_STRING_LITERAL_LENGTH ) {
-      throw TooLongStringLiteralException( start_pos_, str.substr( 0, 16 ) + "..." );
-    }
-  }
-  if ( static_cast<char>( input_stream_.peek() ) == '\n' || input_stream_.peek() == -1 ) {
-    throw UnterminatedStringLiteralException( start_pos_,
-                                              str.substr( 0, std::min<size_t>(str.size() / 3, 16)  ) + "..." );
-  }
-  nextChar();
-  return str;
-}
-
-char Lexer::buildCharLiteral() {
-  char c;
-  nextChar();
-  if ( current_char_ == '\\' ) {
-    c = buildEscapeCharacter();
-  } else if ( current_char_ == '\'' ) {
-    throw InvalidCharLiteralException( start_pos_ );
-  } else {
-    c = current_char_;
-  }
-  nextChar();
-  if ( current_char_ != '\'' ) {
-    throw UnterminatedCharLiteralException( start_pos_, current_char_ );
-  }
-  return c;
-}
-
-char Lexer::buildEscapeCharacter() {
-  nextChar();
-  switch ( current_char_ ) {
-    case 'n': return '\n';
-    case 't': return '\t';
-    case '\\': return '\\';
-    case '\"': return '\"';
-    case '\'': return '\'';
-    default: throw UnknownEscapedCharacterException( start_pos_, current_char_ );
-  }
-}
-
-std::variant<int, float> Lexer::buildNumericLiteral() {
-  std::string buf{ current_char_ };
-  std::string buf_org{ current_char_ };
-  bool is_float = false;
-
-  auto consume_digits_and_underscores = [&]() {
-    while ( isDigit( static_cast<char>( input_stream_.peek() ) ) || static_cast<char>( input_stream_.peek() ) == '_' ) {
+std::optional<Token> Lexer::tryBuildDigraph( std::vector<std::pair<char, TokenType>> premade ) {
+  for ( const auto &pair : premade ) {
+    if ( pair.first == peek() ) {
       nextChar();
-      if ( current_char_ != '_' ) {
-        buf += current_char_;
-      }
-      buf_org += current_char_;
-    }
-  };
-
-  consume_digits_and_underscores();
-
-  if ( static_cast<char>( input_stream_.peek() ) == '.' ) {
-    nextChar();
-    is_float = true;
-    buf += current_char_;
-
-    consume_digits_and_underscores();
-  }
-  if ( isLetter( static_cast<char>( input_stream_.peek() ) ) || static_cast<char>( input_stream_.peek() ) == '.' ) {
-    throw MalformedNumericLiteralException(start_pos_, current_pos_, current_char_, buf_org );
-  }
-
-  if ( is_float ) {
-    try {
-      return std::stof( buf );
-    } catch ( const std::out_of_range & ) {
-      throw FloatLiteralOutOfBoundsException( start_pos_, buf_org );
-    }
-  } else { 
-    try {
-      return std::stoi( buf );
-    } catch ( const std::out_of_range & ) {
-      throw IntLiteralOutOfBoundsException( start_pos_, buf_org );
+      return makeToken( pair.second );
     }
   }
+  return std::nullopt;
 }
 
-std::string Lexer::buildComment() {
-  nextChar();
-  while ( current_char_ == ' ' ) nextChar();
-  std::string buf{ current_char_ };
-  while ( static_cast<char>( input_stream_.peek() ) != '\n' && input_stream_.peek() != -1 ) {
-    nextChar();
-    buf.push_back( current_char_ );
-  }
-  return buf;
-}
-
-std::string Lexer::buildIdentifier() {
-  std::string buf{ current_char_ };
-  while ( isLetter( static_cast<char>( input_stream_.peek() ) ) || isDigit( static_cast<char>( input_stream_.peek() ) )
-          || static_cast<char>( input_stream_.peek() ) == '_' ) {
-    nextChar();
-    buf.push_back( current_char_ );
-
-    if ( buf.size() > MAX_IDENTIFIER_LENGTH ) {
-      throw TooLongIdentifierException( start_pos_, buf.substr( 0, 16 ) + "..." );
-    }
-  }
-  return buf;
-}
-
-TokenType Lexer::getSpecialIdentifierType( const std::string &identifier ) const {
-  static const std::unordered_map<std::string, TokenType> keywords = {
+std::optional<Token> Lexer::tryBuildIdentifier( const std::string &identifier ) const {
+  static const std::array<std::pair<std::string, TokenType>, 25> keywords = {
       { { "if", TokenType::KW_IF },           { "elseif", TokenType::KW_ELSEIF },
         { "else", TokenType::KW_ELSE },       { "while", TokenType::KW_WHILE },
         { "do", TokenType::KW_DO },           { "done", TokenType::KW_DONE },
@@ -210,26 +77,28 @@ TokenType Lexer::getSpecialIdentifierType( const std::string &identifier ) const
         { "and", TokenType::OP_AND },         { "or", TokenType::OP_OR },
         { "not", TokenType::OP_NOT } } };
 
-  auto it = keywords.find( identifier );
+  auto it = std::find_if( keywords.begin(), keywords.end(),
+                          [&]( const std::pair<std::string, TokenType> &pair ) { return pair.first == identifier; } );
 
-  if ( it != keywords.end() ) {
-    return it->second;
+  if ( it == keywords.end() ) return std::nullopt;
+  if ( it->second == TokenType::BOOL_LITERAL ) {
+    return makeToken( it->second, identifier == "true" );
   }
-
-  return TokenType::IDENTIFIER;
+  return makeToken( it->second );
 }
 
-Lexer::Lexer( std::istream &input ) : input_stream_( input ) {
+char Lexer::buildEscapeCharacter( const char escaped_char ) const {
+  switch ( escaped_char ) {
+    case 'n': return '\n';
+    case 't': return '\t';
+    case '\\': return '\\';
+    case '\"': return '\"';
+    case '\'': return '\'';
+    default: throw UnknownEscapedCharacterException( current_pos_, current_char_ );
+  }
 }
 
-Token Lexer::getNextToken() {
-  nextChar();
-  while ( isWhiteSpace( current_char_ ) ) {
-    nextChar();
-  }
-  this->start_pos_ = this->current_pos_;
-
-  Token t;
+std::optional<Token> Lexer::tryBuildSymbol() {
   switch ( this->current_char_ ) {
     case '\0': return makeToken( TokenType::END_OF_FILE );
     case '\n': return makeToken( TokenType::NEWLINE );
@@ -240,110 +109,224 @@ Token Lexer::getNextToken() {
     case ')': return makeToken( TokenType::RPAREN );
     case '[': return makeToken( TokenType::LBRACKET );
     case ']': return makeToken( TokenType::RBRACKET );
-    case ':': return makeToken( TokenType::COLON );
     case ',': return makeToken( TokenType::COMMA );
-
-    case '+':
-      if ( static_cast<char>( input_stream_.peek() ) == '+' ) {
-        nextChar();
-        return makeToken( TokenType::OP_CONCAT );
-      } else if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_ADD_ASSIGN );
-      }
+    case '+': {
+      if ( auto m_token = tryBuildDigraph( { { '+', TokenType::OP_CONCAT }, { '=', TokenType::OP_ADD_ASSIGN } } ) )
+        return m_token;
       return makeToken( TokenType::OP_PLUS );
-
-    case '-':
-      if ( static_cast<char>( input_stream_.peek() ) == '-' ) {
-        nextChar();
-        return makeToken( TokenType::OP_DIFF );
-      } else if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_SUB_ASSIGN );
-      } else if ( static_cast<char>( input_stream_.peek() ) == '>' ) {
-        nextChar();
-        return makeToken( TokenType::OP_MAP );
-      }
-      return makeToken( TokenType::OP_MINUS );
-
-    case '*':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_MUL_ASSIGN );
-      }
-      return makeToken( TokenType::OP_MUL );
-
-    case '/':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_DIV_ASSIGN );
-      } else if ( static_cast<char>( input_stream_.peek() ) == '*' ) {
+    }
+    case '-': {
+      if ( auto m_token = tryBuildDigraph(
+               { { '-', TokenType::OP_DIFF }, { '=', TokenType::OP_SUB_ASSIGN }, { '>', TokenType::OP_MAP } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_MINUS );
+    }
+    case '*': {
+      if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_MUL_ASSIGN } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_MUL );
+    }
+    case '/': {
+      if ( peek() == '*' )
         throw InvalidCommentStyleException( current_pos_ );
-      }
-      return makeToken( TokenType::OP_DIV );
-
-    case '%':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_MOD_ASSIGN );
-      }
-      return makeToken( TokenType::OP_MOD );
-
-    case '<':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_LEQ );
-      }
-      return makeToken( TokenType::OP_LT );
-
-    case '>':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_GEQ );
-      }
-      return makeToken( TokenType::OP_GT );
-
-    case '=':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_EQ );
-      }
-      return makeToken( TokenType::OP_ASSIGN );
-
-    case '!':
-      if ( static_cast<char>( input_stream_.peek() ) == '=' ) {
-        nextChar();
-        return makeToken( TokenType::OP_NEQ );
-      }
+      else if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_DIV_ASSIGN } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_DIV );
+    }
+    case '%': {
+      if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_MOD_ASSIGN } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_MOD );
+    }
+    case '<': {
+      if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_LEQ } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_LT );
+    }
+    case '>': {
+      if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_GEQ } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_GT );
+    }
+    case '=': {
+      if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_EQ } } ) )
+        return m_token;
+      else
+        return makeToken( TokenType::OP_ASSIGN );
+    }
+    case '!': {
+      if ( auto m_token = tryBuildDigraph( { { '=', TokenType::OP_NEQ } } ) ) return m_token;
       throw UnknownSymbolException( current_pos_, current_char_ );
-
-    case '\"': return makeToken( TokenType::STRING_LITERAL, buildStringLiteral() );
-    case '\'': return makeToken( TokenType::CHAR_LITERAL, buildCharLiteral() );
-    case '#': return makeToken( TokenType::COMMENT, buildComment() );
+    }
     default: break;
   }
+  return std::nullopt;
+}
 
-  if ( isDigit( this->current_char_ ) ) {
-    std::variant<int, float> lit = buildNumericLiteral();
-    if ( auto *i = std::get_if<int>( &lit ) ) {
-      return makeToken( TokenType::INT_LITERAL, std::get<int>( lit ) );
+std::optional<Token> Lexer::tryBuildStringLiteral() {
+  std::string str{};
+  if ( current_char_ != '\"' ) return std::nullopt;
+
+  while ( peek() != '\"' && peek() != '\n' && input_stream_.peek() != -1 ) {
+    nextChar();
+    if ( current_char_ == '\\' ) {
+      if ( input_stream_.peek() == -1 || peek() == '\n' ) break;
+      nextChar();
+      str.push_back( buildEscapeCharacter( current_char_ ) );
     } else {
-      return makeToken( TokenType::FLOAT_LITERAL, std::get<float>( lit ) );
+      str.push_back( current_char_ );
+    }
+
+    if ( str.size() > MAX_STRING_LITERAL_LENGTH ) {
+      throw TooLongStringLiteralException( start_pos_, str.substr( 0, 16 ) + "..." );
+    }
+  }
+  if ( peek() == '\n' || input_stream_.peek() == -1 ) {
+    throw UnterminatedStringLiteralException( start_pos_,
+                                              str.substr( 0, std::min<size_t>( str.size() / 3, 16 ) ) + "..." );
+  }
+  nextChar();
+  return makeToken( TokenType::STRING_LITERAL, std::move( str ) );
+}
+
+std::optional<Token> Lexer::tryBuildCharLiteral() {
+  if ( current_char_ != '\'' ) return std::nullopt;
+
+  char char_literal_value = UNINITIALIZED_CHAR_MARKER;
+  nextChar();
+  if ( current_char_ == '\\' ) {
+    nextChar();
+    char_literal_value = buildEscapeCharacter( current_char_ );
+  } else if ( current_char_ == '\'' ) {
+    throw InvalidCharLiteralException( current_pos_ );
+  } else {
+    char_literal_value = current_char_;
+  }
+  nextChar();
+  if ( current_char_ != '\'' ) {
+    throw UnterminatedCharLiteralException( start_pos_, current_char_ );
+  }
+  return makeToken( TokenType::CHAR_LITERAL, char_literal_value );
+}
+
+#include <limits>
+#include <optional>
+#include <string>
+
+std::optional<Token> Lexer::tryBuildNumericLiteral() {
+  if ( !isdigit( current_char_ ) ) return std::nullopt;
+
+  std::string buf{ current_char_ };
+  std::string buf_org{ current_char_ };
+  bool is_float = false;
+
+  int int_val = current_char_ - '0';
+  bool is_overflown = false;
+
+  constexpr int max_div_10 = std::numeric_limits<int>::max() / 10;
+  constexpr int max_mod_10 = std::numeric_limits<int>::max() % 10;
+
+  auto consume_digits_and_underscores = [&]() {
+    while ( isdigit( peek() ) || peek() == '_' ) {
+      nextChar();
+      buf_org += current_char_;
+
+      if ( current_char_ != '_' ) {
+        buf += current_char_;
+
+        if ( !is_float && !is_overflown ) {
+          int cur_subdec_val = current_char_ - '0';
+
+          if ( int_val > max_div_10 || ( int_val == max_div_10 && cur_subdec_val > max_mod_10 ) ) {
+            is_overflown = true;
+          } else {
+            int_val = int_val * 10 + cur_subdec_val;
+          }
+        }
+      }
+      buf_org += current_char_;
+    }
+  };
+
+  consume_digits_and_underscores();
+
+  if ( peek() == '.' ) {
+    nextChar();
+    is_float = true;
+    buf += current_char_;
+    buf_org += current_char_;
+
+    consume_digits_and_underscores();
+  }
+
+  if ( isalpha( peek() ) || peek() == '.' ) {
+    nextChar();
+    throw MalformedNumericLiteralException( current_pos_, current_char_, std::move( buf_org ) );
+  }
+
+  if ( is_float ) {
+    try {
+      return makeToken( TokenType::FLOAT_LITERAL, std::stof( buf ) );
+    } catch ( const std::out_of_range & ) {
+      throw FloatLiteralOutOfBoundsException( start_pos_, buf_org );
+    }
+  } else {
+    if ( is_overflown ) {
+      throw IntLiteralOutOfBoundsException( start_pos_, buf_org );
+    }
+    return makeToken( TokenType::INT_LITERAL, int_val );
+  }
+}
+
+std::optional<Token> Lexer::tryBuildComment() {
+  if ( current_char_ != '#' ) return std::nullopt;
+  nextChar();
+  std::string buf{ current_char_ };
+  while ( peek() != '\n' && input_stream_.peek() != -1 ) {
+    nextChar();
+    buf.push_back( current_char_ );
+  }
+  return makeToken( TokenType::COMMENT, std::move( buf ) );
+}
+
+std::optional<Token> Lexer::tryBuildIdentifier() {
+  if ( !isalpha( current_char_ ) ) return std::nullopt;
+
+  std::string buf{ current_char_ };
+  while ( isalnum( peek() ) || peek() == '_' ) {
+    nextChar();
+    buf.push_back( current_char_ );
+
+    if ( buf.size() > MAX_IDENTIFIER_LENGTH ) {
+      throw TooLongIdentifierException( start_pos_, buf.substr( 0, 16 ) + "..." );
     }
   }
 
-  else if ( isLetter( this->current_char_ ) ) {
-    std::string identifier = buildIdentifier();
-    TokenType type = getSpecialIdentifierType( identifier );
-    if ( type == TokenType::IDENTIFIER ) {
-      return makeToken( type, identifier );
-    } else if ( type == TokenType::BOOL_LITERAL ) {
-      bool bool_val = identifier == "true";
-      return makeToken( type, bool_val );
-    } else {
-      return makeToken( type );
-    }
-  }
+  auto token = tryBuildIdentifier( buf );
+  if ( token == std::nullopt ) return makeToken( TokenType::IDENTIFIER, std::move( buf ) );
+  return token;
+}
+
+Lexer::Lexer( std::istream &input ) : input_stream_( input ) {
+}
+
+Token Lexer::getNextToken() {
+  nextChar();
+  skipWhitespaces();
+  this->start_pos_ = this->current_pos_;
+
+  if ( auto t = tryBuildSymbol() ) return *t;
+  if ( auto t = tryBuildStringLiteral() ) return *t;
+  if ( auto t = tryBuildCharLiteral() ) return *t;
+  if ( auto t = tryBuildNumericLiteral() ) return *t;
+  if ( auto t = tryBuildComment() ) return *t;
+  if ( auto t = tryBuildIdentifier() ) return *t;
 
   throw UnknownSymbolException( current_pos_, current_char_ );
 }

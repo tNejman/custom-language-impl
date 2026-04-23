@@ -1,15 +1,18 @@
 #pragma once
 
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
-#include "Lexer/LexerDriver.h"
 #include "argparse/argparse.hpp"
 
+enum class LexerInputSource { FILE, CIN, ARG };
+
 struct ArgParseLexerResult {
-  LexerDriverMode mode = LexerDriverMode::CIN;
-  std::string source{};
+  LexerInputSource mode = LexerInputSource::CIN;
+  std::string str_argument{};
+  std::filesystem::path filepath{};
 };
 
 std::string getLexerHelpMsg( const char* prog_name ) {
@@ -57,24 +60,24 @@ ArgParseLexerResult parseLexerArguments( int argc, const char** argv ) {
   }
 
   if ( mode_str == "cin" ) {
-    result.mode = LexerDriverMode::CIN;
+    result.mode = LexerInputSource::CIN;
   }
 
   else if ( mode_str == "file" ) {
-    result.mode = LexerDriverMode::FILE;
+    result.mode = LexerInputSource::FILE;
     if ( rem_args.empty() ) {
       std::cerr << "Error: '-m <file> requires a filename argument.\n\n";
       std::cerr << program;
       std::exit( 1 );
     }
-    result.source = rem_args.front();
+    result.filepath = rem_args.front();
   }
 
   else if ( mode_str == "arg" ) {
-    result.mode = LexerDriverMode::ARG;
+    result.mode = LexerInputSource::ARG;
     for ( size_t i = 0; i < rem_args.size(); ++i ) {
-      if ( i > 0 ) result.source += " ";
-      result.source += rem_args[i];
+      if ( i > 0 ) result.str_argument += " ";
+      result.str_argument += rem_args[i];
     }
   }
   return result;

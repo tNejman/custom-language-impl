@@ -2,16 +2,9 @@
 
 #include <sstream>
 
-#include "Exceptions/LexerExceptions/FloatLiteralOutOfBoundsException.hpp"
-#include "Exceptions/LexerExceptions/IntLiteralOutOfBoundsException.hpp"
-#include "Exceptions/LexerExceptions/InvalidCharLiteralException.hpp"
-#include "Exceptions/LexerExceptions/MalformedNumericLiteralException.hpp"
-#include "Exceptions/LexerExceptions/TooLongStringLiteralException.hpp"
-#include "Exceptions/LexerExceptions/UnknownEscapedCharacterException.hpp"
-#include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
-#include "Exceptions/LexerExceptions/UnterminatedCharLiteralException.hpp"
-#include "Exceptions/LexerExceptions/UnterminatedStringLiteralException.hpp"
+#include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
 #include "TestHelper.hpp"
+
 
 class LexerLiteralTest : public LexerTest {};
 

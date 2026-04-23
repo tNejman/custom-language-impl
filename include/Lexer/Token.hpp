@@ -1,16 +1,11 @@
 #pragma once
 
-#include <format>
-#include <iomanip>
-#include <magic_enum/magic_enum.hpp>
-#include <ostream>
-#include <sstream>
+#include <cassert>
 #include <string>
-#include <type_traits>
 #include <variant>
 
-constexpr unsigned int MAX_IDENTIFIER_LENGTH = 128u;
-constexpr unsigned int MAX_STRING_LITERAL_LENGTH = 128u;
+constexpr int MAX_IDENTIFIER_LENGTH = 128u;
+constexpr int MAX_STRING_LITERAL_LENGTH = 128u;
 
 enum class TokenType : int {
   COMMENT,
@@ -74,7 +69,6 @@ enum class TokenType : int {
   OP_LT,
   OP_REV,
 
-  COLON,
   COMMA,
   LPAREN,
   RPAREN,
@@ -87,28 +81,11 @@ enum class TokenType : int {
   END_OF_FILE
 };
 
-inline std::ostream &operator<<( std::ostream &stream, const TokenType &tt ) {
-  stream << magic_enum::enum_name( tt );
-  return stream;
-}
-
 struct Position {
-  unsigned int line_;
-  unsigned int column_;
+  int line_;
+  int column_;
 
-  auto operator==( const Position &other ) const {
-    return this->line_ == other.line_ && this->column_ == other.column_;
-  }
-  bool operator==( const std::initializer_list<unsigned int> &other ) const {
-    return other.size() == 2 && this->line_ == *( other.begin() ) && this->column_ == *( other.begin() + 1 );
-  }
-
-  std::string toString() const {
-    return std::format( "Line: {}, Column: {}.", this->line_, this->column_ );
-  }
-  friend std::ostream &operator<<( std::ostream &stream, const Position &position ) {
-    return stream << position.toString();
-  }
+  auto operator<=>( const Position &other ) const = default;
 };
 
 using TokenVal = std::variant<std::monostate, int, float, bool, char, std::string>;
@@ -118,29 +95,24 @@ struct Token {
   TokenType type_;
   TokenVal value_;
 
-  bool operator==( const Token &other ) const {
-    return this->position_ == other.position_ && this->type_ == other.type_;
+  Token( Position position, TokenType type, TokenVal value = std::monostate{} )
+      : position_( position ), type_( type ), value_( std::move( value ) ) {
+    validate();
   }
-  friend std::ostream &operator<<( std::ostream &stream, const Token &token ) {
-    std::ostringstream type_ss;
-    type_ss << token.type_ << ",";
 
-    std::ostringstream pos_ss;
-    pos_ss << token.position_;
+  bool operator==( const Token &other ) const = default;
 
-    stream << std::left << "Token repr. Type: " << std::setw( 15 ) << type_ss.str() << " Position: " << std::setw( 25 )
-           << pos_ss.str();
-
-    std::visit(
-        [&stream]( auto &&arg ) {
-          using T = std::decay_t<decltype( arg )>;
-          if constexpr ( !std::is_same_v<T, std::monostate> ) {
-            stream << " Value: " << arg;
-          };
-        },
-        token.value_ );
-
-    stream << '\n';
-    return stream;
+ private:
+  void validate() const {
+    switch ( type_ ) {
+      case TokenType::INT_LITERAL: assert( std::holds_alternative<int>( value_ ) ); break;
+      case TokenType::FLOAT_LITERAL: assert( std::holds_alternative<float>( value_ ) ); break;
+      case TokenType::BOOL_LITERAL: assert( std::holds_alternative<bool>( value_ ) ); break;
+      case TokenType::CHAR_LITERAL: assert( std::holds_alternative<char>( value_ ) ); break;
+      case TokenType::STRING_LITERAL:
+      case TokenType::COMMENT:
+      case TokenType::IDENTIFIER: assert( std::holds_alternative<std::string>( value_ ) ); break;
+      default: assert( std::holds_alternative<std::monostate>( value_ ) ); break;
+    }
   }
 };

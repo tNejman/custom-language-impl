@@ -8,7 +8,7 @@ class UnterminatedStringLiteralException : public LexerException {
       : LexerException( pos, std::format( "Unterminated string literal \"{}\". Expected closing quote before the end "
                                           "of the line. (Note: Rusthon++ strings cannot span multiple lines)\n"
                                           "{}\x1b[31m{}^\x1b[0m\n",
-                                          string_beg, std::string( 29, ' ' ),  // "Unterminated string literal \""
+                                          string_beg, std::string( 29, ' ' ),
                                           std::string( string_beg.empty() ? 0 : string_beg.length() - 1, '~' ) ) ) {
   }
 };

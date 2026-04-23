@@ -14,7 +14,7 @@ class LexerTest : public ::testing::Test {
   }
 };
 
-void assertTokensTypeAndPos( const std::string &&code, const std::vector<Token> &&expected ) {
+void assertTokensTypeAndPos( std::string code, std::vector<Token> &&expected ) {
   std::stringstream ss{ code };
   Lexer lexer{ ss };
   for ( const auto &exp : expected ) {
@@ -22,7 +22,7 @@ void assertTokensTypeAndPos( const std::string &&code, const std::vector<Token> 
   }
 }
 
-void assertTokensType( const std::string &&code, const std::vector<TokenType> &&expected ) {
+void assertTokensType( std::string &&code, std::vector<TokenType> &&expected ) {
   std::stringstream ss{ code };
   Lexer lexer{ ss };
   for ( const auto &exp : expected ) {
