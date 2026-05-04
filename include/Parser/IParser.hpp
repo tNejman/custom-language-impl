@@ -12,5 +12,5 @@ class IParser {
   IParser operator=(const IParser&) = delete;
   IParser operator=(IParser&&) = delete;
 
-  virtual std::unique_ptr<INode> parse() = 0;
+  virtual Program buildProgram() = 0;
 };
