@@ -15,7 +15,7 @@ struct ArgParseLexerResult {
   std::filesystem::path filepath{};
 };
 
-std::string getLexerHelpMsg( const char* prog_name ) {
+inline std::string getLexerHelpMsg( const char* prog_name ) {
   static const std::string lexer_help_msg = std::format(
       "Usage: {} [OPTIONS]\n\n"
       "Options:\n"
@@ -28,7 +28,7 @@ std::string getLexerHelpMsg( const char* prog_name ) {
   return lexer_help_msg;
 }
 
-ArgParseLexerResult parseLexerArguments( int argc, const char** argv ) {
+inline ArgParseLexerResult parseLexerArguments( int argc, const char** argv ) {
   argparse::ArgumentParser program( "LexerApp" );
   program.add_argument( "-m", "--mode" )
       .help( getLexerHelpMsg( argv[0] ) )

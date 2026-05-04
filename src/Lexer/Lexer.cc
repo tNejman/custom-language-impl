@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cctype>
+#include <ranges>
 
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
 
@@ -62,7 +63,7 @@ std::optional<Token> Lexer::tryBuildDigraph( std::vector<std::pair<char, TokenTy
 }
 
 std::optional<Token> Lexer::tryBuildIdentifier( const std::string &identifier ) const {
-  static const std::array<std::pair<std::string, TokenType>, 25> keywords = {
+  static constexpr std::array<std::pair<std::string_view, TokenType>, 25> keywords = {
       { { "if", TokenType::KW_IF },           { "elseif", TokenType::KW_ELSEIF },
         { "else", TokenType::KW_ELSE },       { "while", TokenType::KW_WHILE },
         { "do", TokenType::KW_DO },           { "done", TokenType::KW_DONE },
@@ -77,8 +78,7 @@ std::optional<Token> Lexer::tryBuildIdentifier( const std::string &identifier ) 
         { "and", TokenType::OP_AND },         { "or", TokenType::OP_OR },
         { "not", TokenType::OP_NOT } } };
 
-  auto it = std::find_if( keywords.begin(), keywords.end(),
-                          [&]( const std::pair<std::string, TokenType> &pair ) { return pair.first == identifier; } );
+  auto it = std::ranges::find( keywords, identifier, []( const auto &p ) { return p.first; } );
 
   if ( it == keywords.end() ) return std::nullopt;
   if ( it->second == TokenType::BOOL_LITERAL ) {

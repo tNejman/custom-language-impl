@@ -1,12 +1,9 @@
 function(f_add_executable target_name file_name)
     add_executable(${target_name} ${file_name})
-    apply_compiler_flags(${target_name})
-    target_include_directories(${target_name} PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        magic_enum::magic_enum
-    )    
+    apply_compiler_flags(${target_name})  
     target_link_libraries(${target_name} PUBLIC
         ${MODULES}
+        Headers
         magic_enum::magic_enum
         argparse::argparse
     )

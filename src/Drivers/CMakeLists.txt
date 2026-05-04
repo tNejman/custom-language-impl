@@ -3,10 +3,8 @@ add_library(Drivers
     Formatter.cc
 )
 
-target_include_directories(Drivers PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
-)
-
 target_link_libraries(Drivers PUBLIC
+    Headers
     magic_enum::magic_enum
+    argparse::argparse
 )

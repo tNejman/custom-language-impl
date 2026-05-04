@@ -7,8 +7,10 @@
 
 #include "Lexer/ILexer.h"
 
-inline constexpr char UNINITIALIZED_CHAR_MARKER = -2;
-inline constexpr Position STARTING_LEXER_POSITION{ 1, 0 };
+namespace {
+constexpr Position STARTING_LEXER_POSITION{ 1, 0 };
+constexpr char UNINITIALIZED_CHAR_MARKER = -2;
+};  // namespace
 
 class Lexer : public ILexer {
  private:

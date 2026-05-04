@@ -3,10 +3,9 @@
 #include <iostream>
 #include <vector>
 
+#include "Exceptions/LexerExceptions/InvalidCommentStyleException.hpp"
 #include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
-#include "InvalidCommentStyleException.hpp"
 #include "TestHelper.hpp"
-
 
 // int main( int argc, char **argv ) {
 //   ::testing::InitGoogleTest( &argc, argv );
@@ -25,44 +24,44 @@ TEST_F( LexerTest, check_exception ) {
 }
 
 TEST_F( LexerTest, OperatorsAndSymbols ) {
-  assertTokensType( "+", { TokenType::OP_PLUS } );
-  assertTokensType( "++", { TokenType::OP_CONCAT } );
-  assertTokensType( "+=", { TokenType::OP_ADD_ASSIGN } );
+  assertTokensType( "+", { TokenType::OP_PLUS, TokenType::END_OF_FILE } );
+  assertTokensType( "++", { TokenType::OP_CONCAT, TokenType::END_OF_FILE } );
+  assertTokensType( "+=", { TokenType::OP_ADD_ASSIGN, TokenType::END_OF_FILE } );
 
-  assertTokensType( "-", { TokenType::OP_MINUS } );
-  assertTokensType( "--", { TokenType::OP_DIFF } );
-  assertTokensType( "-=", { TokenType::OP_SUB_ASSIGN } );
+  assertTokensType( "-", { TokenType::OP_MINUS, TokenType::END_OF_FILE } );
+  assertTokensType( "--", { TokenType::OP_DIFF, TokenType::END_OF_FILE } );
+  assertTokensType( "-=", { TokenType::OP_SUB_ASSIGN, TokenType::END_OF_FILE } );
 
-  assertTokensType( "*", { TokenType::OP_MUL } );
-  assertTokensType( "*=", { TokenType::OP_MUL_ASSIGN } );
+  assertTokensType( "*", { TokenType::OP_MUL, TokenType::END_OF_FILE } );
+  assertTokensType( "*=", { TokenType::OP_MUL_ASSIGN, TokenType::END_OF_FILE } );
 
-  assertTokensType( "/", { TokenType::OP_DIV } );
-  assertTokensType( "/=", { TokenType::OP_DIV_ASSIGN } );
+  assertTokensType( "/", { TokenType::OP_DIV, TokenType::END_OF_FILE } );
+  assertTokensType( "/=", { TokenType::OP_DIV_ASSIGN, TokenType::END_OF_FILE } );
 
-  assertTokensType( "%", { TokenType::OP_MOD } );
-  assertTokensType( "%=", { TokenType::OP_MOD_ASSIGN } );
+  assertTokensType( "%", { TokenType::OP_MOD, TokenType::END_OF_FILE } );
+  assertTokensType( "%=", { TokenType::OP_MOD_ASSIGN, TokenType::END_OF_FILE } );
 
-  assertTokensType( "=", { TokenType::OP_ASSIGN } );
-  assertTokensType( "==", { TokenType::OP_EQ } );
-  assertTokensType( "!=", { TokenType::OP_NEQ } );
+  assertTokensType( "=", { TokenType::OP_ASSIGN, TokenType::END_OF_FILE } );
+  assertTokensType( "==", { TokenType::OP_EQ, TokenType::END_OF_FILE } );
+  assertTokensType( "!=", { TokenType::OP_NEQ, TokenType::END_OF_FILE } );
 
-  assertTokensType( ">", { TokenType::OP_GT } );
-  assertTokensType( ">=", { TokenType::OP_GEQ } );
-  assertTokensType( "<", { TokenType::OP_LT } );
-  assertTokensType( "<=", { TokenType::OP_LEQ } );
+  assertTokensType( ">", { TokenType::OP_GT, TokenType::END_OF_FILE } );
+  assertTokensType( ">=", { TokenType::OP_GEQ, TokenType::END_OF_FILE } );
+  assertTokensType( "<", { TokenType::OP_LT, TokenType::END_OF_FILE } );
+  assertTokensType( "<=", { TokenType::OP_LEQ, TokenType::END_OF_FILE } );
 
-  assertTokensType( "(", { TokenType::LPAREN } );
-  assertTokensType( ")", { TokenType::RPAREN } );
-  assertTokensType( "[", { TokenType::LBRACKET } );
-  assertTokensType( "]", { TokenType::RBRACKET } );
+  assertTokensType( "(", { TokenType::LPAREN, TokenType::END_OF_FILE } );
+  assertTokensType( ")", { TokenType::RPAREN, TokenType::END_OF_FILE } );
+  assertTokensType( "[", { TokenType::LBRACKET, TokenType::END_OF_FILE } );
+  assertTokensType( "]", { TokenType::RBRACKET, TokenType::END_OF_FILE } );
 
-  assertTokensType( "?", { TokenType::OP_FILTER } );
-  assertTokensType( "->", { TokenType::OP_MAP } );
-  assertTokensType( "@", { TokenType::OP_REV } );
-  assertTokensType( "$", { TokenType::OP_LEN } );
+  assertTokensType( "?", { TokenType::OP_FILTER, TokenType::END_OF_FILE } );
+  assertTokensType( "->", { TokenType::OP_MAP, TokenType::END_OF_FILE } );
+  assertTokensType( "@", { TokenType::OP_REV, TokenType::END_OF_FILE } );
+  assertTokensType( "$", { TokenType::OP_LEN, TokenType::END_OF_FILE } );
 
-  assertTokensType( ",", { TokenType::COMMA } );
-  assertTokensType( "\n", { TokenType::NEWLINE } );
+  assertTokensType( ",", { TokenType::COMMA, TokenType::END_OF_FILE } );
+  assertTokensType( "\n", { TokenType::NEWLINE, TokenType::END_OF_FILE } );
 }
 
 TEST_F( LexerTest, FunctionDefinition ) {

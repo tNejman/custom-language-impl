@@ -85,6 +85,10 @@ struct Position {
   int line_;
   int column_;
 
+  constexpr Position( const int line, const int column ) : line_( line ), column_( column ) {
+    assert( line_ > 0 );
+    assert( column_ >= 0 );
+  }
   auto operator<=>( const Position &other ) const = default;
 };
 

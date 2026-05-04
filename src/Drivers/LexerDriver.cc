@@ -1,24 +1,22 @@
-
 #include "Drivers/LexerDriver.h"
 
+#include <fstream>
 #include <iostream>
+#include <istream>
+#include <memory>
+#include <sstream>
 
+#include "ArgParser.hpp"
 #include "Exceptions/LexerExceptions/_LexerException.hpp"
 
-ILexerDriver::ILexerDriver( Lexer &lexer ) : lexer_( lexer ) {
-}
-
-Lexer &ILexerDriver::getLexer() {
-  return this->lexer_;
-}
-
-BatchLexerDriver::BatchLexerDriver( Lexer &lexer ) : ILexerDriver( lexer ) {
+BatchLexerDriver::BatchLexerDriver( std::unique_ptr<std::istream> stream )
+    : stream_( std::move( stream ) ), lexer_( *stream_ ) {
 }
 
 void BatchLexerDriver::run() {
   while ( true ) {
     try {
-      Token t = getLexer().getNextToken();
+      Token t = lexer_.getNextToken();
       std::cout << std::format( "{}", t );
       if ( t.type_ == TokenType::END_OF_FILE ) break;
     } catch ( const LexerException &e ) {
@@ -32,7 +30,7 @@ void BatchLexerDriver::run() {
   std::cout << "Whole file read." << std::endl;
 }
 
-InteractiveLexerDriver::InteractiveLexerDriver( Lexer &lexer ) : ILexerDriver( lexer ) {
+InteractiveLexerDriver::InteractiveLexerDriver() : lexer_( std::cin ) {
 }
 
 void InteractiveLexerDriver::run() {
@@ -40,7 +38,7 @@ void InteractiveLexerDriver::run() {
     std::cout << "Rusthon++ > " << std::flush;
     try {
       while ( true ) {
-        Token t = getLexer().getNextToken();
+        Token t = lexer_.getNextToken();
         std::cout << std::format( "{}", t );
         if ( t.type_ == TokenType::END_OF_FILE || t.type_ == TokenType::NEWLINE ) {
           break;
@@ -53,10 +51,39 @@ void InteractiveLexerDriver::run() {
       }
       std::cin.ignore( std::numeric_limits<std::streamsize>::max(), '\n' );
       std::cin.putback( '\n' );
-      std::cout << std::format( "{}", getLexer().getNextToken() );
+      std::cout << std::format( "{}", lexer_.getNextToken() );
     } catch ( const std::exception &e ) {
       std::cout << "DEBUG: unexpected system exception: " << e.what();
       std::exit( 1 );
     }
   }
 }
+
+namespace driver_factory {
+std::unique_ptr<ILexerDriver> build( const ArgParseLexerResult &config ) {
+  std::unique_ptr<std::istream> stream;
+
+  switch ( config.mode ) {
+    case LexerInputSource::FILE: {
+      auto file_stream = std::make_unique<std::ifstream>( config.filepath );
+      if ( !file_stream->is_open() ) {
+        std::cerr << "Unable to open file: " << config.filepath << std::endl;
+        std::exit( 1 );
+      }
+      stream = std::move( file_stream );
+      return std::make_unique<BatchLexerDriver>( std::move( stream ) );
+    }
+
+    case LexerInputSource::ARG: {
+      stream = std::make_unique<std::istringstream>( config.str_argument );
+      return std::make_unique<BatchLexerDriver>( std::move( stream ) );
+    }
+
+    case LexerInputSource::CIN: {
+      return std::make_unique<InteractiveLexerDriver>();
+    }
+  }
+
+  return nullptr;
+}
+};  // namespace driver_factory
