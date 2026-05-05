@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Exceptions/ParserExceptions//_ParserException.hpp"
+#include "Exceptions/ParserExceptions/_ParserException.hpp"
 
 class ErrorHandler {
  private:

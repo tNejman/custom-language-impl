@@ -21,7 +21,6 @@ Block              ::== "do" StatementList "done"
 
 VarDecl            ::== "var" Type IDENTIFIER "=" Expression
 ConstDecl          ::== Type IDENTIFIER "=" Expression
-ExceptionDecl      ::== "exception" IDENTIFIER
 
 IfStmt             ::== "if" "(" Expression ")" Block
                         { "elseif" "(" Expression ")" Block }
@@ -36,7 +35,7 @@ BaseType           ::== "int" | "float" | "char" | "string" | "bool"
 ArrayType          ::== "[" Type "]"
 
 ExpressionStmt     ::== Expression
-Expression         ::== LogicalOrExpr [ AssignmentOp Expression ]
+Expression         ::== LogicalOrExpr [ AssignmentOp LogicalOrExpr ]
 AssignmentOp       ::== "=" | "+=" | "-=" | "*=" | "/="
 LogicalOrExpr      ::== LogicalAndExpr { "or" LogicalAndExpr }
 LogicalAndExpr     ::== EqualityExpr { "and" EqualityExpr }

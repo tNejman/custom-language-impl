@@ -1,13 +1,15 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
 #include "Lexer/Token.hpp"
-#include "Parser/Parameter.hpp"
+#include "Parser/ParameterDecl.h"
 #include "Parser/Types.hpp"
+#include "Parser/Value.h"
+#include "Types.hpp"
+#include "Variable.h"
 
 class INode {
  public:
@@ -38,28 +40,35 @@ class INode {
  * Concrete children
  */
 
-class BlockNode;
+using Block = std::vector<std::unique_ptr<INode>>;
 
 class FunctionDefNode : public INode {
  private:
-  Position declaration_position_;
+  const Position declaration_position_;
   const std::string identifier_;
-  std::unique_ptr<Type> return_type_;
-  std::vector<Parameter> parameters_;
-  std::unique_ptr<BlockNode> body_;
+  const Type return_type_;
+  const std::vector<std::unique_ptr<ParameterDecl>> parameters_;
+  const Block body_;
 
  public:
-  FunctionDefNode( const Position decl_position, std::string identifier, std::unique_ptr<Type> ret_type,
-                   std::vector<Parameter> parameters, std::unique_ptr<INode> body );
+  FunctionDefNode( const Position decl_position, std::string identifier, Type ret_type,
+                   std::vector<std::unique_ptr<ParameterDecl>> parameters, Block body );
 };
 
-class VariableDeclNode : public INode {
+class IExpressionNode : public INode {};
+
+class VarOrConstDeclNode : public INode {
  private:
-  Position declaration_position_;
-  bool is_mutable_;
-  // Type variable_decl_type_
-  // Value
+  const Position position_;
+  const std::string identifier_;
+  const Mutability mutability_;
+  const Type variable_decl_type_;
+
+  std::unique_ptr<IExpressionNode> initializer_expression_;
+
  public:
+  VarOrConstDeclNode( Position positon, std::string identifier, Mutability mutability, Type type,
+                      std::unique_ptr<IExpressionNode> initializer_expression );
 };
 
 class BlockNode : public INode {
@@ -67,42 +76,117 @@ class BlockNode : public INode {
   std::vector<std::unique_ptr<INode>> statements_;
 };
 
-class IfNode : public INode {
+class IfStatementNode : public INode {
  private:
-  // std::vector< Condition > conditions;
-  // std::vector< BlockNode > bodies_;
-  // ALBO
-  // Condition if_cond_;
-  // std::unique_ptr<BlockNode> if_body_;
-  // std::vector< std::pair<Condition, std::unique_ptr<BlockNode>> > elseif_conds_;
-  // std::unique_ptr<BlockNode> else_body_;
+  std::vector<std::pair<std::unique_ptr<IExpressionNode>, Block>> if_then_pairs_;
+  Block else_body_;
+
+ public:
+  IfStatementNode( std::vector<std::pair<std::unique_ptr<IExpressionNode>, Block>> if_then_pairs, Block else_body );
 };
 
-class WhileNode : public INode {
+class WhileStatementNode : public INode {
  private:
-  // Condition while_cond_;
-  std::unique_ptr<BlockNode> body_;
+  std::unique_ptr<IExpressionNode> condition_;
+  Block body_;
+
+ public:
+  WhileStatementNode( std::unique_ptr<IExpressionNode> condition, Block body );
 };
 
-// ControlFlowNode (może)
-
-class BinaryExprNode : public INode {  // assignment, logical or and, equality, relational, additive, multiplicative
+enum class ControlFlowType { CONTINUE, BREAK };
+class ControlFlowNode : public INode {
  private:
-  // std::unique_ptr<> left_operand_;
-  // std::unique_ptr<> right_operand_;
-  // operator
+  const ControlFlowType type_;
+
+ public:
+  ControlFlowNode( ControlFlowType type );
 };
 
-class UnaryExprNode : public INode {  // -, not, @, $
+class ReturnNode : public INode {
  private:
-  // std::unique_ptr<> operand_;
-  // operator
+  std::unique_ptr<IExpressionNode> expression_;
+
+ public:
+  ReturnNode( std::unique_ptr<IExpressionNode> expression );
 };
 
-class CallOrExprNode : public INode {
+enum class AssignmentType { ASSIGN, ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, MOD_ASSIGN };
+
+class AssignmentExprNode : public IExpressionNode {
+ private:
+  std::unique_ptr<IExpressionNode> left_operand_;
+  std::unique_ptr<IExpressionNode> right_operand_;
+  AssignmentType assign_op_;
+
+ public:
+  AssignmentExprNode( std::unique_ptr<IExpressionNode> left_operand, std::unique_ptr<IExpressionNode> right_operand,
+                      AssignmentType type );
+};
+
+enum class BinaryOperator {
+  OR,
+  AND,
+  EQ,
+  NEQ,
+  LT,
+  LEQ,
+  GT,
+  GEQ,
+  ADD,
+  SUB,
+  CONCAT,
+  DIFF,
+  MUL,
+  DIV,
+  MOD,
+  FILTER,
+  MAP,
+  ACCESS
+};
+class BinaryExprNode : public IExpressionNode {  // logical or and, equality, relational, additive, multiplicative
+ private:
+  std::unique_ptr<IExpressionNode> left_operand_;
+  std::unique_ptr<IExpressionNode> right_operand_;
+  BinaryOperator operator_;
+
+ public:
+  BinaryExprNode( std::unique_ptr<IExpressionNode> left_operand, std::unique_ptr<IExpressionNode> right_operand,
+                  BinaryOperator op );
+};
+
+enum class UnaryOperator { NEG, NOT, REV, LEN };
+
+class UnaryExprNode : public IExpressionNode {  // -, not, @, $
+ private:
+  std::unique_ptr<IExpressionNode> operand_;
+  UnaryOperator operator_;
+
+ public:
+  UnaryExprNode( std::unique_ptr<IExpressionNode> opernad, UnaryOperator un_operator );
+};
+
+class CallOrExprNode : public IExpressionNode {
  private:
   // identifier
   // argument list
+};
+
+class LiteralExprNode : public IExpressionNode {
+ private:
+  Type type_;
+  Value value_;
+
+ public:
+  LiteralExprNode( Type type, Value value );
+};
+
+class PrimaryIdentifierNode : public IExpressionNode {
+ private:
+  const std::string name_;
+
+ public:
+  PrimaryIdentifierNode( std::string name );
 };
 
 class Program {
