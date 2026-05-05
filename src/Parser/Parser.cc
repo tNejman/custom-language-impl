@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 #include "Lexer/Token.hpp"
-#include "Parser/Node.hpp"
+#include "Parser/Node.h"
 #include "Parser/ParameterDecl.h"
 #include "Parser/ParserHelper.h"
 #include "Parser/Types.hpp"

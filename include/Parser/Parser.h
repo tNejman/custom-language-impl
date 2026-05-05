@@ -4,10 +4,9 @@
 
 #include "Lexer/Lexer.h"
 #include "Lexer/Token.hpp"
-#include "Node.hpp"
 #include "Parser/ErrorHandler.h"
 #include "Parser/IParser.hpp"
-#include "Parser/Node.hpp"
+#include "Parser/Node.h"
 #include "Parser/ParserHelper.h"
 
 class Parser : public IParser {
@@ -77,5 +76,5 @@ class Parser : public IParser {
   std::optional<Type> tryBuildType();
 
  public:
-  Program buildProgram() override;
+  ProgramNode buildProgram() override;
 };

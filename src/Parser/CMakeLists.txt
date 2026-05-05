@@ -2,6 +2,7 @@ add_library(Parser
     Parser.cc
     Variable.cc
     ParserHelper.cc
+    Node.cc
 )
 
 target_link_libraries(Parser PUBLIC 

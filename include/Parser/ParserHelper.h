@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Lexer/Token.hpp"
-#include "Node.hpp"
-#include "Parser/Node.hpp"
+#include "Parser/Node.h"
 
 namespace parser_helper {
 bool isAssignment( const TokenType token_type ) noexcept;

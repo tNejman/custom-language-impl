@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Parser/Node.hpp>
+#include "Parser/Node.h"
 
 class IParser {
  public:
@@ -11,5 +11,5 @@ class IParser {
   IParser operator=( const IParser& ) = delete;
   IParser operator=( IParser&& ) = delete;
 
-  virtual Program buildProgram() = 0;
+  virtual ProgramNode buildProgram() = 0;
 };
