@@ -166,10 +166,21 @@ class UnaryExprNode : public IExpressionNode {  // -, not, @, $
   UnaryExprNode( std::unique_ptr<IExpressionNode> opernad, UnaryOperator un_operator );
 };
 
-class CallOrExprNode : public IExpressionNode {
+class FunctionCallNode : public IExpressionNode {
  private:
-  // identifier
-  // argument list
+  std::string identifier_;
+  std::vector<std::unique_ptr<IExpressionNode>> arguments_;
+
+ public:
+  FunctionCallNode( std::string, std::vector<std::unique_ptr<IExpressionNode>> arguments );
+};
+
+class ArrayLiteralNode : public IExpressionNode {
+ private:
+  std::vector<std::unique_ptr<IExpressionNode>> positions_;
+
+ public:
+  ArrayLiteralNode( std::vector<std::unique_ptr<IExpressionNode>> positions );
 };
 
 class LiteralExprNode : public IExpressionNode {

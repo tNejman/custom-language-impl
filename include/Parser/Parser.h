@@ -52,7 +52,7 @@ class Parser : public IParser {
   std::unique_ptr<IExpressionNode> tryBuildCastExpr();
   std::unique_ptr<IExpressionNode> tryBuildAccessExpr();
   std::unique_ptr<IExpressionNode> tryBuildPrimaryExpr();
-  std::unique_ptr<IExpressionNode> tryBuildArgumentListExpr();
+  std::vector<std::unique_ptr<IExpressionNode>> tryBuildArgumentListExpr();
   std::unique_ptr<IExpressionNode> tryBuildArrayLiteralExpr();
   std::unique_ptr<IExpressionNode> tryBuildLiteralExpr();
 
@@ -73,8 +73,6 @@ class Parser : public IParser {
                                             parser_helper::translateTokenTypeToBinaryOperator( operator_token.type_ ) );
     }
   }
-
-  std::vector<std::unique_ptr<IExpressionNode>> tryBuildArgumentList();
 
   std::optional<Type> tryBuildType();
 

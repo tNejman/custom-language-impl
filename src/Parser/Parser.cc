@@ -317,11 +317,74 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
 }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildPrimaryExpr() {
-  if (current_token_.type_ == TokenType::IDENTIFIER) {
-    if (peek().type_ != TokenType::LPAREN) {
-      return std::make_unique<PrimaryIdentifierNode>(std::get<std::string>(std::move(current_token_.value_)));
+  if ( current_token_.type_ == TokenType::IDENTIFIER ) {
+    Token identifier_token = current_token_;
+    if ( peek().type_ != TokenType::LPAREN ) {
+      return std::make_unique<PrimaryIdentifierNode>( std::get<std::string>( std::move( identifier_token.value_ ) ) );
     }
     nextToken();
+    auto arguments = tryBuildArgumentListExpr();
+    nextToken();
+    if ( current_token_.type_ != TokenType::RPAREN ) throw std::runtime_error( "" );
+    return std::make_unique<FunctionCallNode>( std::get<std::string>( std::move( identifier_token.value_ ) ),
+                                               std::move( arguments ) );
+  }
+  if ( current_token_.type_ == TokenType::LPAREN ) {
+    auto expr = tryBuildExpression();
+    nextToken();
+    if ( current_token_.type_ != TokenType::RPAREN ) throw std::runtime_error( "" );
+  }
+  if ( parser_helper::isLiteral( current_token_.type_ ) ) {
+    return tryBuildLiteralExpr();
+  }
+  return tryBuildArrayLiteralExpr();
+}
+
+std::vector<std::unique_ptr<IExpressionNode>> Parser::tryBuildArgumentListExpr() {
+  auto expr = tryBuildExpression();
+  if ( !expr ) return {};
+  std::vector<std::unique_ptr<IExpressionNode>> argument_list;
+  argument_list.push_back( std::move( expr ) );
+
+  while ( peek().type_ == TokenType::COMMA ) {
+    nextToken();
+    auto expr = tryBuildExpression();
+    if ( !expr ) throw std::runtime_error( "" );
+    argument_list.push_back( std::move( expr ) );
+  }
+  return std::move( argument_list );
+}
+
+std::unique_ptr<IExpressionNode> Parser::tryBuildArrayLiteralExpr() {
+  if ( current_token_.type_ != TokenType::LBRACKET ) throw std::runtime_error( "" );
+  auto array_positions = tryBuildArgumentListExpr();
+  nextToken();
+  if ( current_token_.type_ != TokenType::RBRACKET ) throw std::runtime_error( "" );
+  return std::make_unique<ArrayLiteralNode>( std::move( array_positions ) );
+}
+
+std::unique_ptr<IExpressionNode> Parser::tryBuildLiteralExpr() {
+  if ( !parser_helper::isLiteral( current_token_.type_ ) ) {
+    return nullptr;
+  }
+  switch ( current_token_.type_ ) {
+    case TokenType::BOOL_LITERAL:
+      return std::make_unique<LiteralExprNode>( Type{ BaseType::BOOL },
+                                                Value{ std::get<bool>( current_token_.value_ ) } );
+    case TokenType::CHAR_LITERAL:
+      return std::make_unique<LiteralExprNode>( Type{ BaseType::CHAR },
+                                                Value{ std::get<char>( current_token_.value_ ) } );
+    case TokenType::FLOAT_LITERAL:
+      return std::make_unique<LiteralExprNode>( Type{ BaseType::FLOAT },
+                                                Value{ std::get<float>( current_token_.value_ ) } );
+    case TokenType::INT_LITERAL:
+      return std::make_unique<LiteralExprNode>( Type{ BaseType::INT },
+                                                Value{ std::get<int>( current_token_.value_ ) } );
+    case TokenType::STRING_LITERAL: {
+      std::string str_lit = std::get<std::string>( current_token_.value_ );
+      return std::make_unique<LiteralExprNode>( Type{ ArrayType{ std::make_unique<Type>( BaseType::CHAR ) } },
+                                                Value{ std::vector<Value>( str_lit.begin(), str_lit.end() ) } );
+    }
   }
 }
 

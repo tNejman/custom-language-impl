@@ -15,7 +15,7 @@ struct Variable {
   Value value_;
 
  public:
-  Variable( std::string name, Type type, Mutability mutability );
+  Variable( std::string name, Type type, Mutability mutability, Value value );
 
   const std::string& getName() const;
   const Type& getType() const;

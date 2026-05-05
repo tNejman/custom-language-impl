@@ -2,8 +2,8 @@
 
 #include "Parser/Types.hpp"
 
-Variable::Variable( std::string name, Type type, Mutability mutability )
-    : name_( std::move( name ) ), type_( std::move( type ) ), mutability_( mutability ) {
+Variable::Variable( std::string name, Type type, Mutability mutability, Value value )
+    : name_( std::move( name ) ), type_( std::move( type ) ), mutability_( mutability ), value_( std::move( value ) ) {
 }
 
 const std::string& Variable::getName() const {
