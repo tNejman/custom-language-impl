@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <format>
 
 #include "argparse/argparse.hpp"
 

@@ -103,6 +103,8 @@ struct Token {
       : position_( position ), type_( type ), value_( std::move( value ) ) {
     validate();
   }
+  // Token( Token &&temp ) : position_( temp.position_ ), type_( type_ ), value_( std::move( temp.value_ ) ) {
+  // }
 
   bool operator==( const Token &other ) const = default;
 

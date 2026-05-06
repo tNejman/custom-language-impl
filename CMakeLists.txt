@@ -65,11 +65,20 @@ function(apply_compiler_flags target)
             -Wformat=2 -Wduplicated-cond -Wduplicated-branches 
             -Wlogical-op -Wuseless-cast -Wzero-as-null-pointer-constant 
             -Wvla -Wshift-overflow=2 -Wstringop-overflow=4 
+
+            -fno-omit-frame-pointer
+            # -fsanitize=address
+            # -fsanitize=undefined
         )
     else()
         message(WARNING "Target '${target}' not found - skipping compiler flags")
     endif()
 endfunction()
+
+# add_link_options(-fsanitize=address)
+# add_link_options(-fsanitize=undefined)
+# add_compile_options(-stdlib=libc++)
+# add_link_options(-stdlib=libc++)
 
 foreach(module ${MODULES})
     add_subdirectory(src/${module})

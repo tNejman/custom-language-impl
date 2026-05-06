@@ -1,6 +1,5 @@
 add_library(Drivers
     LexerDriver.cc
-    Formatter.cc
 )
 
 target_link_libraries(Drivers PUBLIC

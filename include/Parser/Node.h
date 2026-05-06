@@ -2,16 +2,16 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Lexer/Token.hpp"
-#include "Parser/ParameterDecl.h"
+#include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
-#include "Parser/Value.h"
+#include "Parser/Value.hpp"
+#include "Parser/Visitor.h"
 #include "Types.hpp"
 #include "Variable.h"
-
-class Visitor;
 
 class INode {
  private:
@@ -21,7 +21,7 @@ class INode {
   INode( Position position ) : position_( position ) {
   }
   virtual ~INode() = default;
-  virtual void accept( Visitor& v ) = 0;
+  virtual void accept( Visitor& v ) const noexcept = 0;
   Position getPosition() const noexcept {
     return position_;
   }
@@ -39,14 +39,22 @@ class FunctionDefNode : public INode {
  public:
   FunctionDefNode( Position position, std::string identifier, Type ret_type,
                    std::vector<std::unique_ptr<ParameterDecl>> parameters, Block body );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  std::string_view getIdentifier() const noexcept;
+  const Type& getType() const noexcept;
+  const std::vector<std::unique_ptr<ParameterDecl>>& getParameters() const noexcept;
+  const Block& getBody() const noexcept;
 };
 
-class IExpressionNode : public INode {};
+class IExpressionNode : public INode {
+ public:
+  IExpressionNode( Position position ) : INode( position ) {
+  }
+  virtual void accept( Visitor& v ) const noexcept override = 0;
+};
 
 class VarOrConstDeclNode : public INode {
  private:
-  const Position position_;
   const std::string identifier_;
   const Mutability mutability_;
   const Type variable_decl_type_;
@@ -56,28 +64,37 @@ class VarOrConstDeclNode : public INode {
  public:
   VarOrConstDeclNode( Position positon, std::string identifier, Mutability mutability, Type type,
                       std::unique_ptr<IExpressionNode> initializer_expression );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  std::string_view getIdentifier() const noexcept;
+  Mutability getMutability() const noexcept;
+  const Type& getType() const noexcept;
+  const IExpressionNode* getInitializerExpr() const noexcept;
 };
+
+using ExprBlockPairVec = std::vector<std::pair<std::unique_ptr<IExpressionNode>, Block>>;
 
 class IfStatementNode : public INode {
  private:
-  const std::vector<std::pair<std::unique_ptr<const IExpressionNode>, const Block>> cond_block_pairs_;
+  const ExprBlockPairVec cond_block_pairs_;
   const Block else_block_;
 
  public:
-  IfStatementNode( Position position, std::vector<std::pair<std::unique_ptr<IExpressionNode>, Block>> if_then_pairs,
-                   Block else_body );
-  void accept( Visitor& v ) override;
+  IfStatementNode( Position position, ExprBlockPairVec if_then_pairs, Block else_body );
+  void accept( Visitor& v ) const noexcept override;
+  const ExprBlockPairVec& getCondBlockPairs() const noexcept;
+  const Block& getElseBlock() const noexcept;
 };
 
 class WhileStatementNode : public INode {
  private:
   const std::unique_ptr<const IExpressionNode> condition_;
-  const Block body_;
+  const Block block_;
 
  public:
-  WhileStatementNode( Position position, std::unique_ptr<IExpressionNode> condition, Block body );
-  void accept( Visitor& v ) override;
+  WhileStatementNode( Position position, std::unique_ptr<IExpressionNode> condition, Block block );
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode* getCondition() const noexcept;
+  const Block& getBlock();
 };
 
 enum class ControlFlowType { CONTINUE, BREAK };
@@ -88,7 +105,8 @@ class ControlFlowNode : public INode {
 
  public:
   ControlFlowNode( Position position, ControlFlowType type );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  ControlFlowType getControlFlowType() const noexcept;
 };
 
 class ReturnNode : public INode {
@@ -97,7 +115,8 @@ class ReturnNode : public INode {
 
  public:
   ReturnNode( Position position, std::unique_ptr<IExpressionNode> expression );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode* getExpression() const noexcept;
 };
 
 enum class AssignmentType { ASSIGN, ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, MOD_ASSIGN };
@@ -111,7 +130,10 @@ class AssignmentExprNode : public IExpressionNode {
  public:
   AssignmentExprNode( Position position, std::unique_ptr<IExpressionNode> left_operand,
                       std::unique_ptr<IExpressionNode> right_operand, AssignmentType type );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode* getLeftOperand() const noexcept;
+  const IExpressionNode* getRightOperand() const noexcept;
+  AssignmentType getAssignmentType() const noexcept;
 };
 
 enum class BinaryOperator {
@@ -142,9 +164,12 @@ class BinaryExprNode : public IExpressionNode {  // logical or and, equality, re
   const BinaryOperator operator_;
 
  public:
-  BinaryExprNode( std::unique_ptr<IExpressionNode> left_operand, std::unique_ptr<IExpressionNode> right_operand,
-                  BinaryOperator op );
-  void accept( Visitor& v ) override;
+  BinaryExprNode( Position position, std::unique_ptr<IExpressionNode> left_operand,
+                  std::unique_ptr<IExpressionNode> right_operand, BinaryOperator op );
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode* getLeftOperand() const noexcept;
+  const IExpressionNode* getRightOperand() const noexcept;
+  BinaryOperator getOperator() const noexcept;
 };
 
 enum class UnaryOperator { NEG, NOT, REV, LEN };
@@ -156,28 +181,33 @@ class UnaryExprNode : public IExpressionNode {  // -, not, @, $
 
  public:
   UnaryExprNode( Position position, std::unique_ptr<IExpressionNode> opernad, UnaryOperator un_operator );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode* getOperand() const noexcept;
+  UnaryOperator getOperator() const noexcept;
 };
 
-using ExpressionVec = const std::vector<std::unique_ptr<const IExpressionNode>>;
+using ExpressionVec = std::vector<std::unique_ptr<IExpressionNode>>;
 
 class FunctionCallNode : public IExpressionNode {
  private:
   const std::string identifier_;
-  ExpressionVec arguments_;
+  const ExpressionVec arguments_;
 
  public:
-  FunctionCallNode( Position position, std::string, std::vector<std::unique_ptr<IExpressionNode>> arguments );
-  void accept( Visitor& v ) override;
+  FunctionCallNode( Position position, std::string identifier, ExpressionVec arguments );
+  void accept( Visitor& v ) const noexcept override;
+  std::string_view getIdentifier() const noexcept;
+  const ExpressionVec& getArguments() const noexcept;
 };
 
 class ArrayLiteralNode : public IExpressionNode {
  private:
-  const ExpressionVec positions_;
+  const ExpressionVec array_positions_;
 
  public:
-  ArrayLiteralNode( Position position, std::vector<std::unique_ptr<IExpressionNode>> positions );
-  void accept( Visitor& v ) override;
+  ArrayLiteralNode( Position position, ExpressionVec array_positions );
+  void accept( Visitor& v ) const noexcept override;
+  const ExpressionVec& getPositions() const noexcept;
 };
 
 class LiteralExprNode : public IExpressionNode {
@@ -187,23 +217,27 @@ class LiteralExprNode : public IExpressionNode {
 
  public:
   LiteralExprNode( Position position, Type type, Value value );
-  void accept( Visitor& v ) override;
+  void accept( Visitor& v ) const noexcept override;
+  const Type& getType() const noexcept;
+  const Value& getValue() const noexcept;
 };
 
 class PrimaryIdentifierNode : public IExpressionNode {
  private:
-  const std::string name_;
+  const std::string identifier_;
 
  public:
-  PrimaryIdentifierNode( Position pos, std::string name );
-  void accept( Visitor& v ) override;
+  PrimaryIdentifierNode( Position position, std::string identifier );
+  void accept( Visitor& v ) const noexcept override;
+  std::string_view getIdentifier() const noexcept;
 };
 
 class ProgramNode : public INode {
  private:
-  const std::vector<std::unique_ptr<const INode>> statement_list_;
+  const std::vector<std::unique_ptr<INode>> statement_list_;
 
  public:
-  ProgramNode( Position pos, std::vector<std::unique_ptr<INode>> statements );
-  void accept( Visitor& v ) override;
+  ProgramNode( Position position, std::vector<std::unique_ptr<INode>> statements );
+  void accept( Visitor& v ) const noexcept override;
+  const std::vector<std::unique_ptr<INode>>& getStatementList() const noexcept;
 };

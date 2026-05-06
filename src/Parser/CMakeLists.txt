@@ -3,6 +3,7 @@ add_library(Parser
     Variable.cc
     ParserHelper.cc
     Node.cc
+    AstPrinterVisitor.cc
 )
 
 target_link_libraries(Parser PUBLIC 

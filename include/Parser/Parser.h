@@ -11,12 +11,15 @@
 
 class Parser : public IParser {
  private:
-  Token current_token_;
+  Lexer& lexer_;
   std::optional<Token> token_buffer_ = std::nullopt;
-  Lexer lexer_;
-  ErrorHandler error_handler_;
+  Token current_token_;
+  // ErrorHandler error_handler_;
+  bool is_first_token_ = true;
 
-  void nextToken();
+  Token getFirstToken();
+
+  Token nextToken();
   Token peek();
   void skipComments();
 
@@ -68,13 +71,15 @@ class Parser : public IParser {
       if ( !right_node ) throw std::runtime_error( "" );
 
       left_node =
-          std::make_unique<BinaryExprNode>( std::move( left_node ), std::move( right_node ),
+          std::make_unique<BinaryExprNode>( operator_token.position_, std::move( left_node ), std::move( right_node ),
                                             parser_helper::translateTokenTypeToBinaryOperator( operator_token.type_ ) );
     }
+    return left_node;
   }
 
   std::optional<Type> tryBuildType();
 
  public:
+  Parser( Lexer& lexer );
   ProgramNode buildProgram() override;
 };

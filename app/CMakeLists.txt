@@ -10,4 +10,5 @@ function(f_add_executable target_name file_name)
 endfunction()
 
 f_add_executable(LexerApp LexerApp.cc)
-f_add_executable(Main Main.cc)
+# f_add_executable(Main Main.cc)
+f_add_executable(ParserApp ParserApp.cc)

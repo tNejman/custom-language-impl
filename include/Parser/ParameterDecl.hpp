@@ -13,5 +13,7 @@ struct ParameterDecl {
   const PassMode pass_mode_;
   const Mutability mutability_;
 
-  ParameterDecl( std::string name, Type type, PassMode pass_mode, Mutability mutability );
+  ParameterDecl( std::string name, Type type, PassMode pass_mode, Mutability mutability )
+      : name_( std::move( name ) ), type_( std::move( type ) ), pass_mode_( pass_mode ), mutability_( mutability ) {
+  }
 };

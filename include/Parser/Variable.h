@@ -3,7 +3,7 @@
 #include <string>
 
 #include "Parser/Types.hpp"
-#include "Parser/Value.h"
+#include "Parser/Value.hpp"
 
 enum class Mutability { MUTABLE, IMMUTABLE };
 

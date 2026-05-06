@@ -2,9 +2,13 @@
 
 #include <array>
 #include <cctype>
+#include <limits>
+#include <optional>
 #include <ranges>
+#include <string>
 
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
+
 
 Token Lexer::makeToken( TokenType type, TokenVal value ) const {
   return Token{ start_pos_, type, std::move( value ) };
@@ -215,10 +219,6 @@ std::optional<Token> Lexer::tryBuildCharLiteral() {
   return makeToken( TokenType::CHAR_LITERAL, char_literal_value );
 }
 
-#include <limits>
-#include <optional>
-#include <string>
-
 std::optional<Token> Lexer::tryBuildNumericLiteral() {
   if ( !isdigit( current_char_ ) ) return std::nullopt;
 
@@ -321,12 +321,12 @@ Token Lexer::getNextToken() {
   skipWhitespaces();
   this->start_pos_ = this->current_pos_;
 
-  if ( auto t = tryBuildSymbol() ) return *t;
-  if ( auto t = tryBuildStringLiteral() ) return *t;
-  if ( auto t = tryBuildCharLiteral() ) return *t;
-  if ( auto t = tryBuildNumericLiteral() ) return *t;
-  if ( auto t = tryBuildComment() ) return *t;
-  if ( auto t = tryBuildIdentifier() ) return *t;
+  if ( auto t = tryBuildSymbol() ) return std::move( *t );
+  if ( auto t = tryBuildStringLiteral() ) return std::move( *t );
+  if ( auto t = tryBuildCharLiteral() ) return std::move( *t );
+  if ( auto t = tryBuildNumericLiteral() ) return std::move( *t );
+  if ( auto t = tryBuildComment() ) return std::move( *t );
+  if ( auto t = tryBuildIdentifier() ) return std::move( *t );
 
   throw UnknownSymbolException( current_pos_, current_char_ );
 }

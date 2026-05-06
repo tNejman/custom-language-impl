@@ -5,20 +5,26 @@
 #include <optional>
 #include <stdexcept>
 
+#include "Lexer/Lexer.h"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
-#include "Parser/ParameterDecl.h"
+#include "Parser/ParameterDecl.hpp"
 #include "Parser/ParserHelper.h"
 #include "Parser/Types.hpp"
 #include "Parser/Variable.h"
 
-void Parser::nextToken() {
-  if ( token_buffer_ ) {
+Token Parser::getFirstToken() {
+  return lexer_.getNextToken();
+}
+
+Token Parser::nextToken() {
+  if ( token_buffer_.has_value() ) {
     current_token_ = std::move( *token_buffer_ );
     token_buffer_ = std::nullopt;
   } else {
     this->current_token_ = lexer_.getNextToken();
   }
+  return current_token_;
 }
 
 Token Parser::peek() {
@@ -45,7 +51,12 @@ std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
 }
 
 std::unique_ptr<INode> Parser::tryBuildStatement() {
-  nextToken();
+  if ( !is_first_token_ ) {
+    nextToken();
+  } else {
+    is_first_token_ = false;
+  }
+
   skipComments();
   switch ( current_token_.type_ ) {
     case TokenType::END_OF_FILE: return nullptr;
@@ -55,7 +66,8 @@ std::unique_ptr<INode> Parser::tryBuildStatement() {
     case TokenType::T_FLOAT:
     case TokenType::T_CHAR:
     case TokenType::T_STR:
-    case TokenType::T_BOOL: return tryBuildVariableDecl( Mutability::IMMUTABLE );
+    case TokenType::T_BOOL:
+    case TokenType::LBRACKET: return tryBuildVariableDecl( Mutability::IMMUTABLE );
     case TokenType::KW_IF: return tryBuildIfStmt();
     case TokenType::KW_WHILE: return tryBuildWhileStmt();
     case TokenType::KW_BREAK:
@@ -152,6 +164,7 @@ std::unique_ptr<INode> Parser::tryBuildVariableDecl( const Mutability mutability
   Token identifier_token = current_token_;
   nextToken();
   if ( current_token_.type_ != TokenType::OP_ASSIGN ) throw std::runtime_error( "" );
+  nextToken();
   std::unique_ptr<IExpressionNode> expr = tryBuildExpression();
   if ( !expr ) throw std::runtime_error( "" );
 
@@ -161,7 +174,8 @@ std::unique_ptr<INode> Parser::tryBuildVariableDecl( const Mutability mutability
 }
 
 std::unique_ptr<INode> Parser::tryBuildIfStmt() {
-  std::vector<std::pair<std::unique_ptr<IExpressionNode>, Block>> condition_block_pairs;
+  Token if_begining_marker = current_token_;
+  ExprBlockPairVec condition_block_pairs;
   condition_block_pairs.push_back( tryBuildParenthesizedExpressionAndBlock() );
   while ( peek().type_ == TokenType::KW_ELSEIF ) {
     nextToken();
@@ -173,7 +187,8 @@ std::unique_ptr<INode> Parser::tryBuildIfStmt() {
     nextToken();
     else_block = tryBuildBlock();
   }
-  return std::make_unique<IfStatementNode>( std::move( condition_block_pairs ), std::move( else_block ) );
+  return std::make_unique<IfStatementNode>( if_begining_marker.position_, std::move( condition_block_pairs ),
+                                            std::move( else_block ) );
 }
 
 std::pair<std::unique_ptr<IExpressionNode>, Block> Parser::tryBuildParenthesizedExpressionAndBlock() {
@@ -190,21 +205,23 @@ std::pair<std::unique_ptr<IExpressionNode>, Block> Parser::tryBuildParenthesized
 };
 
 std::unique_ptr<INode> Parser::tryBuildWhileStmt() {
+  Token while_begining_marker = current_token_;
   nextToken();  // "while"
   auto expr_block_pair = tryBuildParenthesizedExpressionAndBlock();
-  return std::make_unique<WhileStatementNode>( std::move( expr_block_pair.first ),
+  return std::make_unique<WhileStatementNode>( while_begining_marker.position_, std::move( expr_block_pair.first ),
                                                std::move( expr_block_pair.second ) );
 }
 
 std::unique_ptr<INode> Parser::tryBuildControlFlowStmt() {
   ControlFlowType type =
       current_token_.type_ == TokenType::KW_BREAK ? ControlFlowType::BREAK : ControlFlowType::CONTINUE;
-  return std::make_unique<ControlFlowNode>( type );
+  return std::make_unique<ControlFlowNode>( current_token_.position_, type );
 }
 
 std::unique_ptr<INode> Parser::tryBuildReturnStmt() {
+  Token expr_begining_marker = current_token_;
   auto expr = tryBuildExpression();
-  return std::make_unique<ReturnNode>( std::move( expr ) );
+  return std::make_unique<ReturnNode>( expr_begining_marker.position_, std::move( expr ) );
 }
 
 std::optional<Type> Parser::tryBuildType() {
@@ -218,7 +235,7 @@ std::optional<Type> Parser::tryBuildType() {
       auto underlying_type = tryBuildType();
       if ( !underlying_type ) throw std::runtime_error( "" );
       nextToken();
-      if ( current_token_.type_ != TokenType::RPAREN ) throw std::runtime_error( "" );
+      if ( current_token_.type_ != TokenType::RBRACKET ) throw std::runtime_error( "" );
       return Type{ ArrayType{ std::make_unique<Type>( std::move( *underlying_type ) ) } };
     }
     default: return std::nullopt;
@@ -236,7 +253,7 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildExpression() {
   if ( !right_node ) throw std::runtime_error( "no right node after op assign" );
 
   return std::make_unique<AssignmentExprNode>(
-      std::move( left_node ), std::move( right_node ),
+      assignemt_token.position_, std::move( left_node ), std::move( right_node ),
       parser_helper::translateTokenTypeToAssignmentType( assignemt_token.type_ ) );
 }
 
@@ -272,7 +289,7 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildUnaryExpr() {
     nextToken();
     auto operand = tryBuildUnaryExpr();
     if ( !operand ) throw std::runtime_error( "" );
-    return std::make_unique<UnaryExprNode>( std::move( operand ),
+    return std::make_unique<UnaryExprNode>( operator_token.position_, std::move( operand ),
                                             parser_helper::translateTokenTypeToUnaryOperator( operator_token.type_ ) );
   }
 
@@ -298,8 +315,8 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
         if ( !right_node ) throw std::runtime_error( "" );
         nextToken();
         if ( current_token_.type_ != TokenType::RBRACKET ) throw std::runtime_error( "" );
-        left_node =
-            std::make_unique<BinaryExprNode>( std::move( left_node ), std::move( right_node ), BinaryOperator::ACCESS );
+        left_node = std::make_unique<BinaryExprNode>( operator_token.position_, std::move( left_node ),
+                                                      std::move( right_node ), BinaryOperator::ACCESS );
         break;
       }
       case TokenType::OP_FILTER:
@@ -307,8 +324,9 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
         nextToken();
         if ( current_token_.type_ != TokenType::IDENTIFIER ) throw std::runtime_error( "" );
         left_node = std::make_unique<BinaryExprNode>(
-            std::move( left_node ),
-            std::make_unique<PrimaryIdentifierNode>( std::get<std::string>( std::move( current_token_.value_ ) ) ),
+            operator_token.position_, std::move( left_node ),
+            std::make_unique<PrimaryIdentifierNode>( operator_token.position_,
+                                                     std::get<std::string>( std::move( current_token_.value_ ) ) ),
             parser_helper::translateTokenTypeToBinaryOperator( operator_token.type_ ) );
       }
     }
@@ -320,13 +338,15 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildPrimaryExpr() {
   if ( current_token_.type_ == TokenType::IDENTIFIER ) {
     Token identifier_token = current_token_;
     if ( peek().type_ != TokenType::LPAREN ) {
-      return std::make_unique<PrimaryIdentifierNode>( std::get<std::string>( std::move( identifier_token.value_ ) ) );
+      return std::make_unique<PrimaryIdentifierNode>( identifier_token.position_,
+                                                      std::get<std::string>( std::move( identifier_token.value_ ) ) );
     }
     nextToken();
     auto arguments = tryBuildArgumentListExpr();
     nextToken();
     if ( current_token_.type_ != TokenType::RPAREN ) throw std::runtime_error( "" );
-    return std::make_unique<FunctionCallNode>( std::get<std::string>( std::move( identifier_token.value_ ) ),
+    return std::make_unique<FunctionCallNode>( identifier_token.position_,
+                                               std::get<std::string>( std::move( identifier_token.value_ ) ),
                                                std::move( arguments ) );
   }
   if ( current_token_.type_ == TokenType::LPAREN ) {
@@ -357,10 +377,12 @@ std::vector<std::unique_ptr<IExpressionNode>> Parser::tryBuildArgumentListExpr()
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildArrayLiteralExpr() {
   if ( current_token_.type_ != TokenType::LBRACKET ) throw std::runtime_error( "" );
+  Token opening_bracket_marker = current_token_;
+  nextToken();
   auto array_positions = tryBuildArgumentListExpr();
   nextToken();
   if ( current_token_.type_ != TokenType::RBRACKET ) throw std::runtime_error( "" );
-  return std::make_unique<ArrayLiteralNode>( std::move( array_positions ) );
+  return std::make_unique<ArrayLiteralNode>( opening_bracket_marker.position_, std::move( array_positions ) );
 }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildLiteralExpr() {
@@ -369,26 +391,30 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildLiteralExpr() {
   }
   switch ( current_token_.type_ ) {
     case TokenType::BOOL_LITERAL:
-      return std::make_unique<LiteralExprNode>( Type{ BaseType::BOOL },
+      return std::make_unique<LiteralExprNode>( current_token_.position_, Type{ BaseType::BOOL },
                                                 Value{ std::get<bool>( current_token_.value_ ) } );
     case TokenType::CHAR_LITERAL:
-      return std::make_unique<LiteralExprNode>( Type{ BaseType::CHAR },
+      return std::make_unique<LiteralExprNode>( current_token_.position_, Type{ BaseType::CHAR },
                                                 Value{ std::get<char>( current_token_.value_ ) } );
     case TokenType::FLOAT_LITERAL:
-      return std::make_unique<LiteralExprNode>( Type{ BaseType::FLOAT },
+      return std::make_unique<LiteralExprNode>( current_token_.position_, Type{ BaseType::FLOAT },
                                                 Value{ std::get<float>( current_token_.value_ ) } );
     case TokenType::INT_LITERAL:
-      return std::make_unique<LiteralExprNode>( Type{ BaseType::INT },
+      return std::make_unique<LiteralExprNode>( current_token_.position_, Type{ BaseType::INT },
                                                 Value{ std::get<int>( current_token_.value_ ) } );
     case TokenType::STRING_LITERAL: {
       std::string str_lit = std::get<std::string>( current_token_.value_ );
-      return std::make_unique<LiteralExprNode>( Type{ ArrayType{ std::make_unique<Type>( BaseType::CHAR ) } },
+      return std::make_unique<LiteralExprNode>( current_token_.position_,
+                                                Type{ ArrayType{ std::make_unique<Type>( BaseType::CHAR ) } },
                                                 Value{ std::vector<Value>( str_lit.begin(), str_lit.end() ) } );
     }
   }
 }
 
-Program Parser::buildProgram() {
+Parser::Parser( Lexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken() ) {
+}
+
+ProgramNode Parser::buildProgram() {
   std::vector<std::unique_ptr<INode>> statement_list = tryBuildStatementList();
-  return Program{ std::move( statement_list ) };
+  return ProgramNode{ Position{ 1, 1 }, std::move( statement_list ) };
 };
