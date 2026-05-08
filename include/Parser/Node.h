@@ -34,16 +34,16 @@ class FunctionDefNode : public INode {
   const std::string identifier_;
   const Type return_type_;
   const std::vector<std::unique_ptr<ParameterDecl>> parameters_;
-  const Block body_;
+  const Block block_;
 
  public:
   FunctionDefNode( Position position, std::string identifier, Type ret_type,
-                   std::vector<std::unique_ptr<ParameterDecl>> parameters, Block body );
+                   std::vector<std::unique_ptr<ParameterDecl>> parameters, Block block );
   void accept( Visitor& v ) const noexcept override;
   std::string_view getIdentifier() const noexcept;
   const Type& getType() const noexcept;
   const std::vector<std::unique_ptr<ParameterDecl>>& getParameters() const noexcept;
-  const Block& getBody() const noexcept;
+  const Block& getBlock() const noexcept;
 };
 
 class IExpressionNode : public INode {
@@ -79,7 +79,7 @@ class IfStatementNode : public INode {
   const Block else_block_;
 
  public:
-  IfStatementNode( Position position, ExprBlockPairVec if_then_pairs, Block else_body );
+  IfStatementNode( Position position, ExprBlockPairVec if_then_pairs, Block else_block );
   void accept( Visitor& v ) const noexcept override;
   const ExprBlockPairVec& getCondBlockPairs() const noexcept;
   const Block& getElseBlock() const noexcept;
@@ -94,7 +94,7 @@ class WhileStatementNode : public INode {
   WhileStatementNode( Position position, std::unique_ptr<IExpressionNode> condition, Block block );
   void accept( Visitor& v ) const noexcept override;
   const IExpressionNode* getCondition() const noexcept;
-  const Block& getBlock();
+  const Block& getBlock() const noexcept;
 };
 
 enum class ControlFlowType { CONTINUE, BREAK };

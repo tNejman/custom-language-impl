@@ -1,9 +1,10 @@
 #include "Parser/AstPrinterVisitor.h"
 
-#include <iostream>
+#include <cmath>
+#include <print>
 
 #include "Drivers/Formatter.hpp"
-#include "Parser/ParameterDecl.hpp"
+#include "Parser/Node.h"
 
 // AstPrinterVisitor::
 
@@ -27,35 +28,42 @@
 
 void AstPrinterVisitor::printIndent() const noexcept {
   for ( int i = 0; i < indent_level_; ++i ) {
-    std::cout << "  " << char( 200 );
+    std::print( "  {}", char( 200 ) );
   }
-  std::cout << char( 205 ) << char( 205 ) << char( 203 ) << " ";
+  std::print( "{}{}{} ", char( 205 ), char( 205 ), char( 203 ) );
 }
 
 void AstPrinterVisitor::visit( const FunctionDefNode& node ) {
   printIndent();
-  std::cout << std::format( "Function Definition at pos {}: type: {} identifier: {}", node.getPosition(),
-                            node.getType(), node.getIdentifier() );
-  const auto& parameters = node.getParameters();
-  if ( parameters.size() == 0 ) {
-    std::cout << "parameter list: ()\n";
-    return;
+  std::print( "Function Definition at pos {}: type: {} identifier: {}", node.getPosition(), node.getType(),
+              node.getIdentifier() );
+  std::print( ", parameter list: (" );
+  bool first = true;
+  for ( const auto& param_ptr : node.getParameters() ) {
+    if ( !first ) std::print( ", " );
+    std::print( "{}", *param_ptr );
+    first = false;
   }
-  std::cout << "parameter list: (" << std::format( "{}", *( parameters[0] ) );
-  for ( int i = 1; i < parameters.size(); ++i ) {
-    std::cout << std::format( ", {}", *( parameters[i] ) );
+  std::println( ")" );
+
+  printIndent();
+  std::println( "Block:" );
+  ++indent_level_;
+  for ( const auto& stmnt_ptr : node.getBlock() ) {
+    stmnt_ptr->accept( *this );
   }
-  std::cout << ")\n";
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const IExpressionNode& node ) {
+  throw std::runtime_error( "IExpressionNode is an interface" );
 }
 
 void AstPrinterVisitor::visit( const VarOrConstDeclNode& node ) {
   printIndent();
-  const std::string mutability_quantifier = node.getMutability() == Mutability::MUTABLE ? "Variable" : "Constant";
-  std::cout << std::format( "{} Declaration at pos: {}, type: {}, identifier: {} = \n", mutability_quantifier,
-                            node.getPosition(), node.getType(), node.getIdentifier() );
+  const std::string_view mutability_quantifier = node.getMutability() == Mutability::MUTABLE ? "Variable" : "Constant";
+  std::println( "{} Declaration at pos: {}, type: {}, identifier: {} = ", mutability_quantifier, node.getPosition(),
+                node.getType(), node.getIdentifier() );
   ++indent_level_;
   if ( auto init_expr_ptr = node.getInitializerExpr() ) {
     init_expr_ptr->accept( *this );
@@ -64,53 +72,176 @@ void AstPrinterVisitor::visit( const VarOrConstDeclNode& node ) {
 }
 
 void AstPrinterVisitor::visit( const IfStatementNode& node ) {
+  printIndent();
+  std::println( "If Statement at pos: {}", node.getPosition() );
+  ++indent_level_;
+
+  bool is_first_branch = true;
+  for ( const auto& [cond_ptr, block] : node.getCondBlockPairs() ) {
+    printIndent();
+    if ( is_first_branch ) {
+      std::println( "If Branch:" );
+      is_first_branch = false;
+    } else {
+      std::println( "Else If Branch:" );
+    }
+    ++indent_level_;
+
+    printIndent();
+    std::println( " Condition:" );
+    ++indent_level_;
+    cond_ptr->accept( *this );
+    --indent_level_;
+
+    printIndent();
+    std::println( " Block:" );
+    ++indent_level_;
+    for ( const auto& block_stmt_ptr : block ) {
+      block_stmt_ptr->accept( *this );
+    }
+    --indent_level_;
+    --indent_level_;
+  }
+
+  printIndent();
+  std::println( "Else Block:" );
+  for ( const auto& stmnt_ptr : node.getElseBlock() ) {
+    stmnt_ptr->accept( *this );
+  }
+
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const WhileStatementNode& node ) {
+  printIndent();
+  std::println( "While Statement at pos: {}", node.getPosition() );
+  ++indent_level_;
+
+  printIndent();
+  std::println( "Condition:" );
+  ++indent_level_;
+  node.getCondition()->accept( *this );
+  --indent_level_;
+  printIndent();
+  std::println( "Block:" );
+  ++indent_level_;
+  for ( const auto& statement_ptr : node.getBlock() ) {
+    statement_ptr->accept( *this );
+  }
+  --indent_level_;
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const ControlFlowNode& node ) {
+  printIndent();
+  std::println( "Control Flow at pos: {} instruction: {}", node.getPosition(),
+                magic_enum::enum_name( node.getControlFlowType() ) );
 }
 
 void AstPrinterVisitor::visit( const ReturnNode& node ) {
+  printIndent();
+  std::println( "Return Statement at pos: {}", node.getPosition() );
+  ++indent_level_;
+
+  printIndent();
+  std::print( "Initializing expression: " );
+  node.getExpression()->accept( *this );
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const AssignmentExprNode& node ) {
+  printIndent();
+  std::println( "Assignment Expression at pos: {}", node.getPosition() );
+  ++indent_level_;
+
+  printIndent();
+  std::print( "Assigned to: " );
+  node.getLeftOperand()->accept( *this );
+
+  printIndent();
+  std::print( "Operator: {}", magic_enum::enum_name( node.getAssignmentType() ) );
+
+  printIndent();
+  std::print( "Assigned value: " );
+  node.getRightOperand()->accept( *this );
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const BinaryExprNode& node ) {
+  printIndent();
+  std::println( "Binary Expression at pos: {}", node.getPosition() );
+  ++indent_level_;
+
+  printIndent();
+  std::print( "Left Operand: " );
+  node.getLeftOperand()->accept( *this );
+
+  printIndent();
+  std::print( "Operator: {}", magic_enum::enum_name( node.getOperator() ) );
+
+  printIndent();
+  std::print( "Right Operand: " );
+  node.getRightOperand()->accept( *this );
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const UnaryExprNode& node ) {
+  printIndent();
+  std::println( "Binary Expression at pos: {}", node.getPosition() );
+  ++indent_level_;
+
+  printIndent();
+  std::print( "Operator: {}", magic_enum::enum_name( node.getOperator() ) );
+
+  printIndent();
+  std::print( "Operand: " );
+  node.getOperand()->accept( *this );
+  --indent_level_;
 }
 
 void AstPrinterVisitor::visit( const FunctionCallNode& node ) {
+  printIndent();
+  std::print( "Function Call at pos: {}, identifier: {}", node.getPosition(), node.getIdentifier() );
+  std::println( ", call argument list: (" );
+  bool first = true;
+  ++indent_level_;
+  for ( const auto& call_arg_ptr : node.getArguments() ) {
+    if ( !first ) std::print( ", " );
+    call_arg_ptr->accept( *this );
+    first = false;
+  }
+  --indent_level_;
+  std::println( ")" );
 }
 
 void AstPrinterVisitor::visit( const ArrayLiteralNode& node ) {
   printIndent();
-  std::cout << std::format( "Array Literal at pos: {}, value: [", node.getPosition() );
-  const auto& positions = node.getPositions();
-  for ( int i = 0; i < positions.size(); ++i ) {
-    if ( i != 0 ) {
-      std::cout << ',';
+  std::print( "Array Literal at pos: {}, value: [", node.getPosition() );
+  bool first_pos = true;
+  for ( const auto& pos_ptr : node.getPositions() ) {
+    if ( !first_pos ) {
+      std::print( ", " );
     }
-    positions[i]->accept( *this );
+    if ( pos_ptr ) {
+      pos_ptr->accept( *this );
+    }
+    first_pos = false;
   }
-  std::cout << "]\n";
+  std::println( "]" );
 }
 
 void AstPrinterVisitor::visit( const LiteralExprNode& node ) {
   printIndent();
-  std::cout << std::format( "Literal Expr at pos: {}, type: {}, value: {}\n", node.getPosition(), node.getType(),
-                            node.getValue() );
+  std::println( "Literal Expr at pos: {}, type: {}, value: {}", node.getPosition(), node.getType(), node.getValue() );
 }
 
 void AstPrinterVisitor::visit( const PrimaryIdentifierNode& node ) {
+  printIndent();
+  std::println( "Primary Identifier at pos: {}, name: {}", node.getPosition(), node.getIdentifier() );
 }
 
 void AstPrinterVisitor::visit( const ProgramNode& node ) {
-  std::cout << "Program. Statements: \n\n";
+  std::println( "Program. Statements: " );  //
 
   for ( const auto& statement : node.getStatementList() ) {
     statement->accept( *this );

@@ -3,12 +3,12 @@
 #include "Parser/Types.hpp"
 
 FunctionDefNode::FunctionDefNode( Position position, std::string identifier, Type ret_type,
-                                  std::vector<std::unique_ptr<ParameterDecl>> parameters, Block body )
+                                  std::vector<std::unique_ptr<ParameterDecl>> parameters, Block block )
     : INode( position ),
       identifier_( std::move( identifier ) ),
       return_type_( std::move( ret_type ) ),
       parameters_( std::move( parameters ) ),
-      body_( std::move( body ) ) {
+      block_( std::move( block ) ) {
 }
 
 void FunctionDefNode::accept( Visitor& v ) const noexcept {
@@ -23,8 +23,8 @@ const Type& FunctionDefNode::getType() const noexcept {
 const std::vector<std::unique_ptr<ParameterDecl>>& FunctionDefNode::getParameters() const noexcept {
   return parameters_;
 }
-const Block& FunctionDefNode::getBody() const noexcept {
-  return body_;
+const Block& FunctionDefNode::getBlock() const noexcept {
+  return block_;
 }
 
 VarOrConstDeclNode::VarOrConstDeclNode( Position positon, std::string identifier, Mutability mutability, Type type,
@@ -73,7 +73,7 @@ void WhileStatementNode::accept( Visitor& v ) const noexcept {
 const IExpressionNode* WhileStatementNode::getCondition() const noexcept {
   return condition_.get();
 }
-const Block& WhileStatementNode::getBlock() {
+const Block& WhileStatementNode::getBlock() const noexcept {
   return block_;
 }
 

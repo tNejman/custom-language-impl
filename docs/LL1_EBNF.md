@@ -2,7 +2,7 @@
 
 ```EBNF
 Program            ::== StatementList
-StatementList      ::== { Statement NEWLINE }
+StatementList      ::== { ( Statement NEWLINE {NEWLINE} ) | EOF }
 Statement          ::== FunctionDef // "def"
                       | VarDecl // "var"
                       | ConstDecl // Type
@@ -17,16 +17,17 @@ ReturnType         ::== Type | "void"
 ParamList          ::== Param { "," Param }
 Param              ::== [ ParamModifier ] Type IDENTIFIER
 ParamModifier      ::== "copy" | "mut"
-Block              ::== "do" StatementList "done"
+Block              ::== "do" NEWLINE StatementList "done" NEWLINE
 
 VarDecl            ::== "var" Type IDENTIFIER "=" Expression
 ConstDecl          ::== Type IDENTIFIER "=" Expression
 
-IfStmt             ::== "if" "(" Expression ")" Block
-                        { "elseif" "(" Expression ")" Block }
+IfStmt             ::== "if" ParenthExprAndBlock
+                        { "elseif" ParenthExprAndBlock }
                         [ "else" Block ]
+ParenthExprAndBlock::== "(" Expression ")" Block
 
-WhileStmt          ::== "while" "(" Expression ")" Block
+WhileStmt          ::== "while" ParenthExprAndBlock
 LoopControl        ::== "break" | "continue"
 ReturnStmt         ::== "ret" [ Expression ]
 
@@ -46,11 +47,13 @@ MultiplicativeExpr ::== UnaryExpr { ( "*" | "/" | "%" ) UnaryExpr }
 UnaryExpr          ::== ( "-" | "not" | "@" | "$" ) UnaryExpr 
                       | CastExpr
 CastExpr           ::== AccessExpr { "cast_to" Type }
-AccessExpr         ::== PrimaryExpr { "[" Expression "]" | "->" IDENTIFIER | "?" IDENTIFIER }
-PrimaryExpr        ::== IDENTIFIER [ "(" [ ArgumentList ] ")" ]
+AccessExpr         ::== PrimaryExpr { "[" Expression "]" | "->" PrimaryIdentifExpr | "?" PrimaryIdentifExpr }
+PrimaryExpr        ::== FunctionCall
                       | Literal
                       | "(" Expression ")"
                       | ArrayLiteral
+FunctionCall       ::== IDENTIFIER [ "(" [ ArgumentList ] ")" ]
+PrimaryIdentifExpr ::== IDENTIFIER
 
 ArgumentList       ::== Expression { "," Expression }
 ArrayLiteral       ::== "[" [ ArgumentList ] "]"
