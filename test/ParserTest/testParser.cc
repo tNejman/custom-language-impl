@@ -461,6 +461,73 @@ TEST_F( ParserTest, statement_if_elseif_elseif_elseif_else ) {
       std::move( res ) );
 }
 
+TEST_F( ParserTest, if_else_nested_many_times ) {
+  /*
+  if (true) do
+    if (true) do
+      if (true) do
+        ret 11
+      done else do
+        ret 12
+      done
+    done else do
+      ret 21
+    done
+  done else do
+    ret 31
+  done */
+  std::vector<TokenInitializer> init = {
+      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
+      { TokenType::KW_DO },          { TokenType::NEWLINE },
+
+      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
+      { TokenType::KW_DO },          { TokenType::NEWLINE },
+
+      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
+      { TokenType::KW_DO },          { TokenType::NEWLINE },
+
+      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 11 }, { TokenType::NEWLINE },
+
+      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 12 }, { TokenType::NEWLINE }, {TokenType::KW_DONE},
+
+      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 21 }, { TokenType::NEWLINE }, {TokenType::KW_DONE},
+
+      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 31 }, { TokenType::NEWLINE }, {TokenType::KW_DONE},
+{ TokenType::END_OF_FILE } };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{{if (true) {{if (true) {{if (true) {{ret 11}} else {{ret 12}}}} else {{ret 21}}}} else {{ret 31}}}}", std::move( res ) );
+}
+
+TEST_F( ParserTest, if_else_nested_ambiguous_binding ) {
+  /*
+  if (true) do
+    if (true) do
+      ret 1
+    done
+  done else do
+    ret 2
+  done */
+  std::vector<TokenInitializer> init = {
+      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
+      { TokenType::KW_DO },          { TokenType::NEWLINE },
+
+      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
+      { TokenType::KW_DO },          { TokenType::NEWLINE },
+
+      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 1 }, { TokenType::NEWLINE },        { TokenType::KW_DONE },
+
+      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET },         { TokenType::INT_LITERAL, 2 }, { TokenType::NEWLINE },
+      { TokenType::KW_DONE },       { TokenType::END_OF_FILE } };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{{if (true) {{if (true) {{ret 1}}}} else {{ret 2}}}}", std::move( res ) );
+}
+
+
+
 /* Common mistakes
  */
 
