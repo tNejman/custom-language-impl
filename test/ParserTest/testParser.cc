@@ -2,18 +2,8 @@
 
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
-#include "MockLexer.hpp"
-#include "Parser/AstSerializerVisitor.h"
 #include "Parser/Node.h"
-#include "Parser/Parser.h"
 #include "TestHelperPars.hpp"
-
-// TEST_F(ParserTest, a) {
-//   std::vector<TokenInitializer> init = {
-
-//   };
-//   std::string res = initTokensBuildProgramAndSerialize(std::move(init));
-// }
 
 TEST_F( ParserTest, check_init2 ) {
   ASSERT_TRUE( true );
@@ -63,44 +53,6 @@ TEST_F( ParserTest, multiple_statements_in_same_line ) {
 /* Statement productions at top level
  */
 
-TEST_F( ParserTest, statement_function_def ) {
-  std::vector<TokenInitializer> init = { TokenType::KW_DEF,     TokenType::T_VOID,  { TokenType::IDENTIFIER, "foo" },
-                                         TokenType::LPAREN,     TokenType::RPAREN,  TokenType::KW_DO,
-                                         TokenType::NEWLINE,    TokenType::KW_DONE, TokenType::NEWLINE,
-                                         TokenType::END_OF_FILE };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{def VOID foo() {}}}", std::move( res ) );
-}
-
-TEST_F( ParserTest, statement_var_decl ) {
-  std::vector<TokenInitializer> init = { TokenType::KW_VAR,
-                                         TokenType::T_INT,
-                                         { TokenType::IDENTIFIER, "x" },
-                                         TokenType::OP_ASSIGN,
-                                         { TokenType::INT_LITERAL, 0 },
-                                         TokenType::END_OF_FILE };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{var INT x = 0}}", std::move( res ) );
-}
-
-TEST_F( ParserTest, statement_const_decl ) {
-  std::vector<TokenInitializer> init = { TokenType::T_INT,
-                                         { TokenType::IDENTIFIER, "x" },
-                                         TokenType::OP_ASSIGN,
-                                         { TokenType::INT_LITERAL, 0 },
-                                         TokenType::END_OF_FILE };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{INT x = 0}}", std::move( res ) );
-}
-
-TEST_F( ParserTest, statement_if ) {
-  std::vector<TokenInitializer> init = { TokenType::KW_IF,   TokenType::LPAREN,  { TokenType::BOOL_LITERAL, true },
-                                         TokenType::RPAREN,  TokenType::KW_DO,   TokenType::NEWLINE,
-                                         TokenType::KW_DONE, TokenType::NEWLINE, TokenType::END_OF_FILE };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{if (true) {} else {}}}", std::move( res ) );
-}
-
 TEST_F( ParserTest, statement_while ) {
   std::vector<TokenInitializer> init = { TokenType::KW_WHILE, TokenType::LPAREN,  { TokenType::BOOL_LITERAL, true },
                                          TokenType::RPAREN,   TokenType::KW_DO,   TokenType::NEWLINE,
@@ -127,420 +79,90 @@ TEST_F( ParserTest, statement_return ) {
   EXPECT_EQ( "{{ret}}", std::move( res ) );
 }
 
-/* Most basic and primary statements
- */
-
-TEST_F( ParserTest, variable_declaration_with_basic_type ) {
-  {
-    std::vector<TokenInitializer> init = { TokenType::KW_VAR,
-                                           TokenType::T_INT,
-                                           { TokenType::IDENTIFIER, "x" },
-                                           TokenType::OP_ASSIGN,
-                                           { TokenType::INT_LITERAL, 1 } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var INT x = 1}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = { TokenType::KW_VAR,
-                                           TokenType::T_FLOAT,
-                                           { TokenType::IDENTIFIER, "x" },
-                                           TokenType::OP_ASSIGN,
-                                           { TokenType::FLOAT_LITERAL, 1.f } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var FLOAT x = 1.}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = { TokenType::KW_VAR,
-                                           TokenType::T_BOOL,
-                                           { TokenType::IDENTIFIER, "x" },
-                                           TokenType::OP_ASSIGN,
-                                           { TokenType::BOOL_LITERAL, true } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var BOOL x = true}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = { TokenType::KW_VAR,
-                                           TokenType::T_CHAR,
-                                           { TokenType::IDENTIFIER, "x" },
-                                           TokenType::OP_ASSIGN,
-                                           { TokenType::CHAR_LITERAL, 'c' } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var CHAR x = 'c'}}", std::move( res ) );
-  }
-}
-
-TEST_F( ParserTest, constant_declaration_with_basic_type ) {
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_INT, { TokenType::IDENTIFIER, "x" }, TokenType::OP_ASSIGN, { TokenType::INT_LITERAL, 1 } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{INT x = 1}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_FLOAT, { TokenType::IDENTIFIER, "x" }, TokenType::OP_ASSIGN, { TokenType::FLOAT_LITERAL, 1.f } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{FLOAT x = 1.}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_BOOL, { TokenType::IDENTIFIER, "x" }, TokenType::OP_ASSIGN, { TokenType::BOOL_LITERAL, true } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{BOOL x = true}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_CHAR, { TokenType::IDENTIFIER, "x" }, TokenType::OP_ASSIGN, { TokenType::CHAR_LITERAL, 'c' } };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{CHAR x = 'c'}}", std::move( res ) );
-  }
-}
-
-TEST_F( ParserTest, variable_declaration_with_string_type ) {
-  std::vector<TokenInitializer> init = {
-      TokenType::T_STR, { TokenType::IDENTIFIER, "x" }, TokenType::OP_ASSIGN, { TokenType::STRING_LITERAL, "abcd" } };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{CHAR[] x = ['a', 'b', 'c', 'd']}}", std::move( res ) );
-}
-
-TEST_F( ParserTest, variable_declaration_with_array_of_basic_type ) {
-  {
-    std::vector<TokenInitializer> init = { TokenType::KW_VAR,
-                                           TokenType::T_INT,
-                                           TokenType::LBRACKET,
-                                           TokenType::RBRACKET,
-                                           { TokenType::IDENTIFIER, "x" },
-                                           TokenType::OP_ASSIGN,
-                                           TokenType::LBRACKET,
-                                           { TokenType::INT_LITERAL, 1 },
-                                           TokenType::RBRACKET };
-
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var INT[] x = [1]}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::KW_VAR,
-        TokenType::T_FLOAT,
-        TokenType::LBRACKET,
-        TokenType::RBRACKET,
-        { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN,
-        TokenType::LBRACKET,
-        { TokenType::FLOAT_LITERAL, 1.f },
-        TokenType::RBRACKET,
-    };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var FLOAT[] x = [1.]}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::KW_VAR,
-        TokenType::T_BOOL,
-        TokenType::LBRACKET,
-        TokenType::RBRACKET,
-        { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN,
-        TokenType::LBRACKET,
-        { TokenType::BOOL_LITERAL, true },
-        TokenType::RBRACKET,
-    };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var BOOL[] x = [true]}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::KW_VAR,
-        TokenType::T_CHAR,
-        TokenType::LBRACKET,
-        TokenType::RBRACKET,
-        { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN,
-        TokenType::LBRACKET,
-        { TokenType::CHAR_LITERAL, 'c' },
-        TokenType::RBRACKET,
-    };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{var CHAR[] x = ['c']}}", std::move( res ) );
-  }
-}
-
-TEST_F( ParserTest, constant_declaration_with_array_of_basic_type ) {
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_INT,     TokenType::LBRACKET, TokenType::RBRACKET,           { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN, TokenType::LBRACKET, { TokenType::INT_LITERAL, 1 }, TokenType::RBRACKET };
-
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{INT[] x = [1]}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_FLOAT,
-        TokenType::LBRACKET,
-        TokenType::RBRACKET,
-        { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN,
-        TokenType::LBRACKET,
-        { TokenType::FLOAT_LITERAL, 1.f },
-        TokenType::RBRACKET,
-    };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{FLOAT[] x = [1.]}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_BOOL,
-        TokenType::LBRACKET,
-        TokenType::RBRACKET,
-        { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN,
-        TokenType::LBRACKET,
-        { TokenType::BOOL_LITERAL, true },
-        TokenType::RBRACKET,
-    };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{BOOL[] x = [true]}}", std::move( res ) );
-  }
-  {
-    std::vector<TokenInitializer> init = {
-        TokenType::T_CHAR,
-        TokenType::LBRACKET,
-        TokenType::RBRACKET,
-        { TokenType::IDENTIFIER, "x" },
-        TokenType::OP_ASSIGN,
-        TokenType::LBRACKET,
-        { TokenType::CHAR_LITERAL, 'c' },
-        TokenType::RBRACKET,
-    };
-    std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-    EXPECT_EQ( "{{CHAR[] x = ['c']}}", std::move( res ) );
-  }
-}
-
-TEST_F( ParserTest, variable_declaration_complex_array_type ) {
-  std::vector<TokenInitializer> init = { TokenType::T_INT,
-                                         TokenType::LBRACKET,
-                                         TokenType::RBRACKET,
-                                         TokenType::LBRACKET,
-                                         TokenType::RBRACKET,
-                                         TokenType::LBRACKET,
-                                         TokenType::RBRACKET,
-
-                                         { TokenType::IDENTIFIER, "mat3dim" },
-                                         TokenType::OP_ASSIGN,
-
-                                         TokenType::LBRACKET,
-                                         TokenType::LBRACKET,
-                                         TokenType::LBRACKET,
-                                         { TokenType::INT_LITERAL, 1 },
-                                         TokenType::RBRACKET,
-                                         TokenType::RBRACKET,
-                                         TokenType::RBRACKET,
-                                         TokenType::NEWLINE,
-                                         TokenType::END_OF_FILE };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{INT[][][] mat3dim = [[[1]]]}}", std::move( res ) );
-}
-
-TEST_F( ParserTest, variable_declaration_string_array_type ) {
-  std::vector<TokenInitializer> init = { TokenType::T_STR,
-                                         TokenType::LBRACKET,
-                                         TokenType::RBRACKET,
-
-                                         { TokenType::IDENTIFIER, "alpha_and_bet" },
-                                         TokenType::OP_ASSIGN,
-
-                                         TokenType::LBRACKET,
-                                         { TokenType::STRING_LITERAL, "abc" },
-                                         TokenType::COMMA,
-                                         { TokenType::STRING_LITERAL, "def" },
-                                         TokenType::RBRACKET,
-                                         TokenType::NEWLINE,
-                                         TokenType::END_OF_FILE };
-  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{CHAR[][] alpha_and_bet = [['a', 'b', 'c'], ['d', 'e', 'f']]}}", std::move( res ) );
-}
-
 /* Advanced statement productions
  */
 
-TEST_F( ParserTest, statement_function_def_with_array_type_and_modifiers ) {
-  /*
-  def void process(mut [int] arr, copy str name) do
-  done
-   */
-  std::vector<TokenInitializer> init = { { TokenType::KW_DEF },
-                                         { TokenType::T_VOID },
-                                         { TokenType::IDENTIFIER, "process" },
-                                         { TokenType::LPAREN },
-                                         { TokenType::KW_MUT },
-                                         { TokenType::T_INT },
-                                         { TokenType::LBRACKET },
-                                         { TokenType::RBRACKET },
-                                         { TokenType::IDENTIFIER, "arr" },
-                                         { TokenType::COMMA },
-                                         { TokenType::KW_COPY },
-                                         { TokenType::T_STR },
-                                         { TokenType::IDENTIFIER, "name" },
-                                         { TokenType::RPAREN },
-                                         { TokenType::KW_DO },
-                                         { TokenType::NEWLINE },
-                                         { TokenType::KW_DONE },
-                                         { TokenType::NEWLINE },
-                                         { TokenType::END_OF_FILE } };
+
+
+/*
+
+
+
+*/
+
+TEST_F( ParserTest, array_literal_empty ) {
+  std::vector<TokenInitializer> init = { TokenType::LBRACKET, TokenType::RBRACKET };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{def VOID process(mut INT[] arr, copy CHAR[] name) {}}}", std::move( res ) );
+  EXPECT_EQ( "{[]}", std::move( res ) );
 }
 
-TEST_F( ParserTest, statement_if_else ) {
-  /*
-  if (x > 0) do
-    ret 1
-  done else do
-    ret 0
-  done
-
-   */
-  std::vector<TokenInitializer> init = {
-      { TokenType::KW_IF },          { TokenType::LPAREN },         { TokenType::IDENTIFIER, "x" },
-      { TokenType::OP_GT },          { TokenType::INT_LITERAL, 0 }, { TokenType::RPAREN },
-      { TokenType::KW_DO },          { TokenType::NEWLINE },        { TokenType::KW_RET },
-      { TokenType::INT_LITERAL, 1 }, { TokenType::NEWLINE },        { TokenType::KW_DONE },
-      { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },         { TokenType::INT_LITERAL, 0 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },        { TokenType::NEWLINE },        { TokenType::END_OF_FILE } };
+TEST_F( ParserTest, array_literal_single_element ) {
+  std::vector<TokenInitializer> init = { TokenType::LBRACKET, { TokenType::INT_LITERAL, 1 }, TokenType::RBRACKET };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{if ({x > 0}) {{ret 1}} else {{ret 0}}}}", std::move( res ) );
+  EXPECT_EQ( "{[1]}", std::move( res ) );
 }
 
-TEST_F( ParserTest, statement_if_elseif_elseif_elseif_else ) {
-  /*
-  if (true) do
-    ret 1
-  done elseif (true) do
-    ret 2
-  done elseif (true) do
-    ret 3
-  done elseif (true) do
-    ret 4
-  done else do
-    ret 5
-  done
-
-   */
-  std::vector<TokenInitializer> init = {
-      { TokenType::KW_IF },     { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
-      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 1 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },
-
-      { TokenType::KW_ELSEIF }, { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
-      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 2 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },
-
-      { TokenType::KW_ELSEIF }, { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
-      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 3 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },
-
-      { TokenType::KW_ELSEIF }, { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
-      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 4 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },
-
-      { TokenType::KW_ELSE },   { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 5 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },
-
-      { TokenType::NEWLINE },   { TokenType::END_OF_FILE } };
+TEST_F( ParserTest, array_literal_many_elements ) {
+  std::vector<TokenInitializer> init = { TokenType::LBRACKET,
+                                         { TokenType::INT_LITERAL, 1 },
+                                         TokenType::COMMA,
+                                         { TokenType::INT_LITERAL, 2 },
+                                         TokenType::RBRACKET };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ(
-      "{{if (true) {{ret 1}} elseif (true) {{ret 2}} elseif (true) {{ret 3}} elseif (true) {{ret 4}} else {{ret 5}}}}",
-      std::move( res ) );
+  EXPECT_EQ( "{[1, 2]}", std::move( res ) );
 }
 
-TEST_F( ParserTest, if_else_nested_many_times ) {
-  /*
-  if (true) do
-    if (true) do
-      if (true) do
-        ret 11
-      done else do
-        ret 12
-      done
-    done else do
-      ret 21
-    done
-  done else do
-    ret 31
-  done */
+TEST_F( ParserTest, array_literal_very_many_elements ) {
   std::vector<TokenInitializer> init = {
-      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
-      { TokenType::KW_DO },          { TokenType::NEWLINE },
-
-      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
-      { TokenType::KW_DO },          { TokenType::NEWLINE },
-
-      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
-      { TokenType::KW_DO },          { TokenType::NEWLINE },
-
-      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 11 }, { TokenType::NEWLINE },
-
-      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 12 }, { TokenType::NEWLINE }, {TokenType::KW_DONE},
-
-      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 21 }, { TokenType::NEWLINE }, {TokenType::KW_DONE},
-
-      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 31 }, { TokenType::NEWLINE }, {TokenType::KW_DONE},
-{ TokenType::END_OF_FILE } };
+      TokenType::LBRACKET, { TokenType::INT_LITERAL, 1 },  TokenType::COMMA, { TokenType::INT_LITERAL, 2 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 3 },  TokenType::COMMA, { TokenType::INT_LITERAL, 4 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 5 },  TokenType::COMMA, { TokenType::INT_LITERAL, 6 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 7 },  TokenType::COMMA, { TokenType::INT_LITERAL, 8 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 9 },  TokenType::COMMA, { TokenType::INT_LITERAL, 10 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 11 }, TokenType::COMMA, { TokenType::INT_LITERAL, 12 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 13 }, TokenType::COMMA, { TokenType::INT_LITERAL, 14 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 15 }, TokenType::COMMA, { TokenType::INT_LITERAL, 16 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 17 }, TokenType::COMMA, { TokenType::INT_LITERAL, 18 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 19 }, TokenType::COMMA, { TokenType::INT_LITERAL, 20 },
+      TokenType::RBRACKET };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{if (true) {{if (true) {{if (true) {{ret 11}} else {{ret 12}}}} else {{ret 21}}}} else {{ret 31}}}}", std::move( res ) );
+  EXPECT_EQ( "{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}", std::move( res ) );
 }
 
-TEST_F( ParserTest, if_else_nested_ambiguous_binding ) {
-  /*
-  if (true) do
-    if (true) do
-      ret 1
-    done
-  done else do
-    ret 2
-  done */
+TEST_F( ParserTest, array_literal_nested_many_elements ) {
   std::vector<TokenInitializer> init = {
-      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
-      { TokenType::KW_DO },          { TokenType::NEWLINE },
-
-      { TokenType::KW_IF },          { TokenType::LPAREN }, {TokenType::BOOL_LITERAL, true}, { TokenType::RPAREN },
-      { TokenType::KW_DO },          { TokenType::NEWLINE },
-
-      { TokenType::KW_RET }, { TokenType::INT_LITERAL, 1 }, { TokenType::NEWLINE },        { TokenType::KW_DONE },
-
-      { TokenType::KW_DONE }, { TokenType::KW_ELSE },        { TokenType::KW_DO },          { TokenType::NEWLINE },
-      { TokenType::KW_RET },         { TokenType::INT_LITERAL, 2 }, { TokenType::NEWLINE },
-      { TokenType::KW_DONE },       { TokenType::END_OF_FILE } };
+      TokenType::LBRACKET, TokenType::LBRACKET,           { TokenType::INT_LITERAL, 1 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 2 }, TokenType::RBRACKET,
+      TokenType::COMMA,    TokenType::LBRACKET,           { TokenType::INT_LITERAL, 3 },
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 4 }, TokenType::RBRACKET,
+      TokenType::RBRACKET };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{if (true) {{if (true) {{ret 1}}}} else {{ret 2}}}}", std::move( res ) );
+  EXPECT_EQ( "{[[1, 2], [3, 4]]}", std::move( res ) );
 }
 
-
-
-/* Common mistakes
- */
-
-TEST_F( ParserTest, variable_declaration_missing_assign_operator ) {
+TEST_F( ParserTest, array_literal_nested_many_times ) {
   std::vector<TokenInitializer> init = {
-      TokenType::KW_VAR, TokenType::T_INT, { TokenType::IDENTIFIER, "x" }, { TokenType::INT_LITERAL, 5 } };
-  std::string res;
-  ASSERT_THROW( res = initTokensBuildProgramAndSerialize( std::move( init ) ), MissingOperatorException );
+      TokenType::LBRACKET, TokenType::LBRACKET, TokenType::LBRACKET, TokenType::LBRACKET, TokenType::LBRACKET,
+      TokenType::LBRACKET, TokenType::LBRACKET, TokenType::LBRACKET, TokenType::LBRACKET, TokenType::LBRACKET,
+      TokenType::RBRACKET, TokenType::RBRACKET, TokenType::RBRACKET, TokenType::RBRACKET, TokenType::RBRACKET,
+      TokenType::RBRACKET, TokenType::RBRACKET, TokenType::RBRACKET, TokenType::RBRACKET, TokenType::RBRACKET };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{[[[[[[[[[[]]]]]]]]]]}", std::move( res ) );
 }
 
-TEST_F( ParserTest, variable_declaration_missing_type ) {
+TEST_F( ParserTest, array_literal_wrapped_in_parenthesis ) {
   std::vector<TokenInitializer> init = {
-      TokenType::KW_VAR, { TokenType::IDENTIFIER, "x" }, TokenType::OP_ASSIGN, { TokenType::INT_LITERAL, 5 } };
-  std::string res;
-  ASSERT_THROW( res = initTokensBuildProgramAndSerialize( std::move( init ) ), InvalidTypeException );
+      TokenType::LPAREN, TokenType::LBRACKET, { TokenType::INT_LITERAL, 1 }, TokenType::RBRACKET, TokenType::RPAREN };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{[1]}", std::move( res ) );
+}
+
+TEST_F( ParserTest, array_literal_expression_as_value ) {
+  // [getValue(), 1 + 2]
+  std::vector<TokenInitializer> init = {
+      TokenType::LBRACKET, { TokenType::IDENTIFIER, "getValue" }, TokenType::LPAREN,  TokenType::RPAREN,
+      TokenType::COMMA,    { TokenType::INT_LITERAL, 1 },         TokenType::OP_PLUS, { TokenType::INT_LITERAL, 2 },
+      TokenType::RBRACKET };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{[getValue(), {1 + 2}]}", std::move( res ) );
 }

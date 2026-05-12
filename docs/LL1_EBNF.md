@@ -47,7 +47,7 @@ MultiplicativeExpr ::== UnaryExpr { ( "*" | "/" | "%" ) UnaryExpr }
 UnaryExpr          ::== ( "-" | "not" | "@" | "$" ) UnaryExpr 
                       | CastExpr
 CastExpr           ::== AccessExpr { "cast_to" Type }
-AccessExpr         ::== PrimaryExpr { "[" Expression "]" | "->" PrimaryIdentifExpr | "?" PrimaryIdentifExpr }
+AccessExpr         ::== PrimaryExpr { "[" Expression "]" | "->" IDENTIFIER | "?" IDENTIFIER }
 PrimaryExpr        ::== IDENTIFIER [ "(" [ ArgumentList ] ")" ]
                       | Literal
                       | "(" Expression ")"

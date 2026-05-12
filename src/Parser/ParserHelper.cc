@@ -2,7 +2,6 @@
 
 #include "Parser/Node.h"
 
-
 namespace parser_helper {
 bool isAssignment( const TokenType token_type ) noexcept {
   switch ( token_type ) {
@@ -94,8 +93,8 @@ AssignmentType translateTokenTypeToAssignmentType( const TokenType token_type ) 
     case TokenType::OP_ASSIGN: return AssignmentType::ASSIGN;
     case TokenType::OP_ADD_ASSIGN: return AssignmentType::ADD_ASSIGN;
     case TokenType::OP_SUB_ASSIGN: return AssignmentType::SUB_ASSIGN;
-    case TokenType::OP_DIV_ASSIGN: return AssignmentType::MUL_ASSIGN;
-    case TokenType::OP_MUL_ASSIGN: return AssignmentType::DIV_ASSIGN;
+    case TokenType::OP_MUL_ASSIGN: return AssignmentType::MUL_ASSIGN;
+    case TokenType::OP_DIV_ASSIGN: return AssignmentType::DIV_ASSIGN;
     case TokenType::OP_MOD_ASSIGN: return AssignmentType::MOD_ASSIGN;
   }
 }

@@ -5,6 +5,8 @@
 #include <memory>
 #include <optional>
 
+#include "Exceptions/ParserExceptions/MissingKeywordException.hpp"
+#include "Exceptions/ParserExceptions/MissingNewlineException.hpp"
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
@@ -52,6 +54,7 @@ void Parser::skipNewlines() {
 }
 
 std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
+  skipNewlines();  // statements in a block may start with any number of newlines, even the program itslef
   auto statement = tryBuildStatement();
   if ( !statement ) return {};
 
@@ -107,8 +110,10 @@ std::unique_ptr<INode> Parser::tryBuildFunctionDef() {
   // current_token_ is the first of paramList
   std::vector<std::unique_ptr<ParameterDecl>> param_list = tryBuildParamList();
   consumeSpecificTokenOrThrow<MissingParenthesisException>( TokenType::RPAREN, object_being_built_tag,
-                                                            ParenthesisType::OPENING );
+                                                            ParenthesisType::CLOSING );
   Block block = tryBuildBlock();
+  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
+                                                        object_being_built_tag );
 
   return std::make_unique<FunctionDefNode>(
       function_def_marker.position_, std::get<std::string>( std::move( identifier_token.value_ ) ),
@@ -178,10 +183,7 @@ std::unique_ptr<ParameterDecl> Parser::tryBuildParameter() {
 
 Block Parser::tryBuildBlock() {
   static constexpr std::string_view object_being_built_tag = "'do ... done' block";
-  if ( current_token_.type_ != TokenType::KW_DO ) {
-    return {};
-  }
-  nextToken();  // consume "do"
+  consumeSpecificTokenOrThrow<MissingKeywordException>( TokenType::KW_DO, TokenType::KW_DO, object_being_built_tag );
   consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DO, object_being_built_tag );
   Block statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<MissingKeywordException>( TokenType::KW_DONE, TokenType::KW_DONE,
@@ -333,7 +335,6 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildExpression() {
   auto left_node = tryBuildLogicalOrExpr();
   if ( !left_node ) return nullptr;
   if ( !parser_helper::isAssignment( current_token_.type_ ) ) return left_node;
-
   Token assignemt_token = current_token_;
   nextToken();  // consume "assign"
   auto right_node = tryBuildLogicalOrExpr();
@@ -550,7 +551,6 @@ Parser::Parser( ILexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken
 }
 
 std::unique_ptr<ProgramNode> Parser::buildProgram() {
-  skipNewlines();  // program may begin with lines; outside of StatementList production
   std::vector<std::unique_ptr<INode>> statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<NotConsumedTokensException>( TokenType::END_OF_FILE, current_token_ );
   return std::make_unique<ProgramNode>( Position{ 1, 1 }, std::move( statement_list ) );

@@ -10,7 +10,6 @@
 #include "Parser/Node.h"
 #include "Parser/ParserHelper.h"
 
-
 class Parser : public IParser {
  private:
   ILexer& lexer_;
@@ -102,9 +101,8 @@ class Parser : public IParser {
   requires std::is_constructible_v<ParCustException, Position, Args...>
            && std::invocable<MatchTokenTypeFunction, TokenType>
            && std::same_as<std::invoke_result_t<MatchTokenTypeFunction, TokenType>, bool>
-  void consumeTokenFromCategoryOrThrow( const TokenType to_be_matched, MatchTokenTypeFunction match_token_type_fun,
-                                        Args&&... exc_args ) {
-    if ( !match_token_type_fun( to_be_matched ) ) {
+  void consumeTokenFromCategoryOrThrow( MatchTokenTypeFunction match_token_type_fun, Args&&... exc_args ) {
+    if ( !match_token_type_fun( current_token_.type_ ) ) {
       throw ParCustException( current_token_.position_, std::forward<Args>( exc_args )... );
     }
     nextToken();

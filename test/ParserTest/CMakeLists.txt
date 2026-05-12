@@ -16,4 +16,7 @@ function(f_add_test_executable target_name file_name)
 endfunction()
 
 f_add_test_executable(testGoogleParser testParser.cc)
+f_add_test_executable(testGoogleParserFunctions testParserFunctions.cc)
+f_add_test_executable(testGoogleParserIfStatement testParserIfStatement.cc)
 f_add_test_executable(testGoogleParserOperators testParserOperators.cc)
+f_add_test_executable(testGoogleParserVariableDeclarations testParserVariableDeclarations.cc)
