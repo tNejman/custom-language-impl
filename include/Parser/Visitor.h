@@ -10,6 +10,7 @@ class ReturnNode;
 class AssignmentExprNode;
 class BinaryExprNode;
 class UnaryExprNode;
+class CastExprNode;
 class FunctionCallNode;
 class ArrayLiteralNode;
 class LiteralExprNode;
@@ -21,7 +22,7 @@ class Visitor {
   virtual ~Visitor() = default;
 
   virtual void visit( const FunctionDefNode& node ) = 0;
-  virtual void visit( const IExpressionNode& node ) = 0;
+  // virtual void visit( const IExpressionNode& node ) = 0;
   virtual void visit( const VarOrConstDeclNode& node ) = 0;
   virtual void visit( const IfStatementNode& node ) = 0;
   virtual void visit( const WhileStatementNode& node ) = 0;
@@ -30,6 +31,7 @@ class Visitor {
   virtual void visit( const AssignmentExprNode& node ) = 0;
   virtual void visit( const BinaryExprNode& node ) = 0;
   virtual void visit( const UnaryExprNode& node ) = 0;
+  virtual void visit( const CastExprNode& node ) = 0;
   virtual void visit( const FunctionCallNode& node ) = 0;
   virtual void visit( const ArrayLiteralNode& node ) = 0;
   virtual void visit( const LiteralExprNode& node ) = 0;

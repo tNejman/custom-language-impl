@@ -6,7 +6,7 @@
 
 enum class BracketType { OPENING, CLOSING };
 
-std::string_view bracketTypeEnumToString( BracketType par_type ) {
+inline std::string_view bracketTypeEnumToString( BracketType par_type ) {
   return par_type == BracketType::OPENING ? "opening" : "closing";
 }
 

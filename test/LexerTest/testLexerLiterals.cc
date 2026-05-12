@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
-#include "TestHelper.hpp"
+#include "TestHelperLex.hpp"
 
 
 class LexerLiteralTest : public LexerTest {};

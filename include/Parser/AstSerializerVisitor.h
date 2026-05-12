@@ -10,8 +10,8 @@ class AstSerializerVisitor : public Visitor {
  private:
   constexpr static std::string_view OPENING_SECTION_MARKER = "{";
   constexpr static std::string_view CLOSING_SECTION_MARKER = "}";
-  constexpr static std::string_view PROGRAM_OPENING_SECTION_MARKER = "<<";
-  constexpr static std::string_view PROGRAM_CLOSING_SECTION_MARKER = ">>";
+  // constexpr static std::string_view PROGRAM_OPENING_SECTION_MARKER = "<<";
+  // constexpr static std::string_view PROGRAM_CLOSING_SECTION_MARKER = ">>";
   std::stringstream string_builder_;
   void flushBuffer();
 
@@ -23,7 +23,7 @@ class AstSerializerVisitor : public Visitor {
   }
 
   void visit( const FunctionDefNode& node ) override;
-  void visit( const IExpressionNode& node ) override;
+  // void visit( const IExpressionNode& node ) override;
   void visit( const VarOrConstDeclNode& node ) override;
   void visit( const IfStatementNode& node ) override;
   void visit( const WhileStatementNode& node ) override;
@@ -32,6 +32,7 @@ class AstSerializerVisitor : public Visitor {
   void visit( const AssignmentExprNode& node ) override;
   void visit( const BinaryExprNode& node ) override;
   void visit( const UnaryExprNode& node ) override;
+  void visit( const CastExprNode& node ) override;
   void visit( const FunctionCallNode& node ) override;
   void visit( const ArrayLiteralNode& node ) override;
   void visit( const LiteralExprNode& node ) override;

@@ -61,7 +61,7 @@ struct std::formatter<Type> {
           if constexpr ( std::same_as<T, BaseType> ) {
             out = std::format_to( out, "{}", magic_enum::enum_name( arg ) );
           } else if constexpr ( std::same_as<T, ArrayType> ) {
-            out = std::format_to( out, "[{}]", *( arg.element_type_ ) );
+            out = std::format_to( out, "{}[]", *( arg.element_type_ ) );
           }
         },
         type.internal_ );
@@ -103,6 +103,10 @@ struct std::formatter<Value> {
               out = std::format_to( out, "{}", v[i] );
             }
             return std::format_to( out, "]" );
+          } else if constexpr ( std::is_same_v<T, char> ) {
+            return std::format_to( ctx.out(), "'{}'", v );
+          } else if constexpr ( std::is_same_v<T, float> ) {
+            return std::format_to( ctx.out(), "{:#}", v );
           } else {
             return std::format_to( ctx.out(), "{}", v );
           }

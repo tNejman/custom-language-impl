@@ -3,16 +3,17 @@
 #include <concepts>
 #include <type_traits>
 
-#include "Exceptions/ParserExceptions/MissingRightOperandException.hpp"
+#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Lexer.h"
 #include "Lexer/Token.hpp"
 #include "Parser/IParser.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParserHelper.h"
 
+
 class Parser : public IParser {
  private:
-  Lexer& lexer_;
+  ILexer& lexer_;
   // std::optional<Token> token_buffer_ = std::nullopt;
   Token current_token_;
   // ErrorHandler error_handler_;
@@ -46,7 +47,7 @@ class Parser : public IParser {
   std::unique_ptr<INode> tryBuildControlFlowStmt();
   std::unique_ptr<INode> tryBuildReturnStmt();
   std::optional<Type> tryBuildType();
-  std::optional<Type> tryBuildArrayType();
+  // std::optional<Type> tryBuildArrayType();
 
   std::unique_ptr<IExpressionNode> tryBuildExpression();
   std::unique_ptr<IExpressionNode> tryBuildLogicalOrExpr();
@@ -59,7 +60,7 @@ class Parser : public IParser {
   std::unique_ptr<IExpressionNode> tryBuildCastExpr();
   std::unique_ptr<IExpressionNode> tryBuildAccessExpr();
   std::unique_ptr<IExpressionNode> tryBuildPrimaryExpr();
-  std::unique_ptr<IExpressionNode> tryBuildFunctionCallExpr();
+  std::unique_ptr<IExpressionNode> tryBuildFunCallOrReadExpr();
   std::vector<std::unique_ptr<IExpressionNode>> tryBuildArgumentListExpr();
   std::unique_ptr<IExpressionNode> tryBuildArrayLiteralExpr();
   std::unique_ptr<IExpressionNode> tryBuildLiteralExpr();
@@ -112,6 +113,6 @@ class Parser : public IParser {
   std::optional<Token> consumeSpecificTokenOrReturnNull( const TokenType expected_token_type );
 
  public:
-  Parser( Lexer& lexer );
-  ProgramNode buildProgram() override;
+  Parser( ILexer& lexer );
+  std::unique_ptr<ProgramNode> buildProgram() override;
 };

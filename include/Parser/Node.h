@@ -50,6 +50,7 @@ class IExpressionNode : public INode {
  public:
   IExpressionNode( Position position ) : INode( position ) {
   }
+  ~IExpressionNode() = default;
   virtual void accept( Visitor& v ) const noexcept override = 0;
 };
 
@@ -154,7 +155,8 @@ enum class BinaryOperator {
   MOD,
   FILTER,
   MAP,
-  ACCESS
+  ACCESS,
+  CAST_TO
 };
 
 class BinaryExprNode : public IExpressionNode {  // logical or and, equality, relational, additive, multiplicative
@@ -184,6 +186,18 @@ class UnaryExprNode : public IExpressionNode {  // -, not, @, $
   void accept( Visitor& v ) const noexcept override;
   const IExpressionNode* getOperand() const noexcept;
   UnaryOperator getOperator() const noexcept;
+};
+
+class CastExprNode : public IExpressionNode {  // cast to
+ private:
+  const std::unique_ptr<const IExpressionNode> expression_;
+  const Type type_;
+
+ public:
+  CastExprNode( Position position, std::unique_ptr<IExpressionNode> expression, Type type );
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode* getExpression() const noexcept;
+  const Type& getType() const noexcept;
 };
 
 using ExpressionVec = std::vector<std::unique_ptr<IExpressionNode>>;

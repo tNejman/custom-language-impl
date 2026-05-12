@@ -1,6 +1,5 @@
 #include "Exceptions/LexerExceptions/TooLongIdentifierException.hpp"
-#include "TestHelper.hpp"
-
+#include "TestHelperLex.hpp"
 
 class LexerKeywordsAndIdentifiersTest : public LexerTest {};
 

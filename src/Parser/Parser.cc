@@ -5,9 +5,7 @@
 #include <memory>
 #include <optional>
 
-#include "Exceptions/ParserExceptions/MissingBracketException.hpp"
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
-#include "Lexer/Lexer.h"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
@@ -80,8 +78,7 @@ std::unique_ptr<INode> Parser::tryBuildStatement() {
     case TokenType::T_FLOAT:
     case TokenType::T_CHAR:
     case TokenType::T_STR:
-    case TokenType::T_BOOL:
-    case TokenType::LBRACKET: statement_node = tryBuildVariableDecl( Mutability::IMMUTABLE ); break;
+    case TokenType::T_BOOL: statement_node = tryBuildVariableDecl( Mutability::IMMUTABLE ); break;
     case TokenType::KW_IF: statement_node = tryBuildIfStmt(); break;
     case TokenType::KW_WHILE: statement_node = tryBuildWhileStmt(); break;
     case TokenType::KW_BREAK:
@@ -171,10 +168,11 @@ std::unique_ptr<ParameterDecl> Parser::tryBuildParameter() {
     }
     return nullptr;
   }
+  Token identifier_token = current_token_;
   consumeSpecificTokenOrThrow<MissingIdentifierException>( TokenType::IDENTIFIER,
                                                            "building a parameter after a given type" );
 
-  return std::make_unique<ParameterDecl>( std::get<std::string>( std::move( current_token_.value_ ) ),
+  return std::make_unique<ParameterDecl>( std::get<std::string>( std::move( identifier_token.value_ ) ),
                                           *std::move( type ), param_pass_mode, param_mutability );
 }
 
@@ -188,8 +186,8 @@ Block Parser::tryBuildBlock() {
   Block statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<MissingKeywordException>( TokenType::KW_DONE, TokenType::KW_DONE,
                                                         object_being_built_tag );
-  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
-                                                        object_being_built_tag );
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
+  //                                                       object_being_built_tag );
   return std::move( statement_list );
 }
 
@@ -240,6 +238,7 @@ std::unique_ptr<INode> Parser::tryBuildIfStmt() {
     nextToken();  // consume "if"
     else_block = tryBuildBlock();
   }
+  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "if statement" );
   return std::make_unique<IfStatementNode>( if_begining_marker.position_, std::move( condition_block_pairs ),
                                             std::move( else_block ) );
 }
@@ -262,6 +261,10 @@ std::pair<std::unique_ptr<IExpressionNode>, Block> Parser::tryBuildParenthesized
 std::unique_ptr<INode> Parser::tryBuildWhileStmt() {
   CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::KW_WHILE, while_begining_marker )
   auto expr_block_pair = tryBuildParenthesizedExpressionAndBlock();
+  if ( !expr_block_pair.first ) {
+    throw MissingExpressionException( current_token_.position_, "while statement" );
+  }
+  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "while statement" );
   return std::make_unique<WhileStatementNode>( while_begining_marker.position_, std::move( expr_block_pair.first ),
                                                std::move( expr_block_pair.second ) );
 }
@@ -294,30 +297,37 @@ std::optional<Type> Parser::tryBuildType() {
     case TokenType::T_CHAR: built_type = Type{ BaseType::CHAR }; break;
     case TokenType::T_FLOAT: built_type = Type{ BaseType::FLOAT }; break;
     case TokenType::T_INT: built_type = Type{ BaseType::INT }; break;
-    case TokenType::LBRACKET: return tryBuildArrayType();
+    case TokenType::T_STR: built_type = Type{ ArrayType{ std::make_unique<Type>( BaseType::CHAR ) } }; break;
+    // case TokenType::LBRACKET: return tryBuildArrayType();
     default: break;
   }
   if ( !built_type ) {
     assert( first_supposed_type_token == current_token_
             && "When 'Type' evalutes 'ε' 'current_token_' mustn't change but it did" );
+    return std::nullopt;
   } else {
     nextToken();  // consume T_*
+  }
+  while ( current_token_.type_ == TokenType::LBRACKET ) {
+    nextToken();
+    consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, " ", BracketType::CLOSING );
+    built_type = Type{ ArrayType{ std::make_unique<Type>( *std::move( built_type ) ) } };
   }
   return std::move( built_type );
 }
 
-std::optional<Type> Parser::tryBuildArrayType() {
-  static constexpr std::string_view object_being_built_tag = "array type";
-  if ( current_token_.type_ != TokenType::LBRACKET ) return std::nullopt;
-  Token type_beg_marker = current_token_;
-  nextToken();  // consume opening bracket
-  auto underlying_type = tryBuildType();
-  if ( !underlying_type ) throw InvalidTypeException( type_beg_marker.position_, object_being_built_tag );
-  // no consuming type here, underlying_type already consumes the inside
-  consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, object_being_built_tag,
-                                                        BracketType::CLOSING );
-  return Type{ ArrayType{ std::make_unique<Type>( std::move( *underlying_type ) ) } };
-}
+// std::optional<Type> Parser::tryBuildArrayType() {
+//   static constexpr std::string_view object_being_built_tag = "array type";
+//   if ( current_token_.type_ != TokenType::LBRACKET ) return std::nullopt;
+//   Token type_beg_marker = current_token_;
+//   nextToken();  // consume opening bracket
+//   auto underlying_type = tryBuildType();
+//   if ( !underlying_type ) throw InvalidTypeException( type_beg_marker.position_, object_being_built_tag );
+//   // no consuming type here, underlying_type already consumes the inside
+//   consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, object_being_built_tag,
+//                                                         BracketType::CLOSING );
+//   return Type{ ArrayType{ std::make_unique<Type>( std::move( *underlying_type ) ) } };
+// }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildExpression() {
   auto left_node = tryBuildLogicalOrExpr();
@@ -378,8 +388,18 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildUnaryExpr() {
 };
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildCastExpr() {
-  return tryBuildBinaryExpr( &Parser::tryBuildAccessExpr,
-                             [&]( TokenType tt ) -> bool { return tt == TokenType::KW_CAST_TO; } );
+  auto left_node = tryBuildAccessExpr();
+  if ( !left_node ) return nullptr;
+  while ( current_token_.type_ == TokenType::KW_CAST_TO ) {
+    Token operator_token = current_token_;
+    nextToken();  // consume operator
+    auto type = tryBuildType();
+    if ( !type ) {
+      throw InvalidTypeException( operator_token.position_, "cast_to expression" );
+    }
+    left_node = std::make_unique<CastExprNode>( operator_token.position_, std::move( left_node ), *std::move( type ) );
+  }
+  return left_node;
 }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
@@ -421,7 +441,7 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildPrimaryExpr() {
   if ( current_token_.type_ == TokenType::IDENTIFIER ) {
-    return tryBuildFunctionCallExpr();
+    return tryBuildFunCallOrReadExpr();
   } else if ( current_token_.type_ == TokenType::LPAREN ) {
     nextToken();  // lparen
     auto expr = tryBuildExpression();
@@ -434,9 +454,15 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildPrimaryExpr() {
   return tryBuildArrayLiteralExpr();
 }
 
-std::unique_ptr<IExpressionNode> Parser::tryBuildFunctionCallExpr() {
-  static constexpr std::string_view object_being_built_tag = "function call";
+std::unique_ptr<IExpressionNode> Parser::tryBuildFunCallOrReadExpr() {
   CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::IDENTIFIER, identifier_token )
+
+  if ( current_token_.type_ != TokenType::LPAREN ) {
+    return std::make_unique<PrimaryIdentifierNode>( identifier_token.position_,
+                                                    std::get<std::string>( std::move( identifier_token.value_ ) ) );
+  }
+
+  static constexpr std::string_view object_being_built_tag = "function call";
 
   consumeSpecificTokenOrThrow<MissingParenthesisException>( TokenType::LPAREN, object_being_built_tag,
                                                             ParenthesisType::OPENING );
@@ -520,12 +546,12 @@ std::optional<Token> Parser::consumeSpecificTokenOrReturnNull( const TokenType e
   return matched_token;
 }
 
-Parser::Parser( Lexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken() ) {
+Parser::Parser( ILexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken() ) {
 }
 
-ProgramNode Parser::buildProgram() {
+std::unique_ptr<ProgramNode> Parser::buildProgram() {
   skipNewlines();  // program may begin with lines; outside of StatementList production
   std::vector<std::unique_ptr<INode>> statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<NotConsumedTokensException>( TokenType::END_OF_FILE, current_token_ );
-  return ProgramNode{ Position{ 1, 1 }, std::move( statement_list ) };
+  return std::make_unique<ProgramNode>( Position{ 1, 1 }, std::move( statement_list ) );
 };

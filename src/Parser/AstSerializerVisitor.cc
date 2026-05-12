@@ -6,6 +6,8 @@
 
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
+#include "Parser/ParameterDecl.hpp"
+#include "Parser/ParserHelper.h"
 
 #define VIS_GUARD VisitGuard visit_guard{ string_builder_, OPENING_SECTION_MARKER, CLOSING_SECTION_MARKER };
 
@@ -15,12 +17,14 @@ void AstSerializerVisitor::flushBuffer() {
 }
 
 void AstSerializerVisitor::serializeBlock( const Block& block ) {
+  string_builder_ << '{';
   bool is_first_stmnt = true;
   for ( const auto& stmnt_ptr : block ) {
     if ( !is_first_stmnt ) string_builder_ << "; ";
     stmnt_ptr->accept( *this );
     is_first_stmnt = false;
   }
+  string_builder_ << '}';
 }
 
 void AstSerializerVisitor::visit( const FunctionDefNode& node ) {
@@ -37,9 +41,9 @@ void AstSerializerVisitor::visit( const FunctionDefNode& node ) {
   serializeBlock( node.getBlock() );
 }
 
-void AstSerializerVisitor::visit( const IExpressionNode& node ) {
-  throw std::runtime_error( "IExpressionNode is an interface" );
-}
+// void AstSerializerVisitor::visit( const IExpressionNode& node ) {
+//   throw std::runtime_error( "AstSerializerVisitor tried visiting IExpressionNode, which is an interface" );
+// }
 
 void AstSerializerVisitor::visit( const VarOrConstDeclNode& node ) {
   VIS_GUARD
@@ -56,14 +60,17 @@ void AstSerializerVisitor::visit( const IfStatementNode& node ) {
   for ( const auto& [cond_ptr, block] : node.getCondBlockPairs() ) {
     if ( is_first_branch ) {
       string_builder_ << "if (";
+      is_first_branch = false;
     } else {
-      string_builder_ << "else if (";
+      string_builder_ << " elseif (";
     }
     cond_ptr->accept( *this );
     string_builder_ << ") ";
 
     serializeBlock( block );
   }
+  string_builder_ << " else ";
+  serializeBlock( node.getElseBlock() );
 }
 
 void AstSerializerVisitor::visit( const WhileStatementNode& node ) {
@@ -86,8 +93,11 @@ void AstSerializerVisitor::visit( const ControlFlowNode& node ) {
 void AstSerializerVisitor::visit( const ReturnNode& node ) {
   VIS_GUARD
 
-  string_builder_ << "ret ";
-  node.getExpression()->accept( *this );
+  string_builder_ << "ret";
+  if ( auto expr = node.getExpression() ) {
+    string_builder_ << ' ';
+    expr->accept( *this );
+  }
 }
 
 void AstSerializerVisitor::visit( const AssignmentExprNode& node ) {
@@ -102,19 +112,33 @@ void AstSerializerVisitor::visit( const BinaryExprNode& node ) {
   VIS_GUARD
 
   node.getLeftOperand()->accept( *this );
-  string_builder_ << magic_enum::enum_name( node.getOperator() );
-  node.getRightOperand()->accept( *this );
+  std::string_view operator_str = parser_helper::operatorToStr( node.getOperator() );
+  if ( operator_str != "[]" ) {
+    string_builder_ << ' ' << operator_str << ' ';
+    node.getRightOperand()->accept( *this );
+  } else {
+    string_builder_ << " [";
+    node.getRightOperand()->accept( *this );
+    string_builder_ << "]";
+  }
 }
 
 void AstSerializerVisitor::visit( const UnaryExprNode& node ) {
   VIS_GUARD
 
-  string_builder_ << magic_enum::enum_name( node.getOperator() );
+  string_builder_ << parser_helper::operatorToStr( node.getOperator() );
   node.getOperand()->accept( *this );
 }
 
-void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
+void AstSerializerVisitor::visit( const CastExprNode& node ) {
   VIS_GUARD
+
+  node.getExpression()->accept( *this );
+  string_builder_ << " cast_to " << std::format( "{}", node.getType() );
+}
+
+void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
+  // VIS_GUARD
 
   string_builder_ << std::format( "{} (", node.getIdentifier() );
   bool is_first_arg = true;
@@ -127,7 +151,7 @@ void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
 }
 
 void AstSerializerVisitor::visit( const ArrayLiteralNode& node ) {
-  VIS_GUARD
+  // VIS_GUARD
 
   string_builder_ << '[';
   bool is_first_pos = true;
@@ -136,7 +160,7 @@ void AstSerializerVisitor::visit( const ArrayLiteralNode& node ) {
     pos_ptr->accept( *this );
     is_first_pos = false;
   }
-  string_builder_ << "] ";
+  string_builder_ << "]";
 }
 
 void AstSerializerVisitor::visit( const LiteralExprNode& node ) {
@@ -144,13 +168,13 @@ void AstSerializerVisitor::visit( const LiteralExprNode& node ) {
 }
 
 void AstSerializerVisitor::visit( const PrimaryIdentifierNode& node ) {
-  VIS_GUARD
+  // VIS_GUARD
 
   string_builder_ << node.getIdentifier();
 }
 
 void AstSerializerVisitor::visit( const ProgramNode& node ) {
-  VisitGuard vis_guard{ string_builder_, PROGRAM_OPENING_SECTION_MARKER, PROGRAM_CLOSING_SECTION_MARKER };
+  // VisitGuard vis_guard{ string_builder_, PROGRAM_OPENING_SECTION_MARKER, PROGRAM_CLOSING_SECTION_MARKER };
 
   serializeBlock( node.getStatementList() );
 }

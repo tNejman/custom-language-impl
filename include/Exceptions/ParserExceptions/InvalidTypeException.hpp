@@ -4,10 +4,10 @@
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Variable.h"
 
-std::string_view paramQuantifierToString( Mutability mut ) {
+inline std::string_view paramQuantifierToString( Mutability mut ) {
   return "mut";
 }
-std::string_view paramQuantifierToString( PassMode pass_mode ) {
+inline std::string_view paramQuantifierToString( PassMode pass_mode ) {
   return "copy";
 }
 

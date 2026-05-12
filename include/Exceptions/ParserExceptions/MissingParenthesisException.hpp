@@ -4,10 +4,9 @@
 
 #include "Exceptions/ParserExceptions/_ParserException.hpp"
 
-
 enum class ParenthesisType { OPENING, CLOSING };
 
-std::string_view parenthesisTypeEnumToString( ParenthesisType par_type ) {
+inline std::string_view parenthesisTypeEnumToString( ParenthesisType par_type ) {
   return par_type == ParenthesisType::OPENING ? "opening" : "closing";
 }
 

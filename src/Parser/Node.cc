@@ -149,6 +149,19 @@ UnaryOperator UnaryExprNode::getOperator() const noexcept {
   return operator_;
 }
 
+CastExprNode::CastExprNode( Position position, std::unique_ptr<IExpressionNode> expression, Type type )
+    : IExpressionNode( position ), expression_( std::move( expression ) ), type_( std::move( type ) ) {
+}
+void CastExprNode::accept( Visitor& v ) const noexcept {
+  v.visit( *this );
+}
+const IExpressionNode* CastExprNode::getExpression() const noexcept {
+  return expression_.get();
+}
+const Type& CastExprNode::getType() const noexcept {
+  return type_;
+}
+
 FunctionCallNode::FunctionCallNode( Position position, std::string identifier, ExpressionVec arguments )
     : IExpressionNode( position ), identifier_( std::move( identifier ) ), arguments_( std::move( arguments ) ) {
 }

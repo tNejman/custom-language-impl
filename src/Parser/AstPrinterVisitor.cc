@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <print>
+#include <stdexcept>
 
 #include "Drivers/Formatter.hpp"
 #include "Parser/Node.h"
@@ -55,9 +56,9 @@ void AstPrinterVisitor::visit( const FunctionDefNode& node ) {
   --indent_level_;
 }
 
-void AstPrinterVisitor::visit( const IExpressionNode& node ) {
-  throw std::runtime_error( "IExpressionNode is an interface" );
-}
+// void AstPrinterVisitor::visit( const IExpressionNode& node ) {
+//   throw std::runtime_error( "IExpressionNode is an interface" );
+// }
 
 void AstPrinterVisitor::visit( const VarOrConstDeclNode& node ) {
   printIndent();
@@ -197,6 +198,10 @@ void AstPrinterVisitor::visit( const UnaryExprNode& node ) {
   std::print( "Operand: " );
   node.getOperand()->accept( *this );
   --indent_level_;
+}
+
+void AstPrinterVisitor::visit( const CastExprNode& node ) {
+  throw std::runtime_error( "AstPrinterVisitor::visit(CastExprNode&) is not implemented" );
 }
 
 void AstPrinterVisitor::visit( const FunctionCallNode& node ) {

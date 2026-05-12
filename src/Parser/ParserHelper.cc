@@ -1,5 +1,8 @@
 #include "Parser/ParserHelper.h"
 
+#include "Parser/Node.h"
+
+
 namespace parser_helper {
 bool isAssignment( const TokenType token_type ) noexcept {
   switch ( token_type ) {
@@ -116,6 +119,7 @@ BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type ) 
     case TokenType::OP_MOD: return BinaryOperator::MOD;
     case TokenType::OP_FILTER: return BinaryOperator::FILTER;
     case TokenType::OP_MAP: return BinaryOperator::MAP;
+    case TokenType::KW_CAST_TO: return BinaryOperator::CAST_TO;
   }
 }
 
@@ -159,6 +163,7 @@ std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept 
     case BinaryOperator::FILTER: return "?";
     case BinaryOperator::MAP: return "->";
     case BinaryOperator::ACCESS: return "[]";
+    case BinaryOperator::CAST_TO: return "cast_to";
   }
 }
 

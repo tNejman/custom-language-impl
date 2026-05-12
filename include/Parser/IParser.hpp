@@ -11,5 +11,5 @@ class IParser {
   IParser operator=( const IParser& ) = delete;
   IParser operator=( IParser&& ) = delete;
 
-  virtual ProgramNode buildProgram() = 0;
+  virtual std::unique_ptr<ProgramNode> buildProgram() = 0;
 };

@@ -1,4 +1,4 @@
-#include "TestHelper.hpp"
+#include "TestHelperLex.hpp"
 
 class LexerPositionTest : public LexerTest {};
 

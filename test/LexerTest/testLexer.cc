@@ -5,7 +5,7 @@
 
 #include "Exceptions/LexerExceptions/InvalidCommentStyleException.hpp"
 #include "Exceptions/LexerExceptions/UnknownSymbolException.hpp"
-#include "TestHelper.hpp"
+#include "TestHelperLex.hpp"
 
 // int main( int argc, char **argv ) {
 //   ::testing::InitGoogleTest( &argc, argv );

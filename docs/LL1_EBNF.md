@@ -1,8 +1,8 @@
 # LL1
 
 ```EBNF
-Program            ::== StatementList
-StatementList      ::== { ( Statement NEWLINE {NEWLINE} ) | EOF }
+Program            ::== { NEWLINE } StatementList
+StatementList      ::== { Statement ( NEWLINE {NEWLINE} | EOF )  }
 Statement          ::== FunctionDef // "def"
                       | VarDecl // "var"
                       | ConstDecl // Type
@@ -25,15 +25,15 @@ ConstDecl          ::== Type IDENTIFIER "=" Expression
 IfStmt             ::== "if" ParenthExprAndBlock
                         { "elseif" ParenthExprAndBlock }
                         [ "else" Block ]
+                        NEWLINE
 ParenthExprAndBlock::== "(" Expression ")" Block
 
-WhileStmt          ::== "while" ParenthExprAndBlock
+WhileStmt          ::== "while" ParenthExprAndBlock NEWLINE
 LoopControl        ::== "break" | "continue"
 ReturnStmt         ::== "ret" [ Expression ]
 
-Type               ::== BaseType | ArrayType
+Type               ::== BaseType { "[" "]" }
 BaseType           ::== "int" | "float" | "char" | "string" | "bool" 
-ArrayType          ::== "[" Type "]"
 
 ExpressionStmt     ::== Expression
 Expression         ::== LogicalOrExpr [ AssignmentOp LogicalOrExpr ]
@@ -48,12 +48,10 @@ UnaryExpr          ::== ( "-" | "not" | "@" | "$" ) UnaryExpr
                       | CastExpr
 CastExpr           ::== AccessExpr { "cast_to" Type }
 AccessExpr         ::== PrimaryExpr { "[" Expression "]" | "->" PrimaryIdentifExpr | "?" PrimaryIdentifExpr }
-PrimaryExpr        ::== FunctionCall
+PrimaryExpr        ::== IDENTIFIER [ "(" [ ArgumentList ] ")" ]
                       | Literal
                       | "(" Expression ")"
                       | ArrayLiteral
-FunctionCall       ::== IDENTIFIER [ "(" [ ArgumentList ] ")" ]
-PrimaryIdentifExpr ::== IDENTIFIER
 
 ArgumentList       ::== Expression { "," Expression }
 ArrayLiteral       ::== "[" [ ArgumentList ] "]"
