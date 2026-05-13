@@ -25,29 +25,14 @@ Token Parser::getFirstToken() {
 }
 
 Token Parser::nextToken() {
-  // if ( token_buffer_.has_value() ) {
-  //   current_token_ = std::move( *token_buffer_ );
-  //   token_buffer_ = std::nullopt;
-  // } else {
   this->current_token_ = lexer_.getNextToken();
-  // }
   skipComments();
   return current_token_;
 }
 
-// Token Parser::peek() {
-//   if ( !token_buffer_ ) this->token_buffer_ = lexer_.getNextToken();
-//   skipBufferComments();
-//   return *token_buffer_;
-// }
-
 void Parser::skipComments() {
   while ( this->current_token_.type_ == TokenType::COMMENT ) nextToken();
 }
-
-// void Parser::skipBufferComments() {
-//   while ( token_buffer_ && ( *token_buffer_ ).type_ == TokenType::COMMENT ) token_buffer_ = lexer_.getNextToken();
-// }
 
 void Parser::skipNewlines() {
   while ( current_token_.type_ == TokenType::NEWLINE ) nextToken();

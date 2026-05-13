@@ -13,17 +13,12 @@
 class Parser : public IParser {
  private:
   ILexer& lexer_;
-  // std::optional<Token> token_buffer_ = std::nullopt;
   Token current_token_;
-  // ErrorHandler error_handler_;
-  // bool is_first_token_ = true;
 
   Token getFirstToken();
 
   Token nextToken();
-  // Token peek();
   void skipComments();
-  // void skipBufferComments();
   void skipNewlines();
 
   std::vector<std::unique_ptr<INode>> tryBuildStatementList();
@@ -46,7 +41,6 @@ class Parser : public IParser {
   std::unique_ptr<INode> tryBuildControlFlowStmt();
   std::unique_ptr<INode> tryBuildReturnStmt();
   std::optional<Type> tryBuildType();
-  // std::optional<Type> tryBuildArrayType();
 
   std::unique_ptr<IExpressionNode> tryBuildExpression();
   std::unique_ptr<IExpressionNode> tryBuildLogicalOrExpr();

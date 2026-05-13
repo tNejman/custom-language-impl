@@ -13,7 +13,6 @@ class AstPrinterVisitor : public Visitor {
 
  public:
   void visit( const FunctionDefNode& node ) override;
-  // void visit( const IExpressionNode& node ) override;
   void visit( const VarOrConstDeclNode& node ) override;
   void visit( const IfStatementNode& node ) override;
   void visit( const WhileStatementNode& node ) override;

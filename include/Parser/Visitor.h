@@ -22,7 +22,6 @@ class Visitor {
   virtual ~Visitor() = default;
 
   virtual void visit( const FunctionDefNode& node ) = 0;
-  // virtual void visit( const IExpressionNode& node ) = 0;
   virtual void visit( const VarOrConstDeclNode& node ) = 0;
   virtual void visit( const IfStatementNode& node ) = 0;
   virtual void visit( const WhileStatementNode& node ) = 0;

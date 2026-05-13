@@ -41,10 +41,6 @@ void AstSerializerVisitor::visit( const FunctionDefNode& node ) {
   serializeBlock( node.getBlock() );
 }
 
-// void AstSerializerVisitor::visit( const IExpressionNode& node ) {
-//   throw std::runtime_error( "AstSerializerVisitor tried visiting IExpressionNode, which is an interface" );
-// }
-
 void AstSerializerVisitor::visit( const VarOrConstDeclNode& node ) {
   VIS_GUARD
 
@@ -143,8 +139,6 @@ void AstSerializerVisitor::visit( const CastExprNode& node ) {
 }
 
 void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
-  // VIS_GUARD
-
   string_builder_ << std::format( "{}(", node.getIdentifier() );
   bool is_first_arg = true;
   for ( const auto& arg_ptr : node.getArguments() ) {
@@ -156,8 +150,6 @@ void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
 }
 
 void AstSerializerVisitor::visit( const ArrayLiteralNode& node ) {
-  // VIS_GUARD
-
   string_builder_ << '[';
   bool is_first_pos = true;
   for ( const auto& pos_ptr : node.getPositions() ) {
@@ -173,14 +165,10 @@ void AstSerializerVisitor::visit( const LiteralExprNode& node ) {
 }
 
 void AstSerializerVisitor::visit( const PrimaryIdentifierNode& node ) {
-  // VIS_GUARD
-
   string_builder_ << node.getIdentifier();
 }
 
 void AstSerializerVisitor::visit( const ProgramNode& node ) {
-  // VisitGuard vis_guard{ string_builder_, PROGRAM_OPENING_SECTION_MARKER, PROGRAM_CLOSING_SECTION_MARKER };
-
   serializeBlock( node.getStatementList() );
 }
 

@@ -56,10 +56,6 @@ void AstPrinterVisitor::visit( const FunctionDefNode& node ) {
   --indent_level_;
 }
 
-// void AstPrinterVisitor::visit( const IExpressionNode& node ) {
-//   throw std::runtime_error( "IExpressionNode is an interface" );
-// }
-
 void AstPrinterVisitor::visit( const VarOrConstDeclNode& node ) {
   printIndent();
   const std::string_view mutability_quantifier = node.getMutability() == Mutability::MUTABLE ? "Variable" : "Constant";
@@ -246,7 +242,7 @@ void AstPrinterVisitor::visit( const PrimaryIdentifierNode& node ) {
 }
 
 void AstPrinterVisitor::visit( const ProgramNode& node ) {
-  std::println( "Program. Statements: " );  //
+  std::println( "Program. Statements: " );
 
   for ( const auto& statement : node.getStatementList() ) {
     statement->accept( *this );
