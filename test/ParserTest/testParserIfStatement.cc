@@ -31,6 +31,62 @@ TEST_F( ParserIfStatementTest, statement_if_else ) {
   EXPECT_EQ( "{{if ({x > 0}) {{ret 1}} else {{ret 0}}}}", std::move( res ) );
 }
 
+TEST_F( ParserIfStatementTest, statement_if_elseif ) {
+  /*
+  if (true) do
+    ret 1
+  done elseif (true) do
+    ret 2
+  done
+
+   */
+  std::vector<TokenInitializer> init = {
+      { TokenType::KW_IF },     { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
+      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 1 }, { TokenType::NEWLINE },
+      { TokenType::KW_DONE },
+
+      { TokenType::KW_ELSEIF }, { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
+      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 2 }, { TokenType::NEWLINE },
+      { TokenType::KW_DONE },
+
+      { TokenType::NEWLINE } };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{{if (true) {{ret 1}} elseif (true) {{ret 2}} else {}}}", std::move( res ) );
+}
+
+TEST_F( ParserIfStatementTest, statement_if_elseif_else ) {
+  /*
+  if (true) do
+    ret 1
+  done elseif (true) do
+    ret 2
+  done else do
+    ret 3
+  done
+
+   */
+  std::vector<TokenInitializer> init = {
+      { TokenType::KW_IF },     { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
+      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 1 }, { TokenType::NEWLINE },
+      { TokenType::KW_DONE },
+
+      { TokenType::KW_ELSEIF }, { TokenType::LPAREN },         { TokenType::BOOL_LITERAL, true },
+      { TokenType::RPAREN },    { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 2 }, { TokenType::NEWLINE },
+      { TokenType::KW_DONE },
+
+      { TokenType::KW_ELSE },   { TokenType::KW_DO },          { TokenType::NEWLINE },
+      { TokenType::KW_RET },    { TokenType::INT_LITERAL, 3 }, { TokenType::NEWLINE },
+      { TokenType::KW_DONE },
+
+      { TokenType::NEWLINE } };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  EXPECT_EQ( "{{if (true) {{ret 1}} elseif (true) {{ret 2}} else {{ret 3}}}}", std::move( res ) );
+}
+
 TEST_F( ParserIfStatementTest, statement_if_elseif_elseif_elseif_else ) {
   /*
   if (true) do

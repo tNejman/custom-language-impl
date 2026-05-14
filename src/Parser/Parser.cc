@@ -5,8 +5,8 @@
 #include <memory>
 #include <optional>
 
-#include "Exceptions/ParserExceptions/MissingKeywordException.hpp"
-#include "Exceptions/ParserExceptions/MissingNewlineException.hpp"
+#include "Exceptions/ParserExceptions/MissingIdentifierException.hpp"
+#include "Exceptions/ParserExceptions/MissingParenthesisException.hpp"
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
@@ -56,29 +56,19 @@ std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
 }
 
 std::unique_ptr<INode> Parser::tryBuildStatement() {
-  Token switched_cur_token = current_token_;
-  std::unique_ptr<INode> statement_node = nullptr;
-  switch ( current_token_.type_ ) {
-    case TokenType::END_OF_FILE: break;
-    case TokenType::KW_DEF: statement_node = tryBuildFunctionDef(); break;
-    case TokenType::KW_VAR: statement_node = tryBuildVariableDecl( Mutability::MUTABLE ); break;
-    case TokenType::T_INT:
-    case TokenType::T_FLOAT:
-    case TokenType::T_CHAR:
-    case TokenType::T_STR:
-    case TokenType::T_BOOL: statement_node = tryBuildVariableDecl( Mutability::IMMUTABLE ); break;
-    case TokenType::KW_IF: statement_node = tryBuildIfStmt(); break;
-    case TokenType::KW_WHILE: statement_node = tryBuildWhileStmt(); break;
-    case TokenType::KW_BREAK:
-    case TokenType::KW_CONTINUE: statement_node = tryBuildControlFlowStmt(); break;
-    case TokenType::KW_RET: statement_node = tryBuildReturnStmt(); break;
-    default: statement_node = tryBuildExpression(); break;
-  }
-  if ( !statement_node ) {
-    assert( current_token_ == switched_cur_token
-            && "When 'Statement' evalutes 'ε' 'current_token_' mustn't change but it did" );
-  }
-  return statement_node;
+  Token org_token = current_token_;
+  if ( current_token_.type_ == TokenType::END_OF_FILE ) return nullptr;
+  if ( auto node = tryBuildFunctionDef() ) return node;
+  if ( auto node = tryBuildVariableDecl( Mutability::MUTABLE ) ) return node;
+  if ( auto node = tryBuildVariableDecl( Mutability::IMMUTABLE ) ) return node;
+  if ( auto node = tryBuildIfStmt() ) return node;
+  if ( auto node = tryBuildWhileStmt() ) return node;
+  if ( auto node = tryBuildControlFlowStmt() ) return node;
+  if ( auto node = tryBuildReturnStmt() ) return node;
+  if ( auto node = tryBuildExpression() ) return node;
+
+  assert( current_token_ == org_token && "When 'Statement' evalutes 'ε' 'current_token_' mustn't change but it did" );
+  return nullptr;
 }
 
 std::unique_ptr<INode> Parser::tryBuildFunctionDef() {
@@ -127,10 +117,6 @@ std::vector<std::unique_ptr<ParameterDecl>> Parser::tryBuildParamList() {
     param = tryBuildParameter();
     if ( !param ) throw InvalidParameterException( parameter_build_marker.position_ );
     params.push_back( ( std::move( param ) ) );
-  }
-  if ( params.size() == 0 ) {
-    assert( first_param_token == current_token_
-            && "When 'ParamList' evalutes 'ε' 'current_token_' mustn't change but it did" );
   }
   return std::move( params );
 }
@@ -181,12 +167,14 @@ Block Parser::tryBuildBlock() {
 std::unique_ptr<INode> Parser::tryBuildVariableDecl( const Mutability mutability ) {
   static constexpr std::string_view object_being_built_tag = "variable declaration";
   if ( mutability == Mutability::MUTABLE ) {
-    nextToken();  // "var"
+    // nextToken();  // "var"
+    CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::KW_VAR, declaration_marker )
   }
   auto type = tryBuildType();
   if ( !type && mutability == Mutability::MUTABLE ) {
     throw InvalidTypeException( current_token_.position_, object_being_built_tag );
-  } else if ( !type ) {
+  }
+  if ( !type ) {
     return nullptr;
   }
   Token identifier_token = current_token_;
@@ -211,23 +199,37 @@ std::unique_ptr<INode> Parser::tryBuildIfStmt() {
     throw MissingExpressionException( expr_beg_marker.position_, "if statement" );
   }
   condition_block_pairs.push_back( std::move( expr_and_block ) );
-  while ( current_token_.type_ == TokenType::KW_ELSEIF ) {
-    nextToken();
-    Token sec_expr_beg_marker = current_token_;
-    auto sec_expr_and_block = tryBuildParenthesizedExpressionAndBlock();
-    if ( !sec_expr_and_block.first ) {
-      throw MissingExpressionException( sec_expr_beg_marker.position_, "else if statement" );
-    }
-    condition_block_pairs.push_back( std::move( sec_expr_and_block ) );
+
+  auto cond_block_pair = tryBuildElseIfBranch();
+  while ( cond_block_pair.first ) {
+    condition_block_pairs.push_back( std::move( cond_block_pair ) );
+    cond_block_pair = tryBuildElseIfBranch();
   }
-  Block else_block;
-  if ( current_token_.type_ == TokenType::KW_ELSE ) {
-    nextToken();  // consume "if"
-    else_block = tryBuildBlock();
-  }
+  Block else_block = tryBuildElseBlock();
   consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "if statement" );
   return std::make_unique<IfStatementNode>( if_begining_marker.position_, std::move( condition_block_pairs ),
                                             std::move( else_block ) );
+}
+
+std::pair<std::unique_ptr<IExpressionNode>, Block> Parser::tryBuildElseIfBranch() {
+  if ( current_token_.type_ != TokenType::KW_ELSEIF ) {
+    return { nullptr, {} };
+  }
+  nextToken();  // consume "elseif"
+  Token sec_expr_beg_marker = current_token_;
+  auto sec_expr_and_block = tryBuildParenthesizedExpressionAndBlock();
+  if ( !sec_expr_and_block.first ) {
+    throw MissingExpressionException( sec_expr_beg_marker.position_, "else if statement" );
+  }
+  return sec_expr_and_block;
+}
+
+Block Parser::tryBuildElseBlock() {
+  if ( current_token_.type_ != TokenType::KW_ELSE ) {
+    return {};
+  }
+  nextToken();  // consume "else"
+  return tryBuildBlock();
 }
 
 std::pair<std::unique_ptr<IExpressionNode>, Block> Parser::tryBuildParenthesizedExpressionAndBlock() {
@@ -285,16 +287,12 @@ std::optional<Type> Parser::tryBuildType() {
     case TokenType::T_FLOAT: built_type = Type{ BaseType::FLOAT }; break;
     case TokenType::T_INT: built_type = Type{ BaseType::INT }; break;
     case TokenType::T_STR: built_type = Type{ ArrayType{ std::make_unique<Type>( BaseType::CHAR ) } }; break;
-    // case TokenType::LBRACKET: return tryBuildArrayType();
     default: break;
   }
   if ( !built_type ) {
-    assert( first_supposed_type_token == current_token_
-            && "When 'Type' evalutes 'ε' 'current_token_' mustn't change but it did" );
     return std::nullopt;
-  } else {
-    nextToken();  // consume T_*
   }
+  nextToken();  // consume T_*
   while ( current_token_.type_ == TokenType::LBRACKET ) {
     nextToken();
     consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, " ", BracketType::CLOSING );
@@ -303,20 +301,11 @@ std::optional<Type> Parser::tryBuildType() {
   return std::move( built_type );
 }
 
-// std::optional<Type> Parser::tryBuildArrayType() {
-//   static constexpr std::string_view object_being_built_tag = "array type";
-//   if ( current_token_.type_ != TokenType::LBRACKET ) return std::nullopt;
-//   Token type_beg_marker = current_token_;
-//   nextToken();  // consume opening bracket
-//   auto underlying_type = tryBuildType();
-//   if ( !underlying_type ) throw InvalidTypeException( type_beg_marker.position_, object_being_built_tag );
-//   // no consuming type here, underlying_type already consumes the inside
-//   consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, object_being_built_tag,
-//                                                         BracketType::CLOSING );
-//   return Type{ ArrayType{ std::make_unique<Type>( std::move( *underlying_type ) ) } };
-// }
-
 std::unique_ptr<IExpressionNode> Parser::tryBuildExpression() {
+  return tryBuildAssignmentExpr();
+}
+
+std::unique_ptr<IExpressionNode> Parser::tryBuildAssignmentExpr() {
   auto left_node = tryBuildLogicalOrExpr();
   if ( !left_node ) return nullptr;
   if ( !parser_helper::isAssignment( current_token_.type_ ) ) return left_node;
@@ -392,51 +381,23 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
   auto left_node = tryBuildPrimaryExpr();
   if ( !left_node ) return nullptr;
   while ( parser_helper::isAccesExprSufBeg( current_token_.type_ ) ) {
-    Token operator_token = current_token_;
-    std::unique_ptr<IExpressionNode> right_node = nullptr;
-
-    switch ( current_token_.type_ ) {
-      case TokenType::LBRACKET: {
-        nextToken();  // consume operator
-        right_node = tryBuildExpression();
-        if ( !right_node ) throw MissingRightOperandException( operator_token.position_, "[]" );
-        consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, "access expr",
-                                                              BracketType::CLOSING );
-        left_node = std::make_unique<BinaryExprNode>( operator_token.position_, std::move( left_node ),
-                                                      std::move( right_node ), BinaryOperator::ACCESS );
-        break;
-      }
-      case TokenType::OP_FILTER:
-      case TokenType::OP_MAP: {
-        nextToken();  // consume operator
-        Token identifier_token_marker = current_token_;
-        consumeSpecificTokenOrThrow<MissingIdentifierException>( TokenType::IDENTIFIER,
-                                                                 "mapping to a function (access expr)" );
-        left_node = std::make_unique<BinaryExprNode>(
-            operator_token.position_, std::move( left_node ),
-            std::make_unique<PrimaryIdentifierNode>( identifier_token_marker.position_,
-                                                     std::get<std::string>( identifier_token_marker.value_ ) ),
-            parser_helper::translateTokenTypeToBinaryOperator( operator_token.type_ ) );
-        break;
-      }
-      default: return nullptr;
+    if ( auto node = tryBuildAccessArrayExpr( left_node ) ) {
+      left_node = std::move( node );
+      continue;
+    } else if ( auto node = tryBuildFilterOrMapAccessExpr( left_node ) ) {
+      left_node = std::move( node );
+      continue;
     }
+    return nullptr;
   }
+
   return left_node;
 }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildPrimaryExpr() {
-  if ( current_token_.type_ == TokenType::IDENTIFIER ) {
-    return tryBuildFunCallOrReadExpr();
-  } else if ( current_token_.type_ == TokenType::LPAREN ) {
-    nextToken();  // lparen
-    auto expr = tryBuildExpression();
-    consumeSpecificTokenOrThrow<MissingParenthesisException>(
-        TokenType::RPAREN, "primary expr: parenthesized expression", ParenthesisType::CLOSING );
-    return expr;
-  } else if ( parser_helper::isLiteral( current_token_.type_ ) ) {
-    return tryBuildLiteralExpr();
-  }
+  if ( auto ident_node = tryBuildFunCallOrReadExpr() ) return ident_node;
+  if ( auto paren_expr_node = tryBuildParenExpr() ) return paren_expr_node;
+  if ( auto lit_node = tryBuildLiteralExpr() ) return lit_node;
   return tryBuildArrayLiteralExpr();
 }
 
@@ -516,11 +477,43 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildLiteralExpr() {
     default: break;
   }
   if ( !literal_expr_node ) {
-    assert( literal_beg_marker == current_token_ && "" );
-  } else {
-    nextToken();  // consume literal token
+    return nullptr;
   }
+  nextToken();  // consume literal token
   return literal_expr_node;
+}
+
+std::unique_ptr<IExpressionNode> Parser::tryBuildParenExpr() {
+  CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::LPAREN, opening_parenthesis_marker )
+  auto expr = tryBuildExpression();
+  consumeSpecificTokenOrThrow<MissingParenthesisException>( TokenType::RPAREN, "parenthesized expression",
+                                                            ParenthesisType::CLOSING );
+  return expr;
+}
+
+std::unique_ptr<IExpressionNode> Parser::tryBuildAccessArrayExpr( std::unique_ptr<IExpressionNode>& left_node ) {
+  CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::LBRACKET, operator_marker )
+  auto expr = tryBuildExpression();
+  if ( !expr ) throw MissingRightOperandException( operator_marker.position_, "[]" );
+  consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, "access expr", BracketType::CLOSING );
+  return std::make_unique<BinaryExprNode>( operator_marker.position_, std::move( left_node ), std::move( expr ),
+                                           BinaryOperator::ACCESS );
+}
+
+std::unique_ptr<IExpressionNode> Parser::tryBuildFilterOrMapAccessExpr( std::unique_ptr<IExpressionNode>& left_node ) {
+  if ( current_token_.type_ != TokenType::OP_FILTER && current_token_.type_ != TokenType::OP_MAP ) {
+    return nullptr;
+  }
+
+  Token operator_token = current_token_;
+  nextToken();  // operator
+  Token identifier_token = current_token_;
+  consumeSpecificTokenOrThrow<MissingIdentifierException>( TokenType::IDENTIFIER, "filter expr" );
+  return std::make_unique<BinaryExprNode>(
+      operator_token.position_, std::move( left_node ),
+      std::make_unique<PrimaryIdentifierNode>( identifier_token.position_,
+                                               std::get<std::string>( std::move( identifier_token.value_ ) ) ),
+      parser_helper::translateTokenTypeToBinaryOperator( operator_token.type_ ) );
 }
 
 std::optional<Token> Parser::consumeSpecificTokenOrReturnNull( const TokenType expected_token_type ) {

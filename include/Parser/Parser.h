@@ -33,7 +33,8 @@ class Parser : public IParser {
   std::unique_ptr<INode> tryBuildVariableDecl( const Mutability mutability );
 
   std::unique_ptr<INode> tryBuildIfStmt();
-  std::unique_ptr<INode> tryBuildElseIfBranch();
+  std::pair<std::unique_ptr<IExpressionNode>, Block> tryBuildElseIfBranch();
+  Block tryBuildElseBlock();
   std::pair<std::unique_ptr<IExpressionNode>, Block> tryBuildParenthesizedExpressionAndBlock();
 
   std::unique_ptr<INode> tryBuildWhileStmt();
@@ -43,6 +44,7 @@ class Parser : public IParser {
   std::optional<Type> tryBuildType();
 
   std::unique_ptr<IExpressionNode> tryBuildExpression();
+  std::unique_ptr<IExpressionNode> tryBuildAssignmentExpr();
   std::unique_ptr<IExpressionNode> tryBuildLogicalOrExpr();
   std::unique_ptr<IExpressionNode> tryBuildLogicalAndExpr();
   std::unique_ptr<IExpressionNode> tryBuildEqualityExpr();
@@ -57,6 +59,10 @@ class Parser : public IParser {
   std::vector<std::unique_ptr<IExpressionNode>> tryBuildArgumentListExpr();
   std::unique_ptr<IExpressionNode> tryBuildArrayLiteralExpr();
   std::unique_ptr<IExpressionNode> tryBuildLiteralExpr();
+
+  std::unique_ptr<IExpressionNode> tryBuildParenExpr();
+  std::unique_ptr<IExpressionNode> tryBuildAccessArrayExpr( std::unique_ptr<IExpressionNode>& left_node );
+  std::unique_ptr<IExpressionNode> tryBuildFilterOrMapAccessExpr( std::unique_ptr<IExpressionNode>& left_node );
 
   using NextLevelMethod = std::unique_ptr<IExpressionNode> ( Parser::* )();
 
