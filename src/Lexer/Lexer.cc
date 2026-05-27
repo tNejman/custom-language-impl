@@ -2,8 +2,13 @@
 
 #include <array>
 #include <cctype>
+#include <limits>
+#include <optional>
+#include <ranges>
+#include <string>
 
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
+
 
 Token Lexer::makeToken( TokenType type, TokenVal value ) const {
   return Token{ start_pos_, type, std::move( value ) };
@@ -62,7 +67,7 @@ std::optional<Token> Lexer::tryBuildDigraph( std::vector<std::pair<char, TokenTy
 }
 
 std::optional<Token> Lexer::tryBuildIdentifier( const std::string &identifier ) const {
-  static const std::array<std::pair<std::string, TokenType>, 25> keywords = {
+  static constexpr std::array<std::pair<std::string_view, TokenType>, 25> keywords = {
       { { "if", TokenType::KW_IF },           { "elseif", TokenType::KW_ELSEIF },
         { "else", TokenType::KW_ELSE },       { "while", TokenType::KW_WHILE },
         { "do", TokenType::KW_DO },           { "done", TokenType::KW_DONE },
@@ -77,8 +82,7 @@ std::optional<Token> Lexer::tryBuildIdentifier( const std::string &identifier ) 
         { "and", TokenType::OP_AND },         { "or", TokenType::OP_OR },
         { "not", TokenType::OP_NOT } } };
 
-  auto it = std::find_if( keywords.begin(), keywords.end(),
-                          [&]( const std::pair<std::string, TokenType> &pair ) { return pair.first == identifier; } );
+  auto it = std::ranges::find( keywords, identifier, []( const auto &p ) { return p.first; } );
 
   if ( it == keywords.end() ) return std::nullopt;
   if ( it->second == TokenType::BOOL_LITERAL ) {
@@ -215,10 +219,6 @@ std::optional<Token> Lexer::tryBuildCharLiteral() {
   return makeToken( TokenType::CHAR_LITERAL, char_literal_value );
 }
 
-#include <limits>
-#include <optional>
-#include <string>
-
 std::optional<Token> Lexer::tryBuildNumericLiteral() {
   if ( !isdigit( current_char_ ) ) return std::nullopt;
 
@@ -321,12 +321,12 @@ Token Lexer::getNextToken() {
   skipWhitespaces();
   this->start_pos_ = this->current_pos_;
 
-  if ( auto t = tryBuildSymbol() ) return *t;
-  if ( auto t = tryBuildStringLiteral() ) return *t;
-  if ( auto t = tryBuildCharLiteral() ) return *t;
-  if ( auto t = tryBuildNumericLiteral() ) return *t;
-  if ( auto t = tryBuildComment() ) return *t;
-  if ( auto t = tryBuildIdentifier() ) return *t;
+  if ( auto t = tryBuildSymbol() ) return std::move( *t );
+  if ( auto t = tryBuildStringLiteral() ) return std::move( *t );
+  if ( auto t = tryBuildCharLiteral() ) return std::move( *t );
+  if ( auto t = tryBuildNumericLiteral() ) return std::move( *t );
+  if ( auto t = tryBuildComment() ) return std::move( *t );
+  if ( auto t = tryBuildIdentifier() ) return std::move( *t );
 
   throw UnknownSymbolException( current_pos_, current_char_ );
 }

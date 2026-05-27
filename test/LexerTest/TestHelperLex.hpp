@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "Lexer/Lexer.h"
-#include "Token.hpp"
+#include "Lexer/Token.hpp"
 
 class LexerTest : public ::testing::Test {
  protected:
