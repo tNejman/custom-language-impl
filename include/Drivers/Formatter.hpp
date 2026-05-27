@@ -79,7 +79,7 @@ struct std::formatter<ParameterDecl> {
     const std::string pass_mode_qunatifier = param_decl.pass_mode_ == PassMode::COPY ? "copy " : "";
     const std::string mutability_quantifier = param_decl.mutability_ == Mutability::MUTABLE ? "mut " : "";
     return std::format_to( ctx.out(), "{}{}{} {}", pass_mode_qunatifier, mutability_quantifier, param_decl.type_,
-                           param_decl.name_ );
+                           param_decl.identifier_ );
   }
 };
 

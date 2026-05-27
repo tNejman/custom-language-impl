@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 #include "Lexer/Token.hpp"
 #include "MockLexer.hpp"
 #include "Parser/AstSerializerVisitor.h"
@@ -48,6 +50,16 @@ std::string initTokensBuildProgramAndSerialize( std::vector<TokenInitializer> in
   AstSerializerVisitor serializer{};
   program_ptr->accept( serializer );
   return serializer.getString();
+}
+
+bool isSameTokenTypeAsBaseType( TokenType tt, BaseType bt ) {
+  switch ( tt ) {
+    case TokenType::T_BOOL: return bt == BaseType::BOOL;
+    case TokenType::T_CHAR: return bt == BaseType::CHAR;
+    case TokenType::T_FLOAT: return bt == BaseType::FLOAT;
+    case TokenType::T_INT: return bt == BaseType::INT;
+    default: throw std::runtime_error( "type error" );
+  }
 }
 
 // void assertTokensTypeAndPos( std::string code, std::vector<Token> &&expected ) {

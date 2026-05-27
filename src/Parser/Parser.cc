@@ -5,8 +5,7 @@
 #include <memory>
 #include <optional>
 
-#include "Exceptions/ParserExceptions/MissingIdentifierException.hpp"
-#include "Exceptions/ParserExceptions/MissingParenthesisException.hpp"
+#include "Exceptions/ParserExceptions/MissingExpressionException.hpp"
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
@@ -39,18 +38,20 @@ void Parser::skipNewlines() {
 }
 
 std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
-  skipNewlines();  // statements in a block may start with any number of newlines, even the program itslef
+  skipNewlines();
   auto statement = tryBuildStatement();
   if ( !statement ) return {};
 
   std::vector<std::unique_ptr<INode>> statement_list;
   statement_list.push_back( ( std::move( statement ) ) );
 
-  while ( current_token_.type_ == TokenType::NEWLINE ) {
-    skipNewlines();  // may be more than one newline separating statements
-    if ( auto next_statement = tryBuildStatement() ) {
-      statement_list.push_back( std::move( next_statement ) );
-    }
+  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, "statement in statement list" );
+  skipNewlines();
+
+  while ( auto next_statement = tryBuildStatement() ) {
+    statement_list.push_back( ( std::move( next_statement ) ) );
+    consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, "statement in statement list" );
+    skipNewlines();
   }
   return std::move( statement_list );
 }
@@ -87,8 +88,8 @@ std::unique_ptr<INode> Parser::tryBuildFunctionDef() {
   consumeSpecificTokenOrThrow<MissingParenthesisException>( TokenType::RPAREN, object_being_built_tag,
                                                             ParenthesisType::CLOSING );
   Block block = tryBuildBlock();
-  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
-                                                        object_being_built_tag );
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
+  //                                                       object_being_built_tag );
 
   return std::make_unique<FunctionDefNode>(
       function_def_marker.position_, std::get<std::string>( std::move( identifier_token.value_ ) ),
@@ -159,8 +160,6 @@ Block Parser::tryBuildBlock() {
   Block statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<MissingKeywordException>( TokenType::KW_DONE, TokenType::KW_DONE,
                                                         object_being_built_tag );
-  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
-  //                                                       object_being_built_tag );
   return std::move( statement_list );
 }
 
@@ -206,7 +205,7 @@ std::unique_ptr<INode> Parser::tryBuildIfStmt() {
     cond_block_pair = tryBuildElseIfBranch();
   }
   Block else_block = tryBuildElseBlock();
-  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "if statement" );
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "if statement" );
   return std::make_unique<IfStatementNode>( if_begining_marker.position_, std::move( condition_block_pairs ),
                                             std::move( else_block ) );
 }
@@ -253,7 +252,7 @@ std::unique_ptr<INode> Parser::tryBuildWhileStmt() {
   if ( !expr_block_pair.first ) {
     throw MissingExpressionException( current_token_.position_, "while statement" );
   }
-  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "while statement" );
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "while statement" );
   return std::make_unique<WhileStatementNode>( while_begining_marker.position_, std::move( expr_block_pair.first ),
                                                std::move( expr_block_pair.second ) );
 }
@@ -443,6 +442,9 @@ std::vector<std::unique_ptr<IExpressionNode>> Parser::tryBuildArgumentListExpr()
 std::unique_ptr<IExpressionNode> Parser::tryBuildArrayLiteralExpr() {
   CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::LBRACKET, opening_bracket_marker )
   auto array_positions = tryBuildArgumentListExpr();
+  if ( array_positions.empty() ) {
+    throw MissingExpressionException( opening_bracket_marker.position_, "array literal" );
+  }
   consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, "array literal", BracketType::CLOSING );
   return std::make_unique<ArrayLiteralNode>( opening_bracket_marker.position_, std::move( array_positions ) );
 }
@@ -529,7 +531,8 @@ Parser::Parser( ILexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken
 }
 
 std::unique_ptr<ProgramNode> Parser::buildProgram() {
+  Token first_token = current_token_;
   std::vector<std::unique_ptr<INode>> statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<NotConsumedTokensException>( TokenType::END_OF_FILE, current_token_ );
-  return std::make_unique<ProgramNode>( Position{ 1, 1 }, std::move( statement_list ) );
+  return std::make_unique<ProgramNode>( first_token.position_, std::move( statement_list ) );
 };

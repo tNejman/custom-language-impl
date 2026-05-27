@@ -1,23 +1,24 @@
 # LL1
 
 ```EBNF
-Program            ::== { NEWLINE } StatementList
-StatementList      ::== { Statement ( NEWLINE {NEWLINE} | EOF )  }
-Statement          ::== FunctionDef // "def"
-                      | VarDecl // "var"
-                      | ConstDecl // Type
-                      | IfStmt // "if"
-                      | WhileStmt // "while"
-                      | LoopControl // "break"/"continue"
-                      | ReturnStmt // "ret"
-                      | ExpressionStmt // else
+Program            ::== StatementList EOF
+StatementList      ::== { NEWLINE } { Statement NEWLINE { NEWLINE } }
+
+Statement          ::== FunctionDef
+                      | VarDecl
+                      | ConstDecl
+                      | IfStmt
+                      | WhileStmt
+                      | LoopControl
+                      | ReturnStmt
+                      | ExpressionStmt
 
 FunctionDef        ::== "def" ReturnType IDENTIFIER "(" [ ParamList ] ")" Block
 ReturnType         ::== Type | "void"
 ParamList          ::== Param { "," Param }
 Param              ::== [ ParamModifier ] Type IDENTIFIER
 ParamModifier      ::== "copy" | "mut"
-Block              ::== "do" NEWLINE StatementList "done" NEWLINE
+Block              ::== "do" NEWLINE StatementList "done"
 
 VarDecl            ::== "var" Type IDENTIFIER "=" Expression
 ConstDecl          ::== Type IDENTIFIER "=" Expression
@@ -25,10 +26,9 @@ ConstDecl          ::== Type IDENTIFIER "=" Expression
 IfStmt             ::== "if" ParenthExprAndBlock
                         { "elseif" ParenthExprAndBlock }
                         [ "else" Block ]
-                        NEWLINE
 ParenthExprAndBlock::== "(" Expression ")" Block
 
-WhileStmt          ::== "while" ParenthExprAndBlock NEWLINE
+WhileStmt          ::== "while" ParenthExprAndBlock
 LoopControl        ::== "break" | "continue"
 ReturnStmt         ::== "ret" [ Expression ]
 
@@ -54,7 +54,7 @@ PrimaryExpr        ::== IDENTIFIER [ "(" [ ArgumentList ] ")" ]
                       | ArrayLiteral
 
 ArgumentList       ::== Expression { "," Expression }
-ArrayLiteral       ::== "[" [ ArgumentList ] "]"
+ArrayLiteral       ::== "[" ArgumentList "]"
 Literal            ::== INT_LITERAL 
                       | FLOAT_LITERAL 
                       | STRING_LITERAL 
