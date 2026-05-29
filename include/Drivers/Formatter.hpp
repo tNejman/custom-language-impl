@@ -6,6 +6,7 @@
 #include "Lexer/Token.hpp"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
+#include "Parser/Value.hpp"
 
 template <>
 struct std::formatter<TokenType> {
@@ -76,10 +77,10 @@ struct std::formatter<ParameterDecl> {
   }
 
   auto format( const ParameterDecl& param_decl, format_context& ctx ) const {
-    const std::string pass_mode_qunatifier = param_decl.pass_mode_ == PassMode::COPY ? "copy " : "";
-    const std::string mutability_quantifier = param_decl.mutability_ == Mutability::MUTABLE ? "mut " : "";
-    return std::format_to( ctx.out(), "{}{}{} {}", pass_mode_qunatifier, mutability_quantifier, param_decl.type_,
-                           param_decl.identifier_ );
+    const std::string pass_mode_qunatifier = param_decl.getPassMode() == PassMode::COPY ? "copy " : "";
+    const std::string mutability_quantifier = param_decl.getMutability() == Mutability::MUTABLE ? "mut " : "";
+    return std::format_to( ctx.out(), "{}{}{} {}", pass_mode_qunatifier, mutability_quantifier, param_decl.getType(),
+                           param_decl.getIdentifier() );
   }
 };
 

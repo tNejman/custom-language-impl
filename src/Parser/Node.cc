@@ -1,9 +1,10 @@
 #include "Parser/Node.h"
 
+#include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
 
 FunctionDefNode::FunctionDefNode( Position position, std::string identifier, Type ret_type,
-                                  std::vector<std::unique_ptr<ParameterDecl>> parameters, Block block )
+                                  std::vector<ParameterDecl> parameters, Block block )
     : INode( position ),
       identifier_( std::move( identifier ) ),
       return_type_( std::move( ret_type ) ),
@@ -20,7 +21,7 @@ std::string_view FunctionDefNode::getIdentifier() const noexcept {
 const Type& FunctionDefNode::getType() const noexcept {
   return return_type_;
 }
-const std::vector<std::unique_ptr<ParameterDecl>>& FunctionDefNode::getParameters() const noexcept {
+const std::vector<ParameterDecl>& FunctionDefNode::getParameters() const noexcept {
   return parameters_;
 }
 const Block& FunctionDefNode::getBlock() const noexcept {
@@ -208,12 +209,16 @@ std::string_view PrimaryIdentifierNode::getIdentifier() const noexcept {
   return identifier_;
 }
 
-ProgramNode::ProgramNode( Position position, std::vector<std::unique_ptr<INode>> statements )
-    : INode( position ), statement_list_( std::move( statements ) ) {
+ProgramNode::ProgramNode( Position position, std::vector<std::unique_ptr<INode>> statements,
+                          std::vector<std::unique_ptr<FunctionDefNode>> functions )
+    : INode( position ), statement_list_( std::move( statements ) ), function_definitions_( std::move( functions ) ) {
 }
 void ProgramNode::accept( Visitor& v ) const noexcept {
   v.visit( *this );
 }
 const std::vector<std::unique_ptr<INode>>& ProgramNode::getStatementList() const noexcept {
   return statement_list_;
+}
+const std::vector<std::unique_ptr<FunctionDefNode>>& ProgramNode::getFunctionList() const noexcept {
+  return function_definitions_;
 }
