@@ -10,8 +10,6 @@
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
 #include "Parser/Visitor.h"
-#include "Types.hpp"
-#include "Variable.h"
 
 class INode {
  private:
@@ -33,16 +31,16 @@ class FunctionDefNode : public INode {
  private:
   const std::string identifier_;
   const Type return_type_;
-  const std::vector<std::unique_ptr<ParameterDecl>> parameters_;
+  const std::vector<ParameterDecl> parameters_;
   const Block block_;
 
  public:
-  FunctionDefNode( Position position, std::string identifier, Type ret_type,
-                   std::vector<std::unique_ptr<ParameterDecl>> parameters, Block block );
+  FunctionDefNode( Position position, std::string identifier, Type ret_type, std::vector<ParameterDecl> parameters,
+                   Block block );
   void accept( Visitor& v ) const noexcept override;
   std::string_view getIdentifier() const noexcept;
   const Type& getType() const noexcept;
-  const std::vector<std::unique_ptr<ParameterDecl>>& getParameters() const noexcept;
+  const std::vector<ParameterDecl>& getParameters() const noexcept;
   const Block& getBlock() const noexcept;
 };
 
@@ -249,9 +247,21 @@ class PrimaryIdentifierNode : public IExpressionNode {
 class ProgramNode : public INode {
  private:
   const std::vector<std::unique_ptr<INode>> statement_list_;
+  const std::vector<std::unique_ptr<FunctionDefNode>> function_definitions_;
 
  public:
-  ProgramNode( Position position, std::vector<std::unique_ptr<INode>> statements );
+  ProgramNode( Position position, std::vector<std::unique_ptr<INode>> statements,
+               std::vector<std::unique_ptr<FunctionDefNode>> functions );
   void accept( Visitor& v ) const noexcept override;
   const std::vector<std::unique_ptr<INode>>& getStatementList() const noexcept;
+  const std::vector<std::unique_ptr<FunctionDefNode>>& getFunctionList() const noexcept;
+};
+
+struct NextParsedNode {
+  std::unique_ptr<INode> statement_;
+  std::unique_ptr<FunctionDefNode> function_def_;
+
+  explicit operator bool() const {
+    return statement_ != nullptr || function_def_ != nullptr;
+  }
 };

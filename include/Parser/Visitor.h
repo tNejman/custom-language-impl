@@ -17,6 +17,8 @@ class LiteralExprNode;
 class PrimaryIdentifierNode;
 class ProgramNode;
 
+// class BuiltinFunction;
+
 class Visitor {
  public:
   virtual ~Visitor() = default;
@@ -36,4 +38,6 @@ class Visitor {
   virtual void visit( const LiteralExprNode& node ) = 0;
   virtual void visit( const PrimaryIdentifierNode& node ) = 0;
   virtual void visit( const ProgramNode& node ) = 0;
+
+  // virtual void visit( const BuiltinFunction& func ) = 0;
 };

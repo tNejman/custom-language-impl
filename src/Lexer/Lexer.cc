@@ -9,7 +9,6 @@
 
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
 
-
 Token Lexer::makeToken( TokenType type, TokenVal value ) const {
   return Token{ start_pos_, type, std::move( value ) };
 }
@@ -321,12 +320,12 @@ Token Lexer::getNextToken() {
   skipWhitespaces();
   this->start_pos_ = this->current_pos_;
 
-  if ( auto t = tryBuildSymbol() ) return std::move( *t );
-  if ( auto t = tryBuildStringLiteral() ) return std::move( *t );
-  if ( auto t = tryBuildCharLiteral() ) return std::move( *t );
-  if ( auto t = tryBuildNumericLiteral() ) return std::move( *t );
-  if ( auto t = tryBuildComment() ) return std::move( *t );
-  if ( auto t = tryBuildIdentifier() ) return std::move( *t );
+  if ( auto t = tryBuildSymbol() ) return *std::move( t );
+  if ( auto t = tryBuildStringLiteral() ) return *std::move( t );
+  if ( auto t = tryBuildCharLiteral() ) return *std::move( t );
+  if ( auto t = tryBuildNumericLiteral() ) return *std::move( t );
+  if ( auto t = tryBuildComment() ) return *std::move( t );
+  if ( auto t = tryBuildIdentifier() ) return *std::move( t );
 
   throw UnknownSymbolException( current_pos_, current_char_ );
 }
