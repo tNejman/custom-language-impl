@@ -48,7 +48,6 @@ FetchContent_MakeAvailable(argparse)
 set(MODULES
     Lexer
     Parser
-    Interpreter
     Drivers
 )
 

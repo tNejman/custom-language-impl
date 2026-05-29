@@ -3,14 +3,12 @@
 #include <concepts>
 #include <type_traits>
 
-#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"  // IWYU pragma: keep
-#include "Lexer/ILexer.h"
+#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
+#include "Lexer/Lexer.h"
 #include "Lexer/Token.hpp"
 #include "Parser/IParser.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParserHelper.h"
-
-using StmtFunVecPair = std::pair<std::vector<std::unique_ptr<INode>>, std::vector<std::unique_ptr<FunctionDefNode>>>;
 
 class Parser : public IParser {
  private:
@@ -23,16 +21,14 @@ class Parser : public IParser {
   void skipComments();
   void skipNewlines();
 
-  StmtFunVecPair tryBuildStmtOrFunDefList();
-  NextParsedNode tryBuildNextNode();
+  std::vector<std::unique_ptr<INode>> tryBuildStatementList();
   std::unique_ptr<INode> tryBuildStatement();
 
-  std::unique_ptr<FunctionDefNode> tryBuildFunctionDef();
+  std::unique_ptr<INode> tryBuildFunctionDef();
   std::optional<Type> tryBuildReturnType();
-  std::vector<ParameterDecl> tryBuildParamList();
-  std::optional<ParameterDecl> tryBuildParameter();
+  std::vector<std::unique_ptr<ParameterDecl>> tryBuildParamList();
+  std::unique_ptr<ParameterDecl> tryBuildParameter();
   Block tryBuildBlock();
-  std::vector<std::unique_ptr<INode>> tryBuildStatementList();
 
   std::unique_ptr<INode> tryBuildVariableDecl( const Mutability mutability );
 

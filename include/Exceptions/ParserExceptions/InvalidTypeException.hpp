@@ -2,6 +2,7 @@
 
 #include "Exceptions/ParserExceptions/_ParserException.hpp"
 #include "Parser/ParameterDecl.hpp"
+#include "Parser/Variable.h"
 
 inline std::string_view paramQuantifierToString( Mutability mut ) {
   return "mut";

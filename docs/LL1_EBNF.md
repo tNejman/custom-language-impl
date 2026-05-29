@@ -1,8 +1,8 @@
 # LL1
 
 ```EBNF
-Program            ::== StmtOrFunDefList EOF
-StmtOrFunDefList   ::== { NEWLINE } { ( Statement | FunctionDef ) NEWLINE { NEWLINE } }
+Program            ::== StatementList EOF
+StatementList      ::== { NEWLINE } { Statement NEWLINE { NEWLINE } }
 
 Statement          ::== FunctionDef
                       | VarDecl
@@ -19,7 +19,6 @@ ParamList          ::== Param { "," Param }
 Param              ::== [ ParamModifier ] Type IDENTIFIER
 ParamModifier      ::== "copy" | "mut"
 Block              ::== "do" NEWLINE StatementList "done"
-StatementList      ::== { NEWLINE } { Statement NEWLINE { NEWLINE } }
 
 VarDecl            ::== "var" Type IDENTIFIER "=" Expression
 ConstDecl          ::== Type IDENTIFIER "=" Expression

@@ -6,17 +6,6 @@
 struct Type;
 
 enum class BaseType { INT, FLOAT, CHAR, BOOL, VOID };
-enum class Mutability { MUTABLE, IMMUTABLE };
-
-namespace {
-template <class... Ts>
-struct Overloaded : Ts... {
-  using Ts::operator()...;
-};
-
-template <class... Ts>
-Overloaded( Ts... ) -> Overloaded<Ts...>;
-}  // namespace
 
 struct ArrayType {
   std::unique_ptr<Type> element_type_;
@@ -25,19 +14,8 @@ struct ArrayType {
 struct Type {
   std::variant<BaseType, ArrayType> internal_;
 
-  Type( BaseType base_type ) noexcept : internal_( base_type ) {};
-  Type( ArrayType array_type ) noexcept : internal_( std::move( array_type ) ) {};
-
-  Type( Type&& other ) noexcept : internal_( std::move( other.internal_ ) ) {
-  }
-  Type( const Type& other ) = delete;
-  Type& operator=( Type&& other ) noexcept {
-    if ( this != &other ) {
-      internal_ = std::move( other.internal_ );
-    }
-    return *this;
-  };
-  Type& operaotr( Type& other ) = delete;
+  Type( BaseType base_type ) : internal_( base_type ) {};
+  Type( ArrayType array_type ) : internal_( std::move( array_type ) ) {};
 
   bool operator==( BaseType base_type ) const noexcept {
     if ( !std::holds_alternative<BaseType>( this->internal_ ) ) return false;
@@ -67,14 +45,5 @@ struct Type {
       built_type = Type{ ArrayType{ std::make_unique<Type>( std::move( built_type ) ) } };
     }
     return built_type;
-  }
-
-  Type copy() const noexcept {
-    return std::visit(
-        Overloaded{ [&]( BaseType base_type ) { return Type{ base_type }; },
-                    [&]( const ArrayType& arr_type ) {
-                      return Type{ ArrayType{ std::make_unique<Type>( arr_type.element_type_->copy() ) } };
-                    } },
-        internal_ );
   }
 };

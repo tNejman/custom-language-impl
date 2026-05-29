@@ -1,12 +1,9 @@
 #pragma once
 
-#include <cassert>
-#include <stdexcept>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
-#include "Parser/Types.hpp"
+#include "Lexer/Token.hpp"
 
 struct Value {
   using ArrayValue = std::vector<Value>;
@@ -24,11 +21,8 @@ struct Value {
   }
   Value( bool val ) : data_( val ) {
   }
-  Value( ArrayValue val ) : data_( std::move( val ) ) {
-    assert( !val.empty() && "ArrayValue must be initialized with a non-empty vector" );
+  Value( ArrayValue val ) : data_( val ) {
   }
-
-  Value( const Value& ) = delete;
 
   // template <typename UnderlyingType>
   // requires std::is_same_v<UnderlyingType, int> || std::is_same_v<UnderlyingType, float>
@@ -70,16 +64,5 @@ struct Value {
           }
         },
         this->data_, other.data_ );
-  }
-
-  Type getValueType() const noexcept {
-    return std::visit( Overloaded{ []( const ArrayValue& data ) -> Type {
-                                    return ArrayType{ std::make_unique<Type>( data[0].getValueType() ) };
-                                  },
-                                   []( const int ) -> Type { return BaseType::INT; },
-                                   []( const float ) -> Type { return BaseType::FLOAT; },
-                                   []( const char ) -> Type { return BaseType::CHAR; },
-                                   []( const bool ) -> Type { return BaseType::BOOL; } },
-                       this->data_ );
   }
 };

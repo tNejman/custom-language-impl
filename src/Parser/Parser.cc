@@ -5,7 +5,8 @@
 #include <memory>
 #include <optional>
 
-#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"  // IWYU pragma: keep
+#include "Exceptions/ParserExceptions/MissingExpressionException.hpp"
+#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
@@ -36,33 +37,29 @@ void Parser::skipNewlines() {
   while ( current_token_.type_ == TokenType::NEWLINE ) nextToken();
 }
 
-StmtFunVecPair Parser::tryBuildStmtOrFunDefList() {
+std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
   skipNewlines();
+  auto statement = tryBuildStatement();
+  if ( !statement ) return {};
 
   std::vector<std::unique_ptr<INode>> statement_list;
-  std::vector<std::unique_ptr<FunctionDefNode>> function_def_list;
+  statement_list.push_back( ( std::move( statement ) ) );
 
-  while ( auto next_node = tryBuildNextNode() ) {
-    if ( next_node.statement_ ) {
-      statement_list.push_back( ( std::move( next_node.statement_ ) ) );
-    } else {
-      function_def_list.push_back( std::move( next_node.function_def_ ) );
-    }
+  consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, "statement in statement list" );
+  skipNewlines();
+
+  while ( auto next_statement = tryBuildStatement() ) {
+    statement_list.push_back( ( std::move( next_statement ) ) );
     consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, "statement in statement list" );
     skipNewlines();
   }
-  return std::pair( std::move( statement_list ), std::move( function_def_list ) );
-}
-
-NextParsedNode Parser::tryBuildNextNode() {
-  if ( auto stmt = tryBuildStatement() ) return { std::move( stmt ), nullptr };
-  if ( auto func = tryBuildFunctionDef() ) return { nullptr, std::move( func ) };
-  return { nullptr, nullptr };
+  return std::move( statement_list );
 }
 
 std::unique_ptr<INode> Parser::tryBuildStatement() {
   Token org_token = current_token_;
   if ( current_token_.type_ == TokenType::END_OF_FILE ) return nullptr;
+  if ( auto node = tryBuildFunctionDef() ) return node;
   if ( auto node = tryBuildVariableDecl( Mutability::MUTABLE ) ) return node;
   if ( auto node = tryBuildVariableDecl( Mutability::IMMUTABLE ) ) return node;
   if ( auto node = tryBuildIfStmt() ) return node;
@@ -75,20 +72,24 @@ std::unique_ptr<INode> Parser::tryBuildStatement() {
   return nullptr;
 }
 
-std::unique_ptr<FunctionDefNode> Parser::tryBuildFunctionDef() {
+std::unique_ptr<INode> Parser::tryBuildFunctionDef() {
   static constexpr std::string_view object_being_built_tag = "function declaration";
   CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::KW_DEF, function_def_marker );
 
   auto opt_return_type = tryBuildReturnType();
   if ( !opt_return_type ) throw InvalidTypeException( function_def_marker.position_, object_being_built_tag );
+  // buildType consumes the type
   Token identifier_token = current_token_;
   consumeSpecificTokenOrThrow<MissingIdentifierException>( TokenType::IDENTIFIER, object_being_built_tag );
   consumeSpecificTokenOrThrow<MissingParenthesisException>( TokenType::LPAREN, object_being_built_tag,
                                                             ParenthesisType::OPENING );
-  std::vector<ParameterDecl> param_list = tryBuildParamList();
+  // current_token_ is the first of paramList
+  std::vector<std::unique_ptr<ParameterDecl>> param_list = tryBuildParamList();
   consumeSpecificTokenOrThrow<MissingParenthesisException>( TokenType::RPAREN, object_being_built_tag,
                                                             ParenthesisType::CLOSING );
   Block block = tryBuildBlock();
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE,
+  //                                                       object_being_built_tag );
 
   return std::make_unique<FunctionDefNode>(
       function_def_marker.position_, std::get<std::string>( std::move( identifier_token.value_ ) ),
@@ -104,24 +105,24 @@ std::optional<Type> Parser::tryBuildReturnType() {
   return tryBuildType();
 }
 
-std::vector<ParameterDecl> Parser::tryBuildParamList() {
+std::vector<std::unique_ptr<ParameterDecl>> Parser::tryBuildParamList() {
   Token first_param_token = current_token_;
-  auto param = tryBuildParameter();
+  std::unique_ptr<ParameterDecl> param = tryBuildParameter();
   if ( !param ) return {};
-  std::vector<ParameterDecl> params{};
-  params.push_back( *std::move( param ) );
+  std::vector<std::unique_ptr<ParameterDecl>> params{};
+  params.push_back( std::move( param ) );
 
   while ( current_token_.type_ == TokenType::COMMA ) {
     nextToken();  // consume comma
     Token parameter_build_marker = current_token_;
     param = tryBuildParameter();
     if ( !param ) throw InvalidParameterException( parameter_build_marker.position_ );
-    params.push_back( *std::move( param ) );
+    params.push_back( ( std::move( param ) ) );
   }
   return std::move( params );
 }
 
-std::optional<ParameterDecl> Parser::tryBuildParameter() {
+std::unique_ptr<ParameterDecl> Parser::tryBuildParameter() {
   static constexpr Mutability default_param_mutability = Mutability::IMMUTABLE;
   static constexpr PassMode default_param_pass_mode = PassMode::REFERENCE;
 
@@ -142,14 +143,14 @@ std::optional<ParameterDecl> Parser::tryBuildParameter() {
     } else if ( param_pass_mode != default_param_pass_mode ) {
       throw InvalidTypeException( build_type_marker.position_, param_pass_mode );
     }
-    return std::nullopt;
+    return nullptr;
   }
   Token identifier_token = current_token_;
   consumeSpecificTokenOrThrow<MissingIdentifierException>( TokenType::IDENTIFIER,
                                                            "building a parameter after a given type" );
 
-  return ParameterDecl{ std::get<std::string>( std::move( identifier_token.value_ ) ), *std::move( type ),
-                        param_pass_mode, param_mutability };
+  return std::make_unique<ParameterDecl>( std::get<std::string>( std::move( identifier_token.value_ ) ),
+                                          *std::move( type ), param_pass_mode, param_mutability );
 }
 
 Block Parser::tryBuildBlock() {
@@ -162,20 +163,10 @@ Block Parser::tryBuildBlock() {
   return std::move( statement_list );
 }
 
-std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
-  skipNewlines();
-  std::vector<std::unique_ptr<INode>> statement_list;
-  while ( auto stmt = tryBuildStatement() ) {
-    statement_list.push_back( ( std::move( stmt ) ) );
-    consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, "statement in statement list" );
-    skipNewlines();
-  }
-  return std::move( statement_list );
-}
-
 std::unique_ptr<INode> Parser::tryBuildVariableDecl( const Mutability mutability ) {
   static constexpr std::string_view object_being_built_tag = "variable declaration";
   if ( mutability == Mutability::MUTABLE ) {
+    // nextToken();  // "var"
     CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::KW_VAR, declaration_marker )
   }
   auto type = tryBuildType();
@@ -195,7 +186,7 @@ std::unique_ptr<INode> Parser::tryBuildVariableDecl( const Mutability mutability
 
   return std::make_unique<VarOrConstDeclNode>( identifier_token.position_,
                                                std::get<std::string>( std::move( identifier_token.value_ ) ),
-                                               mutability, *std::move( type ), std::move( expr ) );
+                                               mutability, std::move( *type ), std::move( expr ) );
 }
 
 std::unique_ptr<INode> Parser::tryBuildIfStmt() {
@@ -214,6 +205,7 @@ std::unique_ptr<INode> Parser::tryBuildIfStmt() {
     cond_block_pair = tryBuildElseIfBranch();
   }
   Block else_block = tryBuildElseBlock();
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "if statement" );
   return std::make_unique<IfStatementNode>( if_begining_marker.position_, std::move( condition_block_pairs ),
                                             std::move( else_block ) );
 }
@@ -260,6 +252,7 @@ std::unique_ptr<INode> Parser::tryBuildWhileStmt() {
   if ( !expr_block_pair.first ) {
     throw MissingExpressionException( current_token_.position_, "while statement" );
   }
+  // consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, TokenType::KW_DONE, "while statement" );
   return std::make_unique<WhileStatementNode>( while_begining_marker.position_, std::move( expr_block_pair.first ),
                                                std::move( expr_block_pair.second ) );
 }
@@ -539,8 +532,7 @@ Parser::Parser( ILexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken
 
 std::unique_ptr<ProgramNode> Parser::buildProgram() {
   Token first_token = current_token_;
-  auto [statement_list, function_list] = tryBuildStmtOrFunDefList();
+  std::vector<std::unique_ptr<INode>> statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<NotConsumedTokensException>( TokenType::END_OF_FILE, current_token_ );
-  return std::make_unique<ProgramNode>( first_token.position_, std::move( statement_list ),
-                                        std::move( function_list ) );
+  return std::make_unique<ProgramNode>( first_token.position_, std::move( statement_list ) );
 };
