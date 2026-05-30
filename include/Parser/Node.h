@@ -154,7 +154,6 @@ enum class BinaryOperator {
   FILTER,
   MAP,
   ACCESS,
-  CAST_TO
 };
 
 class BinaryExprNode : public IExpressionNode {  // logical or and, equality, relational, additive, multiplicative

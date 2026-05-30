@@ -1,9 +1,14 @@
 #include "Interpreter/Interpreter.h"
 
 #include <algorithm>
+#include <functional>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Interpreter/Variable.h"
+#include "Parser/Node.h"
+#include "Parser/Types.hpp"
+#include "Parser/Value.hpp"
 
 void CallContext::addVariable( Variable variable ) noexcept {
   variables_.push_back( std::move( variable ) );
@@ -173,21 +178,131 @@ void Interpreter::visit( const VarOrConstDeclNode& node ) {
 }
 
 void Interpreter::visit( const IfStatementNode& node ) {
+  bool any_block_entered = false;
+  for ( const auto& [cond, block] : node.getCondBlockPairs() ) {
+    cond->accept( *this );  // evaluate cond
+    if ( std::get<bool>( environment_.getRecentValFromAcc().getData() ) ) {
+      environment_.addCallContext( CallContext::ContextType::IF_BLOCK );
+      any_block_entered = true;
+      for ( const auto& stmt : block ) {
+        stmt->accept( *this );
+      }
+      break;
+    }
+  }
+  if ( !any_block_entered ) {
+    environment_.addCallContext( CallContext::ContextType::IF_BLOCK );
+    for ( const auto& stmt : node.getElseBlock() ) {
+      stmt->accept( *this );
+    }
+  }
+  environment_.popLastCallContext();
 }
 
 void Interpreter::visit( const WhileStatementNode& node ) {
+  node.getCondition()->accept( *this );
+  while ( std::get<bool>( environment_.getRecentValFromAcc().getData() ) ) {
+    environment_.addCallContext( CallContext::ContextType::WHILE_BLOCK );
+    for ( const auto& stmt : node.getBlock() ) {
+      stmt->accept( *this );
+    }
+    environment_.popLastCallContext();
+  }
 }
 
 void Interpreter::visit( const ControlFlowNode& node ) {
+  if ( !environment_.isStateInWhileLoop() ) {
+    throw std::runtime_error( "loop control not in a loop" );
+  }
+  /// @TODO
 }
 
 void Interpreter::visit( const ReturnNode& node ) {
+  if ( !environment_.isStateInFunctionBody() ) {
+    throw std::runtime_error( "return statement not in a function" );
+  }
+  if ( node.getExpression() == nullptr ) {
+    if ( environment_.getCurrentFunctionReturnType() == BaseType::VOID ) {
+      /// @TODO void function
+    } else {
+      throw std::runtime_error( "return value in non-void function" );
+    }
+  }
+  node.getExpression()->accept( *this );
+  Value return_value = environment_.getRecentValFromAcc();
+  if ( environment_.getCurrentFunctionReturnType() != return_value.getValueType() ) {
+    throw std::runtime_error( "return type doesn't match function signature" );
+  }
+  /// @TODO non-void function
 }
 
 void Interpreter::visit( const AssignmentExprNode& node ) {
+  /* @TODO
+  1. evaluate L operand;
+  2. check for rvalue (error)
+  3. check for assignability
+  4. evaluate R operand
+  5. check for type compatibility
+  6. assign
+  */
 }
 
 void Interpreter::visit( const BinaryExprNode& node ) {
+  node.getLeftOperand()->accept( *this );
+  Value left_operand_eval = environment_.getRecentValFromAcc();
+  node.getRightOperand()->accept( *this );
+  Value right_operand_eval = environment_.getRecentValFromAcc();
+
+  if ( left_operand_eval.getValueType() != right_operand_eval.getValueType() ) {
+    throw std::runtime_error( "type mismatch in binary expr" );
+  }
+
+  switch ( node.getOperator() ) {
+    case BinaryOperator::OR: {
+      if ( left_operand_eval.getValueType() != BaseType::BOOL || right_operand_eval.getValueType() != BaseType::BOOL ) {
+        throw std::runtime_error( "operator 'OR' only available for type bool" );
+      }
+      environment_.putValInAcc(
+          Value{ std::get<bool>( left_operand_eval.getData() ) || std::get<bool>( right_operand_eval.getData() ) } );
+      break;
+    }
+    case BinaryOperator::AND: {
+      if ( left_operand_eval.getValueType() != BaseType::BOOL || right_operand_eval.getValueType() != BaseType::BOOL ) {
+        throw std::runtime_error( "operator 'AND' only available for type bool" );
+      }
+      environment_.putValInAcc( std::get<bool>( left_operand_eval.getData() )
+                                && std::get<bool>( right_operand_eval.getData() ) );
+      break;
+    }
+    case BinaryOperator::EQ:
+      environment_.putValInAcc( evaluateRelational( left_operand_eval, right_operand_eval, std::equal_to<>{} ) );
+      break;
+    case BinaryOperator::NEQ:
+      environment_.putValInAcc( evaluateRelational( left_operand_eval, right_operand_eval, std::not_equal_to<>{} ) );
+      break;
+    case BinaryOperator::LT:
+      environment_.putValInAcc( evaluateRelational( left_operand_eval, right_operand_eval, std::less<>{} ) );
+      break;
+    case BinaryOperator::LEQ:
+      environment_.putValInAcc( evaluateRelational( left_operand_eval, right_operand_eval, std::less_equal<>{} ) );
+      break;
+    case BinaryOperator::GT:
+      environment_.putValInAcc( evaluateRelational( left_operand_eval, right_operand_eval, std::greater<>{} ) );
+      break;
+    case BinaryOperator::GEQ:
+      environment_.putValInAcc( evaluateRelational( left_operand_eval, right_operand_eval, std::greater_equal<>{} ) );
+      break;
+    case BinaryOperator::ADD:
+    case BinaryOperator::SUB:
+    case BinaryOperator::CONCAT:
+    case BinaryOperator::DIFF:
+    case BinaryOperator::MUL:
+    case BinaryOperator::DIV:
+    case BinaryOperator::MOD:
+    case BinaryOperator::FILTER:
+    case BinaryOperator::MAP:
+    case BinaryOperator::ACCESS:
+  }
 }
 
 void Interpreter::visit( const UnaryExprNode& node ) {
@@ -200,6 +315,7 @@ void Interpreter::visit( const FunctionCallNode& node ) {
 }
 
 void Interpreter::visit( const ArrayLiteralNode& node ) {
+  environment_.add
 }
 
 void Interpreter::visit( const LiteralExprNode& node ) {
@@ -214,6 +330,7 @@ void Interpreter::visit( const ProgramNode& node ) {
       throw std::runtime_error( "duplicated function signature" );
     }
   }
+  environment_.addCallContext( CallContext::ContextType::TOP_LEVEL );
   for ( const auto& stmt_ptr : node.getStatementList() ) {
     stmt_ptr->accept( *this );
   }

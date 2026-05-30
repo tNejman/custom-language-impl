@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <stack>
+#include <type_traits>
 #include <variant>
 
 #include "Interpreter/BuiltinFunctions.hpp"
@@ -12,8 +14,14 @@
 #include "Parser/Visitor.h"
 
 struct CallContext {
+ public:
+  enum class ContextType { TOP_LEVEL, IF_BLOCK, FUNCTION_CALL, WHILE_BLOCK };
+
  private:
+  ContextType type_;
   std::vector<Variable> variables_;
+
+  struct TraceWrapper {};
 
  public:
   void addVariable( Variable variable ) noexcept;
@@ -21,17 +29,19 @@ struct CallContext {
   std::vector<Variable>& getVariables() noexcept;
 };
 
-class StackGuard {
- private:
-  std::stack<Value>& target_stack_;
+// class StackGuard {
+//  private:
+//   std::stack<Value>& target_stack_;
 
- public:
-  StackGuard( std::stack<Value>& stack, const Value& value ) : target_stack_( stack ) {
-    target_stack_.push( value );
-  }
-};
+//  public:
+//   StackGuard( std::stack<Value>& stack, const Value& value ) : target_stack_( stack ) {
+//     target_stack_.push( value );
+//   }
+// };
 
 using FunctionSymbol = std::variant<const FunctionDefNode*, BuiltinFunction>;
+
+using AccumulatorVal = std::variant<Value, const FunctionDefNode*, const Variable*>;
 
 class Interpreter : public Visitor {
  private:
@@ -63,8 +73,31 @@ class Interpreter : public Visitor {
     Variable* getVarOrConstByNameCurScope( const std::string_view identifier ) noexcept;
 
     Value getRecentValFromAcc() noexcept;
+    void putValInAcc( Value val ) noexcept;
+
+    void addCallContext( CallContext::ContextType context_type );
+    void popLastCallContext();
+
+    bool isStateInWhileLoop() const noexcept;
+    bool isStateInFunctionBody() const noexcept;
+    const Type& getCurrentFunctionReturnType() const noexcept;
 
   } environment_;
+
+  template <typename OperatorType>
+  requires std::is_same_v<OperatorType, std::equal_to<>> || std::is_same_v<OperatorType, std::not_equal_to<>>
+           || std::is_same_v<OperatorType, std::less<>> || std::is_same_v<OperatorType, std::less_equal<>>
+           || std::is_same_v<OperatorType, std::greater<>> || std::is_same_v<OperatorType, std::greater_equal<>>
+  bool evaluateRelational( const Value& left_operand, const Value& right_operad, OperatorType operatr ) const noexcept {
+    return std::visit(
+        [operatr]( const auto& l_op, const auto& r_op ) -> bool {
+          if constexpr ( std::is_same_v<std::decay_t<decltype( l_op )>, std::decay_t<decltype( r_op )>> ) {
+            return l_op == r_op;
+          }
+          return false;
+        },
+        left_operand.getData(), right_operad.getData() );
+  }
 
  public:
   explicit Interpreter( std::unique_ptr<const ProgramNode> program, std::vector<FunctionSymbol> functions,

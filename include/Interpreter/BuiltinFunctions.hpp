@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <print>
 #include <stdexcept>
 #include <variant>
@@ -12,7 +13,7 @@
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Value.hpp"
 
-using BuiltinFunctionActionP = std::function<Value( const std::vector<Value>& )>;
+using BuiltinFunctionActionP = std::function<std::optional<Value>( const std::vector<Value>& )>;
 struct BuiltinFunction {
  private:
   std::string_view identifier_;
@@ -76,17 +77,16 @@ class ExitException : public std::runtime_error {
 
 namespace builtin_functions {
 
-Value write( const std::vector<Value>& args ) {
+std::optional<Value> write( const std::vector<Value>& args ) {
   std::string combined;
   for ( const auto& val : args ) {
     combined += std::format( "{} ", val );
   }
   std::println( "{}", combined );
-  std::vector<Value> char_vec( combined.begin(), combined.end() );
-  return Value::ArrayValue{ std::move( char_vec ) };
+  return std::nullopt;
 }
 
-Value read( const std::vector<Value>& args ) {
+std::optional<Value> read( const std::vector<Value>& args ) {
   if ( args.size() != 1 || !builtin_functions_helper::isValueCharVector( args[0] ) ) {
     throw std::runtime_error( "function read() may accept (char, char, ...) or (char[]) only" );
   }
@@ -95,7 +95,7 @@ Value read( const std::vector<Value>& args ) {
   return Value::ArrayValue( std::vector<Value>( input.begin(), input.end() ) );
 }
 
-Value exit( const std::vector<Value>& args ) {
+std::optional<Value> exit( const std::vector<Value>& args ) {
   if ( args.size() != 1 || !builtin_functions_helper::isValueInt( args[0] ) ) {
     throw std::runtime_error( "incompatible call with signature; note: function exit() accepts only one int as arg" );
   }
