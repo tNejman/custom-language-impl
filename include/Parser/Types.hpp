@@ -63,7 +63,7 @@ struct Type {
 
   static Type buildTypeArrayFromBaseNRec( const BaseType base_type, const unsigned int arr_rec_count ) noexcept {
     Type built_type{ base_type };
-    for ( int i = 0; i < arr_rec_count; ++i ) {
+    for ( auto i = 0u; i < arr_rec_count; ++i ) {
       built_type = Type{ ArrayType{ std::make_unique<Type>( std::move( built_type ) ) } };
     }
     return built_type;

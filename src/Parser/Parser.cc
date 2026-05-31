@@ -11,7 +11,6 @@
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/ParserHelper.h"
 #include "Parser/Types.hpp"
-#include "Parser/Variable.h"
 
 #define CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( expected_type, var_name ) \
   auto var_name##_opt = consumeSpecificTokenOrReturnNull( expected_type );  \
@@ -518,11 +517,10 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildFilterOrMapAccessExpr( std::uni
   nextToken();  // operator
   Token identifier_token = current_token_;
   consumeSpecificTokenOrThrow<MissingIdentifierException>( TokenType::IDENTIFIER, "filter expr" );
-  return std::make_unique<BinaryExprNode>(
+  return std::make_unique<ArrayIdentifierOpNode>(
       operator_token.position_, std::move( left_node ),
-      std::make_unique<PrimaryIdentifierNode>( identifier_token.position_,
-                                               std::get<std::string>( std::move( identifier_token.value_ ) ) ),
-      parser_helper::translateTokenTypeToBinaryOperator( operator_token.type_ ) );
+      parser_helper::translateTokenTypeToArrayIdentifierOpType( operator_token.type_ ),
+      std::get<std::string>( std::move( identifier_token.value_ ) ) );
 }
 
 std::optional<Token> Parser::consumeSpecificTokenOrReturnNull( const TokenType expected_token_type ) {

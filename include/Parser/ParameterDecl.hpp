@@ -48,10 +48,10 @@ struct ParameterDecl {
   [[nodiscard]] const Type& getType() const noexcept {
     return type_;
   }
-  [[nodiscard]] const PassMode getPassMode() const noexcept {
+  [[nodiscard]] PassMode getPassMode() const noexcept {
     return pass_mode_;
   }
-  [[nodiscard]] const Mutability getMutability() const noexcept {
+  [[nodiscard]] Mutability getMutability() const noexcept {
     return mutability_;
   }
 };

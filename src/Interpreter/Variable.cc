@@ -22,9 +22,17 @@ Variable::Variable( Variable&& other ) noexcept
 [[nodiscard]] const Type& Variable::getType() const noexcept {
   return this->type_;
 }
-[[nodiscard]] const Mutability Variable::getMutability() const noexcept {
+[[nodiscard]] Mutability Variable::getMutability() const noexcept {
   return this->mutability_;
 }
 [[nodiscard]] const Value& Variable::getValue() const noexcept {
   return this->value_;
+}
+void Variable::setValue( Value new_val ) noexcept {
+  this->value_ = std::move( new_val );
+}
+
+[[nodiscard]] bool Variable::operator==( const Variable& other ) const noexcept {
+  return this->identifier_ == other.identifier_ && this->type_ == other.type_ && this->mutability_ == other.mutability_
+         && this->value_ == other.value_;
 }

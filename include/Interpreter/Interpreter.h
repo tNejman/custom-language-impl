@@ -3,45 +3,23 @@
 #include <functional>
 #include <memory>
 #include <stack>
+#include <string_view>
 #include <type_traits>
 #include <variant>
 
 #include "Interpreter/BuiltinFunctions.hpp"
+#include "Interpreter/CallStack.h"
 #include "Interpreter/Variable.h"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Value.hpp"
 #include "Parser/Visitor.h"
 
-struct CallContext {
- public:
-  enum class ContextType { TOP_LEVEL, IF_BLOCK, FUNCTION_CALL, WHILE_BLOCK };
-
- private:
-  ContextType type_;
-  std::vector<Variable> variables_;
-
-  struct TraceWrapper {};
-
- public:
-  void addVariable( Variable variable ) noexcept;
-  const std::vector<Variable>& getVariables() const noexcept;
-  std::vector<Variable>& getVariables() noexcept;
-};
-
-// class StackGuard {
-//  private:
-//   std::stack<Value>& target_stack_;
-
-//  public:
-//   StackGuard( std::stack<Value>& stack, const Value& value ) : target_stack_( stack ) {
-//     target_stack_.push( value );
-//   }
-// };
-
 using FunctionSymbol = std::variant<const FunctionDefNode*, BuiltinFunction>;
 
-using AccumulatorVal = std::variant<Value, const FunctionDefNode*, const Variable*>;
+using RValue = Value;
+using LValue = std::reference_wrapper<Variable>;
+using AccumulatorVal = std::variant<LValue, RValue>;
 
 class Interpreter : public Visitor {
  private:
@@ -49,8 +27,8 @@ class Interpreter : public Visitor {
    private:
     std::unique_ptr<const ProgramNode> program_;
     std::vector<FunctionSymbol> functions_;
-    std::stack<CallContext> call_stack_;
-    std::stack<Value> accumulator_;
+    CallStack call_stack_;
+    std::stack<AccumulatorVal> accumulator_;
 
     const FunctionSymbol* getFunctionByIdentifier( const std::string_view identifier ) const noexcept;
     const FunctionSymbol* getFunctionBySignature( const FunctionDefNode* node ) const noexcept;
@@ -59,11 +37,7 @@ class Interpreter : public Visitor {
                                                   const std::vector<ParameterDecl>& parameters ) const noexcept;
 
    public:
-    Environment( std::unique_ptr<const ProgramNode> program, std::vector<FunctionSymbol> functions,
-                 std::stack<CallContext> call_stack );
-
-    const std::vector<FunctionSymbol>& getFunctions() const noexcept;
-    const std::stack<CallContext>& getCallStack() const noexcept;
+    Environment( std::unique_ptr<const ProgramNode> program );
 
     bool tryAddUserFunction( const FunctionDefNode* node );
     bool tryAddBuiltinFunction( BuiltinFunction function );
@@ -71,37 +45,29 @@ class Interpreter : public Visitor {
     bool tryAddVarOrConst( Variable variable );
     const Variable* getVarOrConstByNameCurScope( const std::string_view identifier ) const noexcept;
     Variable* getVarOrConstByNameCurScope( const std::string_view identifier ) noexcept;
+    Variable* getVarOrConstByNameGlobalScope( const std::string_view identifier ) noexcept;
 
-    Value getRecentValFromAcc() noexcept;
+    bool isAssignableTo( const AccumulatorVal& val ) const noexcept;
+
+    AccumulatorVal getRecentValFromAcc();
     void putValInAcc( Value val ) noexcept;
+    void putValInAcc( std::reference_wrapper<Variable> var ) noexcept;
+    size_t getAccSize() const noexcept;
 
     void addCallContext( CallContext::ContextType context_type );
+    void addCallContext( const FunctionDefNode* func_def );
     void popLastCallContext();
 
     bool isStateInWhileLoop() const noexcept;
     bool isStateInFunctionBody() const noexcept;
-    const Type& getCurrentFunctionReturnType() const noexcept;
+    const Type& getCurrentFunctionReturnType() const;
 
   } environment_;
 
-  template <typename OperatorType>
-  requires std::is_same_v<OperatorType, std::equal_to<>> || std::is_same_v<OperatorType, std::not_equal_to<>>
-           || std::is_same_v<OperatorType, std::less<>> || std::is_same_v<OperatorType, std::less_equal<>>
-           || std::is_same_v<OperatorType, std::greater<>> || std::is_same_v<OperatorType, std::greater_equal<>>
-  bool evaluateRelational( const Value& left_operand, const Value& right_operad, OperatorType operatr ) const noexcept {
-    return std::visit(
-        [operatr]( const auto& l_op, const auto& r_op ) -> bool {
-          if constexpr ( std::is_same_v<std::decay_t<decltype( l_op )>, std::decay_t<decltype( r_op )>> ) {
-            return l_op == r_op;
-          }
-          return false;
-        },
-        left_operand.getData(), right_operad.getData() );
-  }
+  void handleStatementList( const std::vector<std::unique_ptr<INode>>&, CallContext::ContextType context_type );
 
  public:
-  explicit Interpreter( std::unique_ptr<const ProgramNode> program, std::vector<FunctionSymbol> functions,
-                        std::stack<CallContext> call_stack );
+  explicit Interpreter( std::unique_ptr<const ProgramNode> program );
 
   void execute();
 

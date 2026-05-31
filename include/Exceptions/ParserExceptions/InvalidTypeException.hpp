@@ -4,10 +4,16 @@
 #include "Parser/ParameterDecl.hpp"
 
 inline std::string_view paramQuantifierToString( Mutability mut ) {
-  return "mut";
+  switch ( mut ) {
+    case Mutability::MUTABLE: return "mut ";
+    case Mutability::IMMUTABLE: return "";
+  }
 }
 inline std::string_view paramQuantifierToString( PassMode pass_mode ) {
-  return "copy";
+  switch ( pass_mode ) {
+    case PassMode::COPY: return "copy ";
+    case PassMode::REFERENCE: return "";
+  }
 }
 
 class InvalidTypeException : public ParserException {

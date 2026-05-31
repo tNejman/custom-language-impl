@@ -197,6 +197,23 @@ class CastExprNode : public IExpressionNode {  // cast to
   const Type& getType() const noexcept;
 };
 
+enum class ArrayIdentifierOpType { FILTER, MAP };
+
+class ArrayIdentifierOpNode : public IExpressionNode {
+ private:
+  const std::unique_ptr<const IExpressionNode> left_operand_;
+  const ArrayIdentifierOpType type_;
+  const std::string identifier_;
+
+ public:
+  ArrayIdentifierOpNode( Position position, std::unique_ptr<IExpressionNode> left_operand, ArrayIdentifierOpType type,
+                         std::string identifier );
+  void accept( Visitor& v ) const noexcept override;
+  const IExpressionNode& getExpression() const noexcept;
+  ArrayIdentifierOpType getType() const noexcept;
+  const std::string& getIdentifier() const noexcept;
+};
+
 using ExpressionVec = std::vector<std::unique_ptr<IExpressionNode>>;
 
 class FunctionCallNode : public IExpressionNode {

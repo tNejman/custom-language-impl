@@ -32,9 +32,9 @@ void AstSerializerVisitor::visit( const FunctionDefNode& node ) {
 
   string_builder_ << std::format( "def {} {}(", node.getType(), node.getIdentifier() );
   bool is_first_param = true;
-  for ( const auto& param_ptr : node.getParameters() ) {
+  for ( const auto& param : node.getParameters() ) {
     if ( !is_first_param ) string_builder_ << ", ";
-    string_builder_ << std::format( "{}", *param_ptr );
+    string_builder_ << std::format( "{}", param );
     is_first_param = false;
   }
   string_builder_ << ") ";

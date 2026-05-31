@@ -40,9 +40,9 @@ void AstPrinterVisitor::visit( const FunctionDefNode& node ) {
               node.getIdentifier() );
   std::print( ", parameter list: (" );
   bool first = true;
-  for ( const auto& param_ptr : node.getParameters() ) {
+  for ( const auto& param : node.getParameters() ) {
     if ( !first ) std::print( ", " );
-    std::print( "{}", *param_ptr );
+    std::print( "{}", param );
     first = false;
   }
   std::println( ")" );

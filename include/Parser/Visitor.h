@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Node.h"
 class FunctionDefNode;
 class IExpressionNode;
 class VarOrConstDeclNode;
@@ -11,6 +12,7 @@ class AssignmentExprNode;
 class BinaryExprNode;
 class UnaryExprNode;
 class CastExprNode;
+class ArrayIdentifierOpNode;
 class FunctionCallNode;
 class ArrayLiteralNode;
 class LiteralExprNode;
@@ -33,6 +35,7 @@ class Visitor {
   virtual void visit( const BinaryExprNode& node ) = 0;
   virtual void visit( const UnaryExprNode& node ) = 0;
   virtual void visit( const CastExprNode& node ) = 0;
+  virtual void visit( const ArrayIdentifierOpType& node ) = 0;
   virtual void visit( const FunctionCallNode& node ) = 0;
   virtual void visit( const ArrayLiteralNode& node ) = 0;
   virtual void visit( const LiteralExprNode& node ) = 0;

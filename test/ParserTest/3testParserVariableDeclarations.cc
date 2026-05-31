@@ -7,7 +7,6 @@
 #include "Exceptions/ParserExceptions/NotConsumedTokensException.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
-#include "Parser/Variable.h"
 #include "TestHelperPars.hpp"
 
 void assertVariableDeclaration( const VarOrConstDeclNode* node, const std::string identifier,

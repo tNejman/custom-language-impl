@@ -3,3 +3,5 @@ build/
 .cache/
 .clangd
 compile_commands.json
+
+*.old

@@ -163,6 +163,27 @@ const Type& CastExprNode::getType() const noexcept {
   return type_;
 }
 
+ArrayIdentifierOpNode::ArrayIdentifierOpNode( Position position, std::unique_ptr<IExpressionNode> left_operand,
+                                              ArrayIdentifierOpType type, std::string identifier )
+    : IExpressionNode( position ),
+      left_operand_( std::move( left_operand ) ),
+      type_( type ),
+      identifier_( std::move( identifier ) ) {
+  assert( left_operand != nullptr );
+}
+void ArrayIdentifierOpNode::accept( Visitor& v ) const noexcept {
+  v.visit( *this );
+}
+const IExpressionNode& ArrayIdentifierOpNode::getExpression() const noexcept {
+  return *left_operand_;
+}
+ArrayIdentifierOpType ArrayIdentifierOpNode::getType() const noexcept {
+  return type_;
+}
+const std::string& ArrayIdentifierOpNode::getIdentifier() const noexcept {
+  return identifier_;
+}
+
 FunctionCallNode::FunctionCallNode( Position position, std::string identifier, ExpressionVec arguments )
     : IExpressionNode( position ), identifier_( std::move( identifier ) ), arguments_( std::move( arguments ) ) {
 }

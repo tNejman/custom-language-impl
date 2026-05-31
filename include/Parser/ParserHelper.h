@@ -16,9 +16,10 @@ bool isLiteral( const TokenType token_type ) noexcept;
 
 bool isOperator( const TokenType token_type ) noexcept;
 
-AssignmentType translateTokenTypeToAssignmentType( const TokenType token_type ) noexcept;
-BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type ) noexcept;
-UnaryOperator translateTokenTypeToUnaryOperator( const TokenType token_type ) noexcept;
+AssignmentType translateTokenTypeToAssignmentType( const TokenType token_type );
+BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type );
+UnaryOperator translateTokenTypeToUnaryOperator( const TokenType token_type );
+ArrayIdentifierOpType translateTokenTypeToArrayIdentifierOpType( const TokenType token_type );
 
 std::string_view operatorToStr( const AssignmentType assignment_type ) noexcept;
 std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept;
