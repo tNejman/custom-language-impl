@@ -138,6 +138,14 @@ void AstSerializerVisitor::visit( const CastExprNode& node ) {
   string_builder_ << " cast_to " << std::format( "{}", node.getType() );
 }
 
+void AstSerializerVisitor::visit( const ArrayIdentifierOpNode& node ) {
+  VIS_GUARD
+
+  node.getExpression().accept( *this );
+  string_builder_ << std::format( " {} ", magic_enum::enum_name( node.getType() ) );
+  string_builder_ << node.getIdentifier();
+}
+
 void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
   string_builder_ << std::format( "{}(", node.getIdentifier() );
   bool is_first_arg = true;

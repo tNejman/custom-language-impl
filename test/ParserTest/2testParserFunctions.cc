@@ -1,12 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
-#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
+#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"  // IWYU pragma: keep
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
-#include "Parser/Variable.h"
 #include "TestHelperPars.hpp"
 
 void assertFunctionDeclaration( const FunctionDefNode* node, Type expected_type, const std::string expected_id,
@@ -412,7 +410,7 @@ TEST_F( ParserParamTest, type_identifier ) {
   auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
   auto compr = ParameterDecl{ "x", Type{ BaseType::INT }, PassMode::REFERENCE, Mutability::IMMUTABLE };
-  ASSERT_EQ( compr, *( fun_def_ptr->getParameters()[0] ) );
+  ASSERT_EQ( compr, fun_def_ptr->getParameters()[0] );
 }
 
 TEST_F( ParserParamTest, modifier_copy_type_identifier ) {
@@ -436,7 +434,7 @@ TEST_F( ParserParamTest, modifier_copy_type_identifier ) {
   auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
   auto compr = ParameterDecl{ "x", Type{ BaseType::INT }, PassMode::COPY, Mutability::IMMUTABLE };
-  ASSERT_EQ( compr, *( fun_def_ptr->getParameters()[0] ) );
+  ASSERT_EQ( compr, fun_def_ptr->getParameters()[0] );
 }
 
 TEST_F( ParserParamTest, modifier_mut_type_identifier ) {
@@ -460,7 +458,7 @@ TEST_F( ParserParamTest, modifier_mut_type_identifier ) {
   auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
   auto compr = ParameterDecl{ "x", Type{ BaseType::INT }, PassMode::REFERENCE, Mutability::MUTABLE };
-  ASSERT_EQ( compr, *( fun_def_ptr->getParameters()[0] ) );
+  ASSERT_EQ( compr, fun_def_ptr->getParameters()[0] );
 }
 
 /* Errors

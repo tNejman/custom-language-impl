@@ -2,12 +2,9 @@
 
 #include <cassert>
 
-#include "Exceptions/ParserExceptions/MissingNewlineException.hpp"
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
-#include "Parser/Parser.h"
-#include "Parser/Variable.h"
 #include "TestHelperPars.hpp"
 
 TEST_F( ParserTest, check_init2 ) {

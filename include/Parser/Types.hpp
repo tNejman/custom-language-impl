@@ -7,6 +7,7 @@ struct Type;
 
 enum class BaseType { INT, FLOAT, CHAR, BOOL, VOID };
 enum class Mutability { MUTABLE, IMMUTABLE };
+enum class ArrayIdentifierOpType { FILTER, MAP };
 
 namespace {
 template <class... Ts>

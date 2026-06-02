@@ -1,4 +1,5 @@
 add_library(Interpreter
+    CallStack.cc
     Interpreter.cc
     Variable.cc
 )

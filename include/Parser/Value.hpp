@@ -42,10 +42,6 @@ struct Value {
 
   bool operator==( const Value& other ) const noexcept = default;
   bool operator!=( const Value& other ) const noexcept = default;
-  // template <typename TypeCompared>
-  // bool operator==( const TypeCompared val ) const noexcept {
-  //   return std::holds_alternative<TypeCompared>( data_ ) && std::get<TypeCompared>( data_ ) == val;
-  // }
 
   const VariantType& getData() const noexcept {
     return data_;

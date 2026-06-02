@@ -196,8 +196,11 @@ void AstPrinterVisitor::visit( const UnaryExprNode& node ) {
   --indent_level_;
 }
 
-void AstPrinterVisitor::visit( const CastExprNode& node ) {
-  throw std::runtime_error( "AstPrinterVisitor::visit(CastExprNode&) is not implemented" );
+void AstPrinterVisitor::visit( const CastExprNode& _ ) {
+  // throw std::runtime_error( std::format("AstPrinterVisitor::visit(CastExprNode&) is not implemented, {}", ) );
+}
+
+void AstPrinterVisitor::visit( const ArrayIdentifierOpNode& _ ) {
 }
 
 void AstPrinterVisitor::visit( const FunctionCallNode& node ) {

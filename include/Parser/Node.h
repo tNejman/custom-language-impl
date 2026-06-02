@@ -197,8 +197,6 @@ class CastExprNode : public IExpressionNode {  // cast to
   const Type& getType() const noexcept;
 };
 
-enum class ArrayIdentifierOpType { FILTER, MAP };
-
 class ArrayIdentifierOpNode : public IExpressionNode {
  private:
   const std::unique_ptr<const IExpressionNode> left_operand_;

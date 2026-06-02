@@ -117,7 +117,7 @@ std::vector<ParameterDecl> Parser::tryBuildParamList() {
     if ( !param ) throw InvalidParameterException( parameter_build_marker.position_ );
     params.push_back( *std::move( param ) );
   }
-  return std::move( params );
+  return params;
 }
 
 std::optional<ParameterDecl> Parser::tryBuildParameter() {
@@ -158,7 +158,7 @@ Block Parser::tryBuildBlock() {
   Block statement_list = tryBuildStatementList();
   consumeSpecificTokenOrThrow<MissingKeywordException>( TokenType::KW_DONE, TokenType::KW_DONE,
                                                         object_being_built_tag );
-  return std::move( statement_list );
+  return statement_list;
 }
 
 std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
@@ -169,7 +169,7 @@ std::vector<std::unique_ptr<INode>> Parser::tryBuildStatementList() {
     consumeSpecificTokenOrThrow<MissingNewlineException>( TokenType::NEWLINE, "statement in statement list" );
     skipNewlines();
   }
-  return std::move( statement_list );
+  return statement_list;
 }
 
 std::unique_ptr<INode> Parser::tryBuildVariableDecl( const Mutability mutability ) {
@@ -303,7 +303,7 @@ std::optional<Type> Parser::tryBuildType() {
     consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, " ", BracketType::CLOSING );
     built_type = Type{ ArrayType{ std::make_unique<Type>( *std::move( built_type ) ) } };
   }
-  return std::move( built_type );
+  return built_type;
 }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildExpression() {
@@ -386,11 +386,11 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildAccessExpr() {
   auto left_node = tryBuildPrimaryExpr();
   if ( !left_node ) return nullptr;
   while ( parser_helper::isAccesExprSufBeg( current_token_.type_ ) ) {
-    if ( auto node = tryBuildAccessArrayExpr( left_node ) ) {
-      left_node = std::move( node );
+    if ( auto access_node = tryBuildAccessArrayExpr( left_node ) ) {
+      left_node = std::move( access_node );
       continue;
-    } else if ( auto node = tryBuildFilterOrMapAccessExpr( left_node ) ) {
-      left_node = std::move( node );
+    } else if ( auto fil_or_map_node = tryBuildFilterOrMapAccessExpr( left_node ) ) {
+      left_node = std::move( fil_or_map_node );
       continue;
     }
     return nullptr;
@@ -427,10 +427,10 @@ std::unique_ptr<IExpressionNode> Parser::tryBuildFunCallOrReadExpr() {
 }
 
 std::vector<std::unique_ptr<IExpressionNode>> Parser::tryBuildArgumentListExpr() {
-  auto expr = tryBuildExpression();
-  if ( !expr ) return {};
+  auto first_expr = tryBuildExpression();
+  if ( !first_expr ) return {};
   std::vector<std::unique_ptr<IExpressionNode>> argument_list;
-  argument_list.push_back( std::move( expr ) );
+  argument_list.push_back( std::move( first_expr ) );
 
   while ( current_token_.type_ == TokenType::COMMA ) {
     nextToken();  // consume comma
@@ -442,7 +442,7 @@ std::vector<std::unique_ptr<IExpressionNode>> Parser::tryBuildArgumentListExpr()
     }
     argument_list.push_back( std::move( expr ) );
   }
-  return std::move( argument_list );
+  return argument_list;
 }
 
 std::unique_ptr<IExpressionNode> Parser::tryBuildArrayLiteralExpr() {

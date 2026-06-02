@@ -30,6 +30,7 @@ class AstSerializerVisitor : public Visitor {
   void visit( const BinaryExprNode& node ) override;
   void visit( const UnaryExprNode& node ) override;
   void visit( const CastExprNode& node ) override;
+  void visit( const ArrayIdentifierOpNode& node ) override;
   void visit( const FunctionCallNode& node ) override;
   void visit( const ArrayLiteralNode& node ) override;
   void visit( const LiteralExprNode& node ) override;

@@ -1,16 +1,17 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <stdexcept>
 #include <type_traits>
+#include <variant>
 
+#include "Parser/Node.h"
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
 
 enum class ArrayBinaryOperator { CONCAT, DIFF };
-
-enum class ArrayIdentifierOpType { FILTER, MAP };
 
 class ValueEvaluator {
  private:
@@ -71,6 +72,52 @@ class ValueEvaluator {
       }
     }
     return result;
+  }
+
+  static Value castScalar( const Value& val, BaseType target ) {
+    if ( target == BaseType::VOID ) {
+      throw std::runtime_error( "Cannot cast to 'void'" );
+    }
+    return std::visit( Overloaded{ [&]( int v ) -> Value {
+                                    switch ( target ) {
+                                      case BaseType::INT: return v;
+                                      case BaseType::FLOAT: return static_cast<float>( v );
+                                      case BaseType::CHAR: return static_cast<char>( v );
+                                      case BaseType::BOOL: return v != 0;
+                                      case BaseType::VOID: std::unreachable();
+                                    }
+                                  },
+                                   [&]( float v ) -> Value {
+                                     switch ( target ) {
+                                       case BaseType::INT: return static_cast<int>( v );
+                                       case BaseType::FLOAT: return v;
+                                       case BaseType::CHAR: throw std::runtime_error( "cannot cast float to char" );
+                                       case BaseType::BOOL: return v != 0.0f;
+                                       case BaseType::VOID: std::unreachable();
+                                     }
+                                   },
+                                   [&]( char v ) -> Value {
+                                     switch ( target ) {
+                                       case BaseType::INT: return static_cast<int>( v );
+                                       case BaseType::FLOAT: throw std::runtime_error( "cannot cast char to float" );
+                                       case BaseType::CHAR: return v;
+                                       case BaseType::BOOL: throw std::runtime_error( "cannot cast char to bool" );
+                                       case BaseType::VOID: std::unreachable();
+                                     }
+                                   },
+                                   [&]( bool v ) -> Value {
+                                     switch ( target ) {
+                                       case BaseType::INT: return v ? 1 : 0;
+                                       case BaseType::FLOAT: return v ? 1.0f : 0.0f;
+                                       case BaseType::CHAR: throw std::runtime_error( "cannot cast bool to char" );
+                                       case BaseType::BOOL: return v;
+                                       case BaseType::VOID: std::unreachable();
+                                     }
+                                   },
+                                   []( const Value::ArrayValue& ) -> Value {
+                                     throw std::runtime_error( "Cannot cast ArrayValue, is not a scalar" );
+                                   } },
+                       val.getData() );
   }
 
  public:
@@ -166,5 +213,62 @@ class ValueEvaluator {
       case ArrayIdentifierOpType::MAP: {
       }
     }
+  }  // @TODO
+
+  static Value evaluateUnaryOp( const Value& operand, UnaryOperator op ) {
+    switch ( op ) {
+      case UnaryOperator::LEN: {
+        assertAllowedTypes<ArrayType>( operand );
+        const auto& arr = std::get<Value::ArrayValue>( operand.getData() );
+        return Value{ static_cast<int>( arr.size() ) };
+      }
+      case UnaryOperator::REV: {
+        assertAllowedTypes<ArrayType>( operand );
+        const auto& arr = std::get<Value::ArrayValue>( operand.getData() );
+        return [&] {
+          Value::ArrayValue new_arr;
+          new_arr.reserve( arr.size() );
+          for ( const auto& val : arr ) {
+            new_arr.push_back( val.copy() );
+          }
+          std::reverse( new_arr.begin(), new_arr.end() );
+          return Value{ std::move( new_arr ) };
+        }();
+      }
+      case UnaryOperator::NEG: {
+        assertAllowedTypes<int, float>( operand );
+        return std::visit( Overloaded{ []( const int val ) -> Value { return Value{ -val }; },
+                                       []( const float val ) -> Value { return Value{ -val }; },
+                                       []( auto&& _ ) -> Value { std::unreachable(); } },
+                           operand.getData() );
+      }
+      case UnaryOperator::NOT: {
+        assertAllowedTypes<bool>( operand );
+        return Value{ !std::get<bool>( operand.getData() ) };
+      }
+    }
+  };
+
+  static Value evaluateCastOp( const Value& operand, const Type& type_cast_to ) {
+    bool target_is_array = std::holds_alternative<ArrayType>( type_cast_to.internal_ );
+    const auto& op_data = operand.getData();
+    bool operand_is_array = std::holds_alternative<Value::ArrayValue>( op_data );
+
+    if ( !operand_is_array && !target_is_array ) {
+      return castScalar( operand, std::get<BaseType>( type_cast_to.internal_ ) );
+    }
+    if ( !operand_is_array || !target_is_array ) {
+      throw std::runtime_error( "order incompatiblity scalar<->arr when casting" );
+    }
+    const auto& arr = std::get<Value::ArrayValue>( op_data );
+    const auto& target_arr_type = std::get<ArrayType>( type_cast_to.internal_ );
+
+    Value::ArrayValue new_arr;
+    new_arr.reserve( arr.size() );
+
+    for ( const auto& val : arr ) {
+      new_arr.push_back( evaluateCastOp( val, *target_arr_type.element_type_ ) );
+    }
+    return Value( std::move( new_arr ) );
   }
 };

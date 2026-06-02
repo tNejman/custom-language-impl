@@ -4,65 +4,91 @@
 #include <memory>
 #include <stack>
 #include <string_view>
-#include <type_traits>
 #include <variant>
 
 #include "Interpreter/BuiltinFunctions.hpp"
 #include "Interpreter/CallStack.h"
+#include "Interpreter/RuntimeValue.hpp"
 #include "Interpreter/Variable.h"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
-#include "Parser/Value.hpp"
 #include "Parser/Visitor.h"
 
-using FunctionSymbol = std::variant<const FunctionDefNode*, BuiltinFunction>;
-
-using RValue = Value;
-using LValue = std::reference_wrapper<Variable>;
-using AccumulatorVal = std::variant<LValue, RValue>;
+using FunctionSymbol = std::variant<std::reference_wrapper<const FunctionDefNode>, BuiltinFunction>;
 
 class Interpreter : public Visitor {
  private:
   class Environment {
+   public:
+    enum class ControlFlow { BREAK, CONTINUE, NONE, RETURN };
+
    private:
-    std::unique_ptr<const ProgramNode> program_;
     std::vector<FunctionSymbol> functions_;
     CallStack call_stack_;
-    std::stack<AccumulatorVal> accumulator_;
+    std::stack<RuntimeValue> accumulator_;
 
-    const FunctionSymbol* getFunctionByIdentifier( const std::string_view identifier ) const noexcept;
-    const FunctionSymbol* getFunctionBySignature( const FunctionDefNode* node ) const noexcept;
-    const FunctionSymbol* getFunctionBySignature( const BuiltinFunction& func ) const noexcept;
-    const FunctionSymbol* getFunctionBySignature( const std::string_view identifier, const Type& return_type,
-                                                  const std::vector<ParameterDecl>& parameters ) const noexcept;
+    ControlFlow loop_control_type_;
+
+    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionByIdentifier(
+        const std::string_view identifier ) const noexcept;
+    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
+        const FunctionDefNode& node ) const noexcept;
+    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
+        const BuiltinFunction& func ) const noexcept;
+    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
+        const std::string_view identifier, const Type& return_type,
+        const std::vector<ParameterDecl>& parameters ) const noexcept;
 
    public:
-    Environment( std::unique_ptr<const ProgramNode> program );
+    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
+        const std::string_view identifier, const std::vector<RuntimeValue>& call_args ) const noexcept;
 
-    bool tryAddUserFunction( const FunctionDefNode* node );
+    bool tryAddUserFunction( const FunctionDefNode& node );
     bool tryAddBuiltinFunction( BuiltinFunction function );
 
     bool tryAddVarOrConst( Variable variable );
-    const Variable* getVarOrConstByNameCurScope( const std::string_view identifier ) const noexcept;
-    Variable* getVarOrConstByNameCurScope( const std::string_view identifier ) noexcept;
-    Variable* getVarOrConstByNameGlobalScope( const std::string_view identifier ) noexcept;
+    std::optional<std::reference_wrapper<const Variable>> getVarByName(
+        const std::string_view identifier ) const noexcept;
+    std::optional<std::reference_wrapper<Variable>> getVarByName( const std::string_view identifier ) noexcept;
+    std::optional<std::reference_wrapper<const Variable>> getVarByNameThisScopeOnly(
+        const std::string_view identifier ) const noexcept;
+    std::optional<std::reference_wrapper<Variable>> getVarByNameThisScopeOnly(
+        const std::string_view identifier ) noexcept;
 
-    bool isAssignableTo( const AccumulatorVal& val ) const noexcept;
-
-    AccumulatorVal getRecentValFromAcc();
-    void putValInAcc( Value val ) noexcept;
-    void putValInAcc( std::reference_wrapper<Variable> var ) noexcept;
+    RuntimeValue getRecentValFromAcc();
+    void putValInAcc( RuntimeValue acc_val ) noexcept;
     size_t getAccSize() const noexcept;
 
     void addCallContext( CallContext::ContextType context_type );
-    void addCallContext( const FunctionDefNode* func_def );
+    void addCallContext( const FunctionDefNode& func_def );
     void popLastCallContext();
 
     bool isStateInWhileLoop() const noexcept;
     bool isStateInFunctionBody() const noexcept;
     const Type& getCurrentFunctionReturnType() const;
 
+    bool matchFunctionSignature( const std::vector<ParameterDecl>& params,
+                                 const std::vector<RuntimeValue>& call_args ) const noexcept;
+    Variable buildVarFromParam( RuntimeValue& runtime_val, const ParameterDecl& param ) noexcept;
+
+    ControlFlow getFlowControlType() const noexcept;
+    void setFlowControlType( ControlFlow ) noexcept;
+
   } environment_;
+  std::unique_ptr<const ProgramNode> program_;
+
+  struct CallContextGuard {
+    Environment& env_;
+    CallContextGuard( Environment& env, CallContext::ContextType context_type ) : env_( env ) {
+      env.addCallContext( context_type );
+    }
+    CallContextGuard( Environment& env, const FunctionDefNode& func_def ) : env_( env ) {
+      env.addCallContext( func_def );
+    }
+    ~CallContextGuard() {
+      env_.popLastCallContext();
+    }
+  };
 
   void handleStatementList( const std::vector<std::unique_ptr<INode>>&, CallContext::ContextType context_type );
 

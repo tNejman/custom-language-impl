@@ -8,12 +8,11 @@
 */
 
 CallContext::CallContext( ContextType context_type ) noexcept
-    : type_( context_type ), variables_(), function_sig_( nullptr ) {
+    : type_( context_type ), variables_(), function_sig_( std::nullopt ) {
   assert( context_type != ContextType::FUNCTION_CALL && "function call context must be initialized with function ptr" );
 }
-CallContext::CallContext( const FunctionDefNode* func_sig ) noexcept
+CallContext::CallContext( const FunctionDefNode& func_sig ) noexcept
     : type_( ContextType::FUNCTION_CALL ), variables_(), function_sig_( func_sig ) {
-  assert( function_sig_ != nullptr && "cannot initialize CallContext of type FUNCTION_CALL with a nullptr" );
 }
 CallContext::ContextType CallContext::getType() const noexcept {
   return type_;
@@ -27,7 +26,7 @@ const std::vector<Variable>& CallContext::getVariables() const noexcept {
 std::vector<Variable>& CallContext::getVariables() noexcept {
   return variables_;
 }
-const FunctionDefNode* CallContext::getFunctionSig() const noexcept {
+std::optional<std::reference_wrapper<const FunctionDefNode>> CallContext::getFunctionSig() const noexcept {
   return function_sig_;
 }
 
@@ -57,6 +56,13 @@ std::optional<std::reference_wrapper<CallContext>> CallStack::nth( size_t idx ) 
   }
   return call_stack_[idx];
 }
+std::optional<std::reference_wrapper<const CallContext>> CallStack::nth( size_t idx ) const noexcept {
+  if ( call_stack_.size() >= idx ) {
+    return std::nullopt;
+  }
+  return call_stack_[idx];
+}
+
 const std::vector<CallContext>& CallStack::view() const noexcept {
   return call_stack_;
 }
