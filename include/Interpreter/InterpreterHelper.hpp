@@ -1,10 +1,7 @@
 #pragma once
 
-#include <functional>
 #include <variant>
 
-#include "Interpreter/RuntimeValue.hpp"
-#include "Interpreter/Variable.h"
 #include "Parser/Node.h"
 #include "Parser/Types.hpp"
 
@@ -69,63 +66,6 @@ bool canApplyNumericOp( const Type& type ) noexcept {
 }
 bool canApplySetOp( const Type& type ) noexcept {
   return std::holds_alternative<ArrayType>( type.internal_ ) || type == BaseType::CHAR;
-}
-
-using RValue = Value;
-using LValue = std::reference_wrapper<Variable>;
-using AccumulatorVal = std::variant<LValue, RValue>;
-
-// Type getAccValType( const AccumulatorVal& acc_val ) {
-//   return std::visit(
-//       Overloaded{ []( const Value& val ) { return val.getValueType(); },
-//                   []( const std::reference_wrapper<Variable>& var ) { return var.get().getType().copy(); } },
-//       acc_val );
-// }
-
-// template <typename TypeExtracted>
-// TypeExtracted evaluateAccVal( const AccumulatorVal& val ) {
-//   return std::visit( Overloaded{ [&]( const std::reference_wrapper<Variable> var ) {
-//                                   return std::get<TypeExtracted>( var.get().getValue().getData() );
-//                                 },
-//                                  [&]( const Value& val ) { return std::get<TypeExtracted>( val.getData() ); } },
-//                      val );
-// }
-// Value extractAccVal( const AccumulatorVal& val ) {
-//   return std::visit(
-//       Overloaded{ []( const std::reference_wrapper<Variable> var ) { return var.get().getValue().copy(); },
-//                   []( const Value& val ) { return val.copy(); } },
-//       val );
-// }
-
-Value extractRuntimeValue( RuntimeValue& val ) {
-  return std::visit( Overloaded{ []( RValue val ) -> Value { return val; },
-                                 []( LValue var ) -> Value { return var.get().getValue()->copy(); },
-                                 []( IndexRef i_ref ) -> Value { return i_ref.get()->copy(); },
-                                 []( Void ) -> Value { throw std::runtime_error( "tried extracting void value" ); } },
-                     val.getData() );
-}
-Type getRuntimeValueType( const RuntimeValue& val ) {
-  return std::visit(
-      Overloaded{ []( const RValue& val ) -> Type { return val.getValueType().copy(); },
-                  []( const LValue& val ) -> Type { return val.get().getType().copy(); },
-                  []( const IndexRef& val ) -> Type { return val.get()->getValueType().copy(); },
-                  []( Void ) -> Type { throw std::runtime_error( "tried getting type of void value" ); } },
-      val.getData() );
-}
-
-template <typename TypeExtracted>
-TypeExtracted evaluateRuntimeValue( const RuntimeValue& val ) {
-  return std::visit(
-      Overloaded{ []( RValue val ) -> TypeExtracted { return std::get<TypeExtracted>( val.getData() ); },
-                  []( LValue var ) -> TypeExtracted { return std::get<TypeExtracted>( var.get().getType() ); },
-                  []( IndexRef i_ref ) -> TypeExtracted { return std::get<TypeExtracted>( *i_ref ); },
-                  []( Void ) -> TypeExtracted { throw std::runtime_error( "tried extracting void value" ); } },
-      val );
-}
-
-bool isVoidFunction( const FunctionDefNode& func ) {
-  return std::holds_alternative<BaseType>( func.getType().internal_ )
-         && std::get<BaseType>( func.getType().internal_ ) == BaseType::VOID;
 }
 
 }  // namespace interpreter_helper

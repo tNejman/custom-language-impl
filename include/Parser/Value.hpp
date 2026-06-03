@@ -71,4 +71,12 @@ struct Value {
                                    ( const T& val ) { return Value{ val }; } },
                                    this->data_ );
   }
+
+  template <typename... Args>
+  static Value makeArray( Args&&... args ) {
+    Value::ArrayValue arr;
+    arr.reserve( sizeof...( args ) );
+    ( arr.push_back( std::move( args ) ), ... );
+    return arr;
+  }
 };

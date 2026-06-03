@@ -27,6 +27,10 @@ const std::vector<ParameterDecl>& FunctionDefNode::getParameters() const noexcep
 const Block& FunctionDefNode::getBlock() const noexcept {
   return block_;
 }
+bool FunctionDefNode::isVoid() const noexcept {
+  return std::holds_alternative<BaseType>( return_type_.internal_ )
+         && std::get<BaseType>( return_type_.internal_ ) == BaseType::VOID;
+}
 
 VarOrConstDeclNode::VarOrConstDeclNode( Position positon, std::string identifier, Mutability mutability, Type type,
                                         std::unique_ptr<IExpressionNode> initializer_expression )

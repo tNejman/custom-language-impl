@@ -1,0 +1,43 @@
+Do przetestowania:
+  - FunctionDef:
+      -
+      - auto dodanie wbudowanych funkcji
+      - zbieranie funkcji użytkownika na początku
+      - przeciążanie
+      - przykrywanie (error)
+
+  - VarOrConstDecl:
+      - zmienne
+      - stałe
+      - shadowing
+
+  - IfStatement:
+      - ewaluacja warunku (+ sprawdzenie czy typu bool)
+      - wchodzenie w gałęzie (ekskluzywnie 1 gałąź max.)
+      - else w przypadku nie spełnienia żadnego warunku
+
+  - WhileStatement:
+      - ewaluacja warunku (za każdym razem) (+ sprawdzenie czy typu bool)
+      - przejście przez ciało (dodawanie i zrzucanie kontekstu za każdym razem)
+      - break/continue
+
+  - ControlFlow:
+      - zmiana stanu interpretera (ControlFlow)
+
+  - Assignment:
+      - sprawdzenie istnienia zmiennej (+ widoczność w danym scope'ie)
+      - sprawdzenie typów
+      - sprawdzenie mutowalności
+      - różne operatory
+
+  - BinaryExpr:
+      - sprawdzenie zgodności operandów,
+
+  - UnaryExpr:
+  - CastExpr:
+  - ArrayIdentifierOp:
+  - FunctionCall:
+  - ArrayLiteral:
+  - Literal:
+  - PrimaryIdentifier:
+  - Program:

@@ -120,8 +120,6 @@ BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type ) 
     case TokenType::OP_MUL: return BinaryOperator::MUL;
     case TokenType::OP_DIV: return BinaryOperator::DIV;
     case TokenType::OP_MOD: return BinaryOperator::MOD;
-    case TokenType::OP_FILTER: return BinaryOperator::FILTER;
-    case TokenType::OP_MAP: return BinaryOperator::MAP;
     default: throw std::runtime_error( "tt->bin_op: cannot match type" );
   }
 }
@@ -172,8 +170,8 @@ std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept 
     case BinaryOperator::MUL: return "*";
     case BinaryOperator::DIV: return "/";
     case BinaryOperator::MOD: return "%";
-    case BinaryOperator::FILTER: return "?";
-    case BinaryOperator::MAP: return "->";
+    // case BinaryOperator::FILTER: return "?";
+    // case BinaryOperator::MAP: return "->";
     case BinaryOperator::ACCESS: return "[]";
   }
 }

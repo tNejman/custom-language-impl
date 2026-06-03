@@ -42,6 +42,7 @@ class FunctionDefNode : public INode {
   const Type& getType() const noexcept;
   const std::vector<ParameterDecl>& getParameters() const noexcept;
   const Block& getBlock() const noexcept;
+  bool isVoid() const noexcept;
 };
 
 class IExpressionNode : public INode {
@@ -151,8 +152,6 @@ enum class BinaryOperator {
   MUL,
   DIV,
   MOD,
-  FILTER,
-  MAP,
   ACCESS,
 };
 

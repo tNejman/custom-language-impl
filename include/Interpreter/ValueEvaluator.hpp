@@ -135,9 +135,17 @@ class ValueEvaluator {
   requires std::is_same_v<OperatorType, std::less<>> || std::is_same_v<OperatorType, std::less_equal<>>
            || std::is_same_v<OperatorType, std::greater<>> || std::is_same_v<OperatorType, std::greater_equal<>>
   static Value evaluateRelational( const Value& lhs, const Value& rhs, OperatorType op ) {
-    assertAllowedTypes<int, float, char>( lhs, rhs );
-    return std::visit( [op]( const auto& l_op, const auto& r_op ) -> bool { return op( l_op, r_op ); }, lhs.getData(),
-                       rhs.getData() );
+    // assertAllowedTypes<int, float, char>( lhs, rhs );
+    return std::visit( Overloaded{ [op]( const int l_op, const int r_op ) -> bool { return op( l_op, r_op ); },
+                                   [op]( const float l_op, const float r_op ) -> bool { return op( l_op, r_op ); },
+                                   [op]( const char l_op, const char r_op ) -> bool { return op( l_op, r_op ); },
+                                   []( const auto&, const auto& ) -> bool {
+                                     throw std::runtime_error( "can only compare int,float,char" );
+                                   } },
+                       lhs.getData(), rhs.getData() );
+    // return std::visit( [op]( const auto& l_op, const auto& r_op ) -> bool { return op( l_op, r_op ); },
+    // lhs.getData(),
+    //                    rhs.getData() );
   }
 
   struct FmodModulus {
@@ -163,16 +171,28 @@ class ValueEvaluator {
            || std::is_same_v<OperatorType, std::multiplies<>> || std::is_same_v<OperatorType, std::divides<>>
            || std::is_same_v<OperatorType, FmodModulus>
   static Value evaluateNumeric( const Value& lhs, const Value& rhs, OperatorType op ) {
-    assertAllowedTypes<int, float>( lhs, rhs );
+    // assertAllowedTypes<int, float>( lhs, rhs );
     return std::visit(
-        [op]( const auto& l_op, const auto& r_op ) -> bool {
-          if ( ( std::is_same_v<OperatorType, std::divides<>> || std::is_same_v<OperatorType, FmodModulus> )
-               && r_op == 0 ) {
-            throw std::runtime_error( "cannot divide or modulo by 0" );
-          }
-
-          return op( l_op, r_op );
-        },
+        Overloaded{ [&]( const int l, const int r ) -> Value {
+                     if ( std::is_same_v<OperatorType, std::divides<>> ) {
+                       throw std::runtime_error( "cannot divide ints" );
+                     }
+                     if ( std::is_same_v<OperatorType, FmodModulus> && r == 0 ) {
+                       throw std::runtime_error( "cannot modulo by zero" );
+                     }
+                     return Value{ static_cast<int>( op( l, r ) ) };
+                   },
+                    [&]( const float l, const float r ) -> Value {
+                      if ( ( std::is_same_v<OperatorType, std::divides<>> || std::is_same_v<OperatorType, FmodModulus> )
+                           && r == 0.f ) {
+                        throw std::runtime_error( "cannot divide by zero" );
+                      }
+                      return Value{ op( l, r ) };
+                    },
+                    []( const auto&, const auto& ) -> Value {
+                      throw std::runtime_error(
+                          "numeric operations are only legal on 'int-int' and 'float-float' pairs" );
+                    } },
         lhs.getData(), rhs.getData() );
   }
 
@@ -203,17 +223,6 @@ class ValueEvaluator {
     }
     return array[static_cast<size_t>( idx )].copy();
   }
-
-  static Value evaluateArrOpSpecial( const Value& lhs, const Value& rhs, ArrayIdentifierOpType op ) {
-    switch ( op ) {
-      case ArrayIdentifierOpType::FILTER: {
-        assertAllowedTypes<ArrayType>( lhs );
-        assertAllowedTypes<ArrayType>( rhs );
-      }
-      case ArrayIdentifierOpType::MAP: {
-      }
-    }
-  }  // @TODO
 
   static Value evaluateUnaryOp( const Value& operand, UnaryOperator op ) {
     switch ( op ) {

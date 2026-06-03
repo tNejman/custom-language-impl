@@ -88,7 +88,7 @@ std::optional<Value> write( const std::vector<Value>& args ) {
 
 std::optional<Value> read( const std::vector<Value>& args ) {
   if ( args.size() != 1 || !builtin_functions_helper::isValueCharVector( args[0] ) ) {
-    throw std::runtime_error( "function read() may accept (char, char, ...) or (char[]) only" );
+    throw std::runtime_error( "function read() may accept (char, char, ...) or (char[]) only as prompt" );
   }
   std::string input;
   std::cin >> input;
@@ -97,7 +97,8 @@ std::optional<Value> read( const std::vector<Value>& args ) {
 
 std::optional<Value> exit( const std::vector<Value>& args ) {
   if ( args.size() != 1 || !builtin_functions_helper::isValueInt( args[0] ) ) {
-    throw std::runtime_error( "incompatible call with signature; note: function exit() accepts only one int as arg" );
+    throw std::runtime_error(
+        "incompatible call with signature; note: function exit() accepts only one int (code) as arg" );
   }
   throw builtin_functions_helper::ExitException( std::get<int>( args[0].getData() ) );
 }
