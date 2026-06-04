@@ -11,47 +11,53 @@
 #include "Interpreter/CallStack.h"
 #include "Interpreter/RuntimeValue.h"
 #include "Interpreter/Variable.h"
+#include "Parser/IFunction.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Visitor.h"
 
-using FunctionSymbol = std::variant<std::reference_wrapper<const FunctionDefNode>, BuiltinFunction>;
+class Interpreter;
 
-class InterpreterTest;
+// using FunctionSymbol = std::variant<std::reference_wrapper<const FunctionDefNode>, BuiltinFunction>;
+
+enum class DebugEvent {
+  BEFORE_NODE_VISIT,
+  AFTER_NODE_VISIT,
+};  // BEFORE_STATEMENT_LIST, AFTER_STATEMENT_LIST
+using DebugHook = std::function<void( Interpreter&, const INode&, DebugEvent )>;
+
+class InterpreterTestFriend;
 
 class Interpreter : public Visitor {
-  friend class InterpreterTest;
+  friend class InterpreterTestFriend;
 
  private:
   struct CallContextGuard;
   struct AccumulatorGuard;
   class Environment {
     friend struct CallContextGuard;
+    friend class InterpreterTestFriend;
 
    public:
     enum class ControlFlow { BREAK, CONTINUE, NONE, RETURN };
 
    private:
-    std::vector<FunctionSymbol> functions_;
+    std::vector<BuiltinFunction> builtin_storage_;
+    std::vector<std::reference_wrapper<const IFunction>> functions_;
     CallStack call_stack_;
-
     ControlFlow loop_control_type_;
 
-    std::optional<std::reference_wrapper<const FunctionSymbol>> getBuiltinFunctionByIdentifier(
-        const std::string identifier ) const noexcept;
-    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
-        const FunctionDefNode& node ) const noexcept;
-    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
-        const BuiltinFunction& func ) const noexcept;
-    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
-        const std::string_view identifier, const Type& return_type,
-        const std::vector<ParameterDecl>& parameters ) const noexcept;
-
    public:
-    std::vector<std::reference_wrapper<const FunctionSymbol>> getFunctionByIdentifier(
-        const std::string_view identifier ) const noexcept;
-    std::optional<std::reference_wrapper<const FunctionSymbol>> getFunctionBySignature(
-        const std::string_view identifier, const std::vector<RuntimeValue>& call_args ) const noexcept;
+    // std::vector<std::reference_wrapper<const IFunction>> getFunctionByIdentifier(
+    //     const std::string_view identifier ) const noexcept;
+    // std::optional<std::reference_wrapper<const BuiltinFunction>> getBuiltinFunctionByIdentifier(
+    //     const std::string identifier ) const noexcept;
+    std::optional<std::reference_wrapper<const IFunction>> getFunctionBySignature(
+        const std::string_view identifier, const Type& return_type,
+        const std::vector<ParameterDecl>& parameters ) noexcept;
+    std::optional<std::reference_wrapper<const IFunction>> getFunctionBySignature(
+        const std::string_view identifier, const Type& return_type,
+        const std::vector<RuntimeValue>& call_args ) noexcept;
 
     bool tryAddUserFunction( const FunctionDefNode& node );
     bool tryAddBuiltinFunction( BuiltinFunction function );
@@ -67,7 +73,6 @@ class Interpreter : public Visitor {
 
     bool isStateInWhileLoop() const noexcept;
     bool isStateInFunctionBody() const noexcept;
-    // const Type& getCurrentFunctionReturnType() const;
 
     bool matchFunctionSignature( const std::vector<ParameterDecl>& params,
                                  const std::vector<RuntimeValue>& call_args ) const noexcept;
@@ -79,6 +84,7 @@ class Interpreter : public Visitor {
   friend struct AccumulatorGuard;
   std::unique_ptr<const ProgramNode> program_;
   std::stack<RuntimeValue> accumulator_;
+  DebugHook debug_hook_ = nullptr;
 
   RuntimeValue getRecentValFromAcc();
   void putValInAcc( RuntimeValue acc_val ) noexcept;
@@ -107,8 +113,22 @@ class Interpreter : public Visitor {
     ~AccumulatorGuard() noexcept;
   };
 
+  struct DebugGuard {
+   private:
+    Interpreter& interpreter_;
+    const INode& node_;
+
+   public:
+    DebugGuard( Interpreter& interpreter, const INode& node ) noexcept;
+    ~DebugGuard() noexcept;
+  };
+
  public:
   explicit Interpreter( std::unique_ptr<const ProgramNode> program );
+
+  void setDebugHook( DebugHook hook ) {
+    debug_hook_ = std::move( hook );
+  }
 
   void execute();
 
@@ -128,4 +148,5 @@ class Interpreter : public Visitor {
   void visit( const LiteralExprNode& node ) override;
   void visit( const PrimaryIdentifierNode& node ) override;
   void visit( const ProgramNode& node ) override;
+  void visit( const BuiltinFunction& node ) override;
 };

@@ -1,8 +1,6 @@
 #include "Parser/AstPrinterVisitor.h"
 
-#include <cmath>
 #include <print>
-#include <stdexcept>
 
 #include "Drivers/Formatter.hpp"
 #include "Parser/Node.h"
@@ -36,7 +34,7 @@ void AstPrinterVisitor::printIndent() const noexcept {
 
 void AstPrinterVisitor::visit( const FunctionDefNode& node ) {
   printIndent();
-  std::print( "Function Definition at pos {}: type: {} identifier: {}", node.getPosition(), node.getType(),
+  std::print( "Function Definition at pos {}: type: {} identifier: {}", node.getPosition(), node.getReturnType(),
               node.getIdentifier() );
   std::print( ", parameter list: (" );
   bool first = true;

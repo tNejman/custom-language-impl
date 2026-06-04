@@ -2,7 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include "MockParser.hpp"
+// #include "MockParser.hpp"
+#include "Interpreter/Interpreter.h"
 
 class InterpreterTest : public ::testing::Test {
  protected:
@@ -12,6 +13,27 @@ class InterpreterTest : public ::testing::Test {
   void TearDown() override {
   }
 };
+
+class InterpreterTestFriend {
+ public:
+  static auto& env( Interpreter& i ) {
+    return i.environment_;
+  };
+  static auto& acc( Interpreter& i ) {
+    return i.accumulator_;
+  }
+  static auto& funcs( Interpreter& i ) {
+    return i.environment_.functions_;
+  }
+  static auto& callStack( Interpreter& i ) {
+    return i.environment_.call_stack_;
+  }
+  static auto& loopC( Interpreter& i ) {
+    return i.environment_.loop_control_type_;
+  }
+};
+
+using ITF = InterpreterTestFriend;
 
 // struct TokenInitializer {
 //   TokenType type_;

@@ -14,124 +14,78 @@
 #include "Interpreter/RuntimeValue.h"
 #include "Interpreter/ValueEvaluator.hpp"
 #include "Interpreter/Variable.h"
+#include "Parser/IFunction.hpp"
 #include "Parser/Node.h"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
 
 /* Environment
-  private
+  public
 
 */
 
-std::optional<std::reference_wrapper<const FunctionSymbol>> Interpreter::Environment::getBuiltinFunctionByIdentifier(
-    const std::string identifier ) const noexcept {
-  auto it = std::ranges::find_if( functions_, [&]( const auto& function_symbol ) {
-    return std::visit( interpreter_helper::Overloaded{
-                           []( const FunctionDefNode& ) { return false; },
-                           [&]( const BuiltinFunction& builtin ) { return builtin.getIdentifier() == identifier; } },
+// std::vector<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionByIdentifier(
+//     const std::string_view identifier ) const noexcept {
+//   return functions_
+//          | std::views::filter( [&identifier]( const IFunction& ifun ) { return ifun.getIdentifier() == identifier; }
+//          ) | std::ranges::to<std::vector>();
+// }
 
-                       function_symbol );
-  } );
+// std::optional<std::reference_wrapper<const BuiltinFunction>>
+// Interpreter::Environment::getBuiltinFunctionByIdentifier(
+//     const std::string identifier ) const noexcept {
+//   auto it = std::ranges::find_if( builtin_storage_,
+//                                   [&identifier]( const auto& fun ) { return fun.getIdentifier() == identifier; } );
 
-  if ( it == functions_.end() ) {
-    return std::nullopt;
-  }
+//   if ( it == builtin_storage_.end() ) {
+//     return std::nullopt;
+//   }
+//   return *it;
+// }
 
-  return *it;
-}
-
-std::optional<std::reference_wrapper<const FunctionSymbol>> Interpreter::Environment::getFunctionBySignature(
+std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionBySignature(
     const std::string_view identifier, const Type& return_type,
-    const std::vector<ParameterDecl>& parameters ) const noexcept {
+    const std::vector<ParameterDecl>& parameters ) noexcept {
   if ( identifier == "write" ) {
-    return getBuiltinFunctionByIdentifier( "write" );
+    tryAddBuiltinFunction( builtin_functions::buildBuiltinWrite( parameters ) );
   }
-  auto it = std::ranges::find_if( functions_, [&]( const auto& function_symbol ) {
-    return std::visit( interpreter_helper::Overloaded{ [&]( const FunctionDefNode& node ) {
-                                                        return node.getIdentifier() == identifier
-                                                               && node.getType() == return_type
-                                                               && node.getParameters() == parameters;
-                                                      },
-                                                       [&]( const BuiltinFunction& builtin ) {
-                                                         return builtin.getIdentifier() == identifier
-                                                                && builtin.getReturnType() == return_type
-                                                                && builtin.getParameters() == parameters;
-                                                       } },
-                       function_symbol );
+  auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
+    return fun.getIdentifier() == identifier && fun.getReturnType() == return_type && fun.getParameters() == parameters;
   } );
-
   if ( it == functions_.end() ) {
     return std::nullopt;
   }
   return *it;
 }
 
-std::optional<std::reference_wrapper<const FunctionSymbol>> Interpreter::Environment::getFunctionBySignature(
-    const BuiltinFunction& func ) const noexcept {
-  return getFunctionBySignature( func.getIdentifier(), func.getReturnType(), func.getParameters() );
-}
-
-std::optional<std::reference_wrapper<const FunctionSymbol>> Interpreter::Environment::getFunctionBySignature(
-    const FunctionDefNode& node ) const noexcept {
-  return getFunctionBySignature( node.getIdentifier(), node.getType(), node.getParameters() );
-}
-
-/* Environment
-  public
-
-
- */
-
-std::vector<std::reference_wrapper<const FunctionSymbol>> Interpreter::Environment::getFunctionByIdentifier(
-    const std::string_view identifier ) const noexcept {
-  std::vector<std::reference_wrapper<const FunctionSymbol>> matched_functions;
-
-  for ( const auto& function_symbol : functions_ ) {
-    const bool is_match =
-        std::visit( interpreter_helper::Overloaded{
-                        [&identifier]( const FunctionDefNode& node ) { return node.getIdentifier() == identifier; },
-                        [&]( const BuiltinFunction& builtin ) { return builtin.getIdentifier() == identifier; } },
-                    function_symbol );
-
-    if ( is_match ) {
-      matched_functions.push_back( std::cref( function_symbol ) );
-    }
+std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionBySignature(
+    const std::string_view identifier, const Type& return_type, const std::vector<RuntimeValue>& call_args ) noexcept {
+  if ( identifier == "write" ) {
+    tryAddBuiltinFunction( builtin_functions::buildBuiltinWrite( call_args ) );
   }
-
-  return matched_functions;
-}
-
-std::optional<std::reference_wrapper<const FunctionSymbol>> Interpreter::Environment::getFunctionBySignature(
-    const std::string_view identifier, const std::vector<RuntimeValue>& call_args ) const noexcept {
-  auto funcs = getFunctionByIdentifier( identifier );
-  for ( const auto fun : funcs ) {
-    bool is_matched = std::visit(
-        Overloaded{
-            [&]( const std::reference_wrapper<const FunctionDefNode> fun_def ) {
-              return matchFunctionSignature( fun_def.get().getParameters(), call_args );
-            },
-            [&]( const BuiltinFunction& fun ) { return matchFunctionSignature( fun.getParameters(), call_args ); } },
-        fun.get() );
-    if ( is_matched ) {
-      return fun;
-    }
+  auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
+    return matchFunctionSignature( fun.getParameters(), call_args ) && fun.getReturnType() == return_type;
+  } );
+  if ( it == functions_.end() ) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return *it;
 }
 
 bool Interpreter::Environment::tryAddUserFunction( const FunctionDefNode& node ) {
-  if ( getFunctionBySignature( node ) ) {
+  if ( getFunctionBySignature( node.getIdentifier(), node.getReturnType(), node.getParameters() ) ) {
     return false;
   }
   functions_.push_back( std::ref( node ) );
   return true;
 }
 bool Interpreter::Environment::tryAddBuiltinFunction( BuiltinFunction function ) {
-  if ( getFunctionBySignature( function ) ) {
+  if ( getFunctionBySignature( function.getIdentifier(), function.getReturnType(), function.getParameters() ) ) {
     return false;
   }
-  functions_.push_back( std::move( function ) );
+  auto& func_ref = builtin_storage_.emplace_back( std::move( function ) );
+  functions_.push_back( func_ref );
   return true;
 }
 
@@ -225,16 +179,6 @@ bool Interpreter::Environment::isStateInFunctionBody() const noexcept {
   }
   return false;
 }
-// const Type& Interpreter::Environment::getCurrentFunctionReturnType() const {
-//   for ( auto it = call_stack_.view().end() - 1; it >= call_stack_.view().begin(); --it ) {
-//     if ( it->getType() == CallContext::ContextType::FUNCTION_CALL ) {
-//       if ( const auto sig = it->getFunctionSig() ) {
-//         return sig.value().get().getType();
-//       }
-//     }
-//   }
-//   throw std::runtime_error( "cannot retriever type; not in function" );
-// }
 
 bool Interpreter::Environment::matchFunctionSignature( const std::vector<ParameterDecl>& params,
                                                        const std::vector<RuntimeValue>& call_args ) const noexcept {
@@ -254,8 +198,12 @@ bool Interpreter::Environment::matchFunctionSignature( const std::vector<Paramet
   }
   return true;
 }
-// getFlowControlType
-// setFlowControlType
+Interpreter::Environment::ControlFlow Interpreter::Environment::getFlowControlType() const noexcept {
+  return loop_control_type_;
+}
+void Interpreter::Environment::setFlowControlType( ControlFlow control_flow ) noexcept {
+  loop_control_type_ = control_flow;
+}
 
 /* Interpreter
   private
@@ -313,6 +261,9 @@ void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>
                                        CallContext::ContextType context_type ) {
   CallContextGuard cc_guard{ environment_, context_type };
   for ( const auto& stmt_ptr : statements ) {
+    // if ( debug_hook_ ) {
+    //   debug_hook_( *this, *stmt_ptr );
+    // }
     AccumulatorGuard acc_guard{ accumulator_ };
     stmt_ptr->accept( *this );
   }
@@ -352,6 +303,23 @@ Interpreter::AccumulatorGuard::~AccumulatorGuard() noexcept {
   assert( acc_.size() == org_size_ && "statement put more than 1 value in acc" );
 }
 
+/* Debug Guard
+
+
+
+*/
+Interpreter::DebugGuard::DebugGuard( Interpreter& interpreter, const INode& node ) noexcept
+    : interpreter_( interpreter ), node_( node ) {
+  if ( interpreter_.debug_hook_ ) {
+    interpreter_.debug_hook_( interpreter_, node_, DebugEvent::BEFORE_NODE_VISIT );
+  }
+}
+Interpreter::DebugGuard::~DebugGuard() noexcept {
+  if ( interpreter_.debug_hook_ ) {
+    interpreter_.debug_hook_( interpreter_, node_, DebugEvent::AFTER_NODE_VISIT );
+  }
+}
+
 /* Interpreter
  public
 
@@ -361,11 +329,7 @@ Interpreter::AccumulatorGuard::~AccumulatorGuard() noexcept {
 
 Interpreter::Interpreter( std::unique_ptr<const ProgramNode> program ) : program_( std::move( program ) ) {
   if ( !environment_.tryAddBuiltinFunction( BuiltinFunction{
-           "write", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ), {}, builtin_functions::write } ) ) {
-    throw std::runtime_error( "couldnt add 'write' to builtin functions" );
-  }
-  if ( !environment_.tryAddBuiltinFunction( BuiltinFunction{
-           "read", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
+           Position{ 99999, 99999 }, "read", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
            [] {
              std::vector<ParameterDecl> params;
              params.push_back( ParameterDecl{ "prompt", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
@@ -376,7 +340,7 @@ Interpreter::Interpreter( std::unique_ptr<const ProgramNode> program ) : program
     throw std::runtime_error( "couldnt add 'read' to builtin functions" );
   }
   if ( !environment_.tryAddBuiltinFunction( BuiltinFunction{
-           "exit", BaseType::INT,
+           Position{ 99999, 99999 }, "exit", BaseType::INT,
            [] {
              std::vector<ParameterDecl> params;
              params.push_back( ParameterDecl{ "code", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } );
@@ -392,7 +356,12 @@ void Interpreter::execute() {
 }
 
 void Interpreter::visit( const FunctionDefNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
   CallContextGuard guard{ environment_, node };
+
+  if ( node.getIdentifier() == "write" ) {
+    throw std::runtime_error( "function 'write' already available for all possible types - cannot overload" );
+  }
 
   std::vector<RuntimeValue> call_args;
   call_args.reserve( node.getParameters().size() );
@@ -402,7 +371,7 @@ void Interpreter::visit( const FunctionDefNode& node ) {
   std::reverse( call_args.begin(), call_args.end() );
 
   if ( !environment_.matchFunctionSignature( node.getParameters(), call_args ) ) {
-    throw std::runtime_error( "call args don't match function signature" );
+    throw std::runtime_error( "call args don't match function signature" );  // dont trust function call
   }
   for ( const auto& [runtime_value, param] : std::ranges::views::zip( call_args, node.getParameters() ) ) {
     if ( !environment_.tryAddVarOrConst( buildVarFromParam( runtime_value, param ) ) ) {
@@ -411,6 +380,9 @@ void Interpreter::visit( const FunctionDefNode& node ) {
   }
   RuntimeValue ret_val{};
   for ( const auto& stmt : node.getBlock() ) {
+    // if ( debug_hook_ ) {
+    //   debug_hook_( *this, *stmt );
+    // }
     AccumulatorGuard acc_guard{ accumulator_ };
     stmt->accept( *this );
     if ( environment_.getFlowControlType() == Environment::ControlFlow::RETURN ) {
@@ -429,13 +401,15 @@ void Interpreter::visit( const FunctionDefNode& node ) {
   if ( !ret_val ) {
     throw std::runtime_error( "non-void function did not return value" );
   }
-  if ( ret_val.getType() != node.getType() ) {
+  if ( ret_val.getType() != node.getReturnType() ) {
     throw std::runtime_error( "returned value does not match function return type" );
   }
   putValInAcc( std::move( ret_val ) );
 }
 
 void Interpreter::visit( const VarOrConstDeclNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   node.getInitializerExpr()->accept( *this );
   RuntimeValue runtime_val = getRecentValFromAcc();
   if ( !runtime_val ) {
@@ -454,6 +428,8 @@ void Interpreter::visit( const VarOrConstDeclNode& node ) {
 }
 
 void Interpreter::visit( const IfStatementNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   auto evaluate_cond = [&]() {
     try {
       RuntimeValue runtime_val = getRecentValFromAcc();
@@ -479,6 +455,8 @@ void Interpreter::visit( const IfStatementNode& node ) {
 }
 
 void Interpreter::visit( const WhileStatementNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   auto evaluate_condition = [&] -> bool {
     try {
       node.getCondition()->accept( *this );
@@ -492,6 +470,9 @@ void Interpreter::visit( const WhileStatementNode& node ) {
     CallContextGuard guard{ environment_, CallContext::ContextType::WHILE_BLOCK };
     bool should_break = false;
     for ( const auto& stmt : node.getBlock() ) {
+      // if ( debug_hook_ ) {
+      //   debug_hook_( *this, *stmt );
+      // }
       AccumulatorGuard acc_guard{ accumulator_ };
       stmt->accept( *this );
       auto ctrl = environment_.getFlowControlType();
@@ -509,6 +490,8 @@ void Interpreter::visit( const WhileStatementNode& node ) {
 }
 
 void Interpreter::visit( const ControlFlowNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   if ( !environment_.isStateInWhileLoop() ) {
     throw std::runtime_error( "loop control not in a loop" );
   }
@@ -520,6 +503,8 @@ void Interpreter::visit( const ControlFlowNode& node ) {
 }
 
 void Interpreter::visit( const ReturnNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   if ( !environment_.isStateInFunctionBody() ) {
     throw std::runtime_error( "return statement not in a function" );
   }
@@ -533,6 +518,8 @@ void Interpreter::visit( const ReturnNode& node ) {
 }
 
 void Interpreter::visit( const AssignmentExprNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   node.getLeftOperand()->accept( *this );
   auto left_val_from_acc = getRecentValFromAcc();
   node.getRightOperand()->accept( *this );
@@ -574,6 +561,8 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
 }
 
 void Interpreter::visit( const BinaryExprNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   node.getLeftOperand()->accept( *this );
   RuntimeValue left_operand_rt_val = getRecentValFromAcc();
   node.getRightOperand()->accept( *this );
@@ -637,6 +626,8 @@ void Interpreter::visit( const BinaryExprNode& node ) {
 }
 
 void Interpreter::visit( const UnaryExprNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   node.getOperand()->accept( *this );
   RuntimeValue operand_rt_val = getRecentValFromAcc();
   if ( !operand_rt_val ) {
@@ -647,6 +638,8 @@ void Interpreter::visit( const UnaryExprNode& node ) {
 }
 
 void Interpreter::visit( const CastExprNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   node.getExpression()->accept( *this );
   RuntimeValue operand_rt_val = getRecentValFromAcc();
   if ( !operand_rt_val ) {
@@ -657,6 +650,8 @@ void Interpreter::visit( const CastExprNode& node ) {
 }
 
 void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   node.getExpression().accept( *this );
   RuntimeValue runtime_val = getRecentValFromAcc();
   if ( !std::holds_alternative<ArrayType>( runtime_val.getType().internal_ ) ) {
@@ -672,20 +667,17 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
   }
   std::vector<RuntimeValue> mock_call_args;
   mock_call_args.push_back( RuntimeValue{ arr_inside[0].copy() } );  // arg is fist elem of arr
-  auto func = environment_.getFunctionBySignature( node.getIdentifier(), mock_call_args );
-  if ( !func ) {
-    throw std::runtime_error( "no compatible function found" );
-  }
-  if ( std::holds_alternative<BuiltinFunction>( func.value().get() ) ) {
-    throw std::runtime_error( "no builtin function supports special arr ops" );
-  }
-  const FunctionDefNode& actual_func = std::get<std::reference_wrapper<const FunctionDefNode>>( func.value().get() );
   Value::ArrayValue new_arr;
   new_arr.reserve( arr_inside.size() );
 
   switch ( node.getType() ) {
     case ArrayIdentifierOpType::FILTER: {  // arr<T> -> bool foo(T) -> arr<T>/c
-      if ( actual_func.getType() != BaseType::BOOL ) {
+      auto func = environment_.getFunctionBySignature( node.getIdentifier(), BaseType::BOOL, mock_call_args );
+      if ( !func ) {
+        throw std::runtime_error( "no compatible function found" );
+      }
+      auto& actual_func = func.value().get();
+      if ( actual_func.getReturnType() != BaseType::BOOL ) {
         throw std::runtime_error( "operator filter requires function with signature 'bool foo(T)'" );
       }
       for ( const auto& arg : arr_inside ) {
@@ -708,6 +700,8 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
 }
 
 void Interpreter::visit( const FunctionCallNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   std::vector<RuntimeValue> call_args;
   call_args.reserve( node.getArguments().size() );
   for ( const auto& call_arg_decl : node.getArguments() ) {
@@ -722,25 +716,28 @@ void Interpreter::visit( const FunctionCallNode& node ) {
   if ( !fun ) {
     throw std::runtime_error( "no matching function found" );
   }
-  std::visit( Overloaded{ [&]( std::reference_wrapper<const FunctionDefNode> fun_def_node ) {
-                           for ( auto& call_arg_val : call_args ) {
-                             putValInAcc( std::move( call_arg_val ) );
-                           }
-                           fun_def_node.get().accept( *this );
-                         },
-                          [&]( const BuiltinFunction& b_fun ) {
-                            std::vector<Value> call_args_eval;
-                            call_args_eval.reserve( call_args.size() );
-                            for ( auto& call_arg : call_args ) {
-                              call_arg.extractValue();
-                            }
-                            b_fun.getMappedFunction()( call_args_eval );
-                          } },
-              fun->get() );
+  fun.value().get().accept( *this );
+  // std::visit( Overloaded{ [&]( std::reference_wrapper<const FunctionDefNode> fun_def_node ) {
+  //                          for ( auto& call_arg_val : call_args ) {
+  //                            putValInAcc( std::move( call_arg_val ) );
+  //                          }
+  //                          fun_def_node.get().accept( *this );
+  //                        },
+  //                         [&]( const BuiltinFunction& b_fun ) {
+  //                           std::vector<Value> call_args_eval;
+  //                           call_args_eval.reserve( call_args.size() );
+  //                           for ( auto& call_arg : call_args ) {
+  //                             call_arg.extractValue();
+  //                           }
+  //                           b_fun.getMappedFunction()( call_args_eval );
+  //                         } },
+  //             fun->get() );
   // visiting/calling function already puts ret val in acc
 }
 
 void Interpreter::visit( const ArrayLiteralNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   assert( node.getPositions().size() > 0 && "empty literal is illegal" );
   std::vector<Value> array_positions;
   array_positions.reserve( node.getPositions().size() );
@@ -768,17 +765,24 @@ void Interpreter::visit( const ArrayLiteralNode& node ) {
 }
 
 void Interpreter::visit( const LiteralExprNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   putValInAcc( RuntimeValue{ node.getValue().copy() } );
 }
 
 void Interpreter::visit( const PrimaryIdentifierNode& node ) {
-  if ( auto var = environment_.getVarByName( node.getIdentifier() ) ) {
-    putValInAcc( RuntimeValue{ var->get() } );
+  DebugGuard dbg_guard{ *this, node };
+
+  auto var = environment_.getVarByName( node.getIdentifier() );
+  if ( !var ) {
+    throw std::runtime_error( "usage of unknown variable" );
   }
-  throw std::runtime_error( "usage of unknown variable" );
+  putValInAcc( RuntimeValue{ var->get() } );
 }
 
 void Interpreter::visit( const ProgramNode& node ) {
+  DebugGuard dbg_guard{ *this, node };
+
   for ( const auto& func_def_ptr : node.getFunctionList() ) {
     if ( !environment_.tryAddUserFunction( *func_def_ptr ) ) {
       throw std::runtime_error( "duplicated function signature" );
@@ -786,4 +790,12 @@ void Interpreter::visit( const ProgramNode& node ) {
   }
   handleStatementList( node.getStatementList(), CallContext::ContextType::TOP_LEVEL );
   throw std::runtime_error( "check if call stack and acc empty after program execution" );
+}
+
+void Interpreter::visit( const BuiltinFunction& node ) {
+  auto f = node.getMappedFunction();
+  std::vector<RuntimeValue> call_args;
+  for ( const auto& _ : node.getParameters() ) {
+    call_args.push_back( getRecentValFromAcc() );
+  }
 }

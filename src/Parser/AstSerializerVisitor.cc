@@ -30,7 +30,7 @@ void AstSerializerVisitor::serializeBlock( const Block& block ) {
 void AstSerializerVisitor::visit( const FunctionDefNode& node ) {
   VIS_GUARD
 
-  string_builder_ << std::format( "def {} {}(", node.getType(), node.getIdentifier() );
+  string_builder_ << std::format( "def {} {}(", node.getReturnType(), node.getIdentifier() );
   bool is_first_param = true;
   for ( const auto& param : node.getParameters() ) {
     if ( !is_first_param ) string_builder_ << ", ";

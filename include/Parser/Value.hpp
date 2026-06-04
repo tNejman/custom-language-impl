@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cassert>
-#include <functional>
-#include <stdexcept>
 #include <type_traits>
 #include <variant>
 #include <vector>

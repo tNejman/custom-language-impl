@@ -30,6 +30,10 @@ Variable::Variable( Variable&& other ) noexcept
 [[nodiscard]] const std::shared_ptr<Value> Variable::getValue() const noexcept {
   return this->value_;
 }
+[[nodiscard]] std::shared_ptr<Value> Variable::getValue() noexcept {
+  return this->value_;
+}
+
 void Variable::setValue( std::shared_ptr<Value> new_val ) noexcept {
   this->value_ = std::move( new_val );
 }

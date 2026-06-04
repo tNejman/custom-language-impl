@@ -13,13 +13,13 @@ struct ParameterDecl {
   Mutability mutability_;
 
  public:
-  ParameterDecl( std::string identifier, Type type, PassMode pass_mode, Mutability mutability )
+  ParameterDecl( std::string identifier, Type type, PassMode pass_mode, Mutability mutability ) noexcept
       : identifier_( std::move( identifier ) ),
         type_( std::move( type ) ),
         pass_mode_( pass_mode ),
         mutability_( mutability ) {
   }
-
+  ParameterDecl( const ParameterDecl& other ) = delete;
   ParameterDecl( ParameterDecl&& other )
       : identifier_( std::move( other.identifier_ ) ),
         type_( std::move( other.type_ ) ),
@@ -27,20 +27,9 @@ struct ParameterDecl {
         mutability_( other.mutability_ ) {
   }
 
-  bool operator==( const ParameterDecl& other ) const noexcept {
-    return this->identifier_ == other.identifier_ && this->type_ == other.type_ && this->pass_mode_ == other.pass_mode_
-           && this->mutability_ == other.mutability_;
-  }
-
-  ParameterDecl& operator=( ParameterDecl&& other ) {
-    if ( *this != other ) {
-      this->identifier_ = std::move( other.identifier_ );
-      this->type_ = std::move( other.type_ );
-      this->pass_mode_ = other.pass_mode_;
-      this->mutability_ = other.mutability_;
-    }
-    return *this;
-  }
+  bool operator==( const ParameterDecl& other ) const noexcept = default;
+  ParameterDecl& operator=( ParameterDecl&& other ) noexcept = default;
+  ParameterDecl& operator=( const ParameterDecl& ) = delete;
 
   [[nodiscard]] const std::string& getIdentifier() const noexcept {
     return identifier_;
@@ -53,5 +42,8 @@ struct ParameterDecl {
   }
   [[nodiscard]] Mutability getMutability() const noexcept {
     return mutability_;
+  }
+  ParameterDecl copy() const noexcept {
+    return ParameterDecl{ std::string( identifier_ ), type_.copy(), pass_mode_, mutability_ };
   }
 };

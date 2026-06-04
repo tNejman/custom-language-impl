@@ -94,4 +94,4 @@ add_subdirectory(app)
 enable_testing()
 add_subdirectory(test/LexerTest)
 add_subdirectory(test/ParserTest)
-
+add_subdirectory(test/InterpreterTest)

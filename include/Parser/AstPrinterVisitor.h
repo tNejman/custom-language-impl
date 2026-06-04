@@ -28,4 +28,5 @@ class AstPrinterVisitor : public Visitor {
   void visit( const LiteralExprNode& node ) override;
   void visit( const PrimaryIdentifierNode& node ) override;
   void visit( const ProgramNode& node ) override;
+  void visit( const BuiltinFunction& node ) override;
 };

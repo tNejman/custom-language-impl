@@ -6,43 +6,24 @@
 #include <vector>
 
 #include "Lexer/Token.hpp"
+#include "Parser/IFunction.hpp"
+#include "Parser/INode.hpp"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
 #include "Parser/Visitor.h"
 
-class INode {
- private:
-  const Position position_;
-
- public:
-  INode( Position position ) : position_( position ) {
-  }
-  virtual ~INode() = default;
-  virtual void accept( Visitor& v ) const noexcept = 0;
-  Position getPosition() const noexcept {
-    return position_;
-  }
-};
-
 using Block = std::vector<std::unique_ptr<INode>>;
 
-class FunctionDefNode : public INode {
+class FunctionDefNode : public IFunction { // inherits from INode as well
  private:
-  const std::string identifier_;
-  const Type return_type_;
-  const std::vector<ParameterDecl> parameters_;
   const Block block_;
 
  public:
   FunctionDefNode( Position position, std::string identifier, Type ret_type, std::vector<ParameterDecl> parameters,
                    Block block );
   void accept( Visitor& v ) const noexcept override;
-  std::string_view getIdentifier() const noexcept;
-  const Type& getType() const noexcept;
-  const std::vector<ParameterDecl>& getParameters() const noexcept;
   const Block& getBlock() const noexcept;
-  bool isVoid() const noexcept;
 };
 
 class IExpressionNode : public INode {

@@ -1,35 +1,21 @@
 #include "Parser/Node.h"
 
+#include "Parser/IFunction.hpp"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
 
 FunctionDefNode::FunctionDefNode( Position position, std::string identifier, Type ret_type,
                                   std::vector<ParameterDecl> parameters, Block block )
-    : INode( position ),
-      identifier_( std::move( identifier ) ),
-      return_type_( std::move( ret_type ) ),
-      parameters_( std::move( parameters ) ),
+    : IFunction( position, std::move( identifier ), std::move( ret_type ), std::move( parameters ) ),
       block_( std::move( block ) ) {
-  assert( !identifier_.empty() );
+  assert( !getIdentifier().empty() );
 }
 void FunctionDefNode::accept( Visitor& v ) const noexcept {
   v.visit( *this );
 }
-std::string_view FunctionDefNode::getIdentifier() const noexcept {
-  return identifier_;
-}
-const Type& FunctionDefNode::getType() const noexcept {
-  return return_type_;
-}
-const std::vector<ParameterDecl>& FunctionDefNode::getParameters() const noexcept {
-  return parameters_;
-}
+
 const Block& FunctionDefNode::getBlock() const noexcept {
   return block_;
-}
-bool FunctionDefNode::isVoid() const noexcept {
-  return std::holds_alternative<BaseType>( return_type_.internal_ )
-         && std::get<BaseType>( return_type_.internal_ ) == BaseType::VOID;
 }
 
 VarOrConstDeclNode::VarOrConstDeclNode( Position positon, std::string identifier, Mutability mutability, Type type,
