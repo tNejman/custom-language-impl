@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
 #include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"  // IWYU pragma: keep
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"

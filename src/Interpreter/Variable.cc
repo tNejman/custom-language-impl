@@ -8,7 +8,7 @@ Variable::Variable( std::string identifier, Type type, Mutability mutability, st
       type_( std::move( type ) ),
       mutability_( mutability ),
       value_( std::move( value ) ) {
-  assert( value != nullptr );
+  assert( value_ != nullptr );
 }
 Variable::Variable( Variable&& other ) noexcept
     : identifier_( std::move( other.identifier_ ) ),

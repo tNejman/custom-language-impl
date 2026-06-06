@@ -3,7 +3,6 @@
 #include <cassert>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
-#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
 #include "Interpreter/CallStack.h"
 #include "Interpreter/Interpreter.h"
 #include "Parser/Node.h"
@@ -140,7 +139,7 @@ TEST_F( InterpreterIfStmtTest, expr_type_not_bool ) {
   MAKE_STATEMENTS( MAKE_IF( makeExprBlockPairVec( MAKE_LITERAL( BaseType::INT, 1 ), makeBlock() ), makeBlock() ) );
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
-  ASSERT_THROW( IT.execute(), InvalidTypeException );
+  ASSERT_THROW( IT.execute(), NotAllowedTypeException );
 }
 
 TEST_F( InterpreterIfStmtTest, decl_inside_body_no_leak ) {

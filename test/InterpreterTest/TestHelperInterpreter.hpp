@@ -38,6 +38,11 @@ class InterpreterTestFriend {
   static auto& varsGlob( Interpreter& i ) {
     return i.environment_.call_stack_.nth( 0u ).value().get().getVariables();
   }
+  static void addMockCallContext( Interpreter& i, CallContext::ContextType context_type,
+                                  size_t expect_variable_count ) {
+    auto& environment = env( i );
+    environment.call_stack_.push( CallContext{ context_type, expect_variable_count } );
+  }
 };
 
 using ITF = InterpreterTestFriend;
@@ -65,6 +70,7 @@ void assertAccSize( Interpreter& i, size_t expected_size ) {
 void assertAccTopVal( Interpreter& i, bool is_void, const auto& val ) {
   const auto& acc = ITF::acc( i );
   ASSERT_EQ( is_void, acc.top().isVoid() );
+  std::print( "\n\n\n{}, {}\n\n\n", acc.top().copyValue(), val );
   ASSERT_EQ( acc.top().copyValue(), val );
 }
 
@@ -96,6 +102,11 @@ void assertTopCallContextVarCount( Interpreter& i, size_t expected_count ) {
   std::make_unique<AssignmentExprNode>( Position{ 1, 1 }, lhs, rhs, op )
 
 #define MAKE_BINARY_EXPR( lhs, rhs, op ) std::make_unique<BinaryExprNode>( Position{ 1, 1 }, lhs, rhs, op )
+
+#define MAKE_UNARY_EXPR( operand, operator) std::make_unique<UnaryExprNode>( Position{ 1, 1 }, operand, operator)
+
+#define MAKE_CAST_EXPR( operand, type_cast_to ) \
+  std::make_unique<CastExprNode>( Position{ 1, 1 }, operand, type_cast_to )
 
 #define MAKE_IF( cond_block_pairs, else_block ) \
   std::make_unique<IfStatementNode>( Position{ 1, 1 }, cond_block_pairs, else_block )
@@ -173,8 +184,10 @@ void executeAndAssertNodeVisits( Interpreter& IT, ExpectedCounts... expected_cou
   IT.setDebugHook( [&actual]( Interpreter& interpreter, const INode& node, DebugEvent event ) {
     std::size_t index = 0;
 
-    static_cast<void>(
-        ( ... || ( dynamic_cast<const SoughtTypes*>( &node ) ? ( ++actual[index], true ) : ( ++index, false ) ) ) );
+    if ( event == DebugEvent::BEFORE_NODE_VISIT ) {  // count enters only
+      static_cast<void>(
+          ( ... || ( dynamic_cast<const SoughtTypes*>( &node ) ? ( ++actual[index], true ) : ( ++index, false ) ) ) );
+    }
   } );
 
   IT.execute();

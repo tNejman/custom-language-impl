@@ -24,7 +24,7 @@ struct Value {
   Value( bool val ) : data_( val ) {
   }
   Value( ArrayValue val ) : data_( std::move( val ) ) {
-    assert( !std::get<ArrayValue>( data_ ).empty() && "ArrayValue must be initialized with a non-empty vector" );
+    // assert( !std::get<ArrayValue>( data_ ).empty() && "ArrayValue must be initialized with a non-empty vector" );
   }
 
   Value( const Value& ) = delete;
@@ -38,8 +38,12 @@ struct Value {
     return *this;
   }
 
-  bool operator==( const Value& other ) const noexcept = default;
-  bool operator!=( const Value& other ) const noexcept = default;
+  bool operator==( const Value& other ) const noexcept {
+    return this->data_ == other.data_;
+  };
+  bool operator!=( const Value& other ) const noexcept {
+    return this->data_ != other.data_;
+  }
 
   const VariantType& getData() const noexcept {
     return data_;

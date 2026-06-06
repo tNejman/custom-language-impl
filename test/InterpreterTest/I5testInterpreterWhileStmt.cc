@@ -3,7 +3,6 @@
 #include <cassert>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
-#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
 #include "Interpreter/CallStack.h"
 #include "Interpreter/Interpreter.h"
 #include "Parser/Node.h"
@@ -50,7 +49,7 @@ TEST_F( InterpreterWhileStmtTest, cond_not_bool ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  ASSERT_THROW( IT.execute(), InvalidTypeException );
+  ASSERT_THROW( IT.execute(), NotAllowedTypeException );
 }
 
 TEST_F( InterpreterWhileStmtTest, void_cond ) {
@@ -65,7 +64,7 @@ TEST_F( InterpreterWhileStmtTest, void_cond ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  ASSERT_THROW( IT.execute(), InvalidTypeException );
+  ASSERT_THROW( IT.execute(), NotAllowedTypeException );
 }
 
 TEST_F( InterpreterWhileStmtTest, dynamic_cond_eval ) {

@@ -1,5 +1,6 @@
 #include "Interpreter/RuntimeValue.h"
 
+#include <print>
 #include <variant>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
@@ -21,7 +22,7 @@ RuntimeValue& RuntimeValue::operator=( RuntimeValue&& other ) noexcept {
   return *this;
 }
 RuntimeValue::operator bool() const noexcept {
-  return isVoid();
+  return !isVoid();
 }
 Mutability RuntimeValue::getMutability() const noexcept {
   return mutability_;
@@ -40,6 +41,14 @@ bool RuntimeValue::isAssignableTo() const noexcept {
                      data_ );
 }
 
+Value RuntimeValue::copyValue() const {
+  return std::visit( Overloaded{ []( const RValue& val ) -> Value { return val.copy(); },
+                                 []( const LValue& var ) -> Value { return var.get().getValue()->copy(); },
+                                 []( const IndexRef& i_ref ) -> Value { return i_ref.get()->copy(); },
+                                 []( Void ) -> Value { std::unreachable(); } },
+                     data_ );
+}
+
 Value RuntimeValue::extractValue() {
   return std::visit( Overloaded{ []( RValue val ) -> Value { return val; },
                                  []( LValue var ) -> Value { return var.get().getValue()->copy(); },
@@ -55,5 +64,11 @@ Type RuntimeValue::getType() const noexcept {
                      data_ );
 }
 bool RuntimeValue::isVoid() const noexcept {
+  std::visit(
+      Overloaded{ []( const RValue& val ) { std::println( "\n\n\nrval: {}\n\n\n", val.copy() ); },
+                  []( const LValue& val ) { std::println( "\n\n\nlvavl: {}\n\n\n", val.get().getValue()->copy() ); },
+                  []( const IndexRef& val ) { std::println( "\n\n\niref: {}\n\n\n", val->copy() ); },
+                  []( Void ) { std::println( "\n\n\nVOID\n\n\n" ); } },
+      data_ );
   return std::holds_alternative<Void>( data_ );
 }

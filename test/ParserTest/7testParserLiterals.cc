@@ -82,9 +82,10 @@ TEST_F( ParserLiteralTest, string ) {
 }
 
 TEST_F( ParserLiteralTest, array_literal_empty ) {
-  ASSERT_THROW(
-      auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET, TokenType::RBRACKET, TokenType::NEWLINE } ),
-      MissingExpressionException );
+  auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET, TokenType::RBRACKET, TokenType::NEWLINE } );
+  std::vector<Type> expected_types;
+  expected_types.push_back( BaseType::VOID );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 0, expected_types, { Value::makeArray( 1 ) } );
 }
 
 TEST_F( ParserLiteralTest, int_array_1_elem ) {

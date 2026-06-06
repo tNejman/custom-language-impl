@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <limits>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -255,14 +254,20 @@ class ValueEvaluator {
   }
 
   static Value evaluateUnaryOp( const Value& operand, UnaryOperator op ) {
+    auto clamp_to_int = []( long long val ) -> int {
+      return static_cast<int>( std::clamp<long long>( val, tkom_limits::MIN_INT, tkom_limits::MAX_INT ) );
+    };
+    auto clamp_to_float = []( float val ) -> float {
+      return std::clamp<float>( val, tkom_limits::MIN_FLOAT, tkom_limits::MAX_FLOAT );
+    };
     switch ( op ) {
       case UnaryOperator::LEN: {
-        assertAllowedTypes<ArrayType>( operand );
+        assertAllowedTypes<Value::ArrayValue>( operand );
         const auto& arr = std::get<Value::ArrayValue>( operand.getData() );
         return Value{ static_cast<int>( arr.size() ) };
       }
       case UnaryOperator::REV: {
-        assertAllowedTypes<ArrayType>( operand );
+        assertAllowedTypes<Value::ArrayValue>( operand );
         const auto& arr = std::get<Value::ArrayValue>( operand.getData() );
         return [&] {
           Value::ArrayValue new_arr;
@@ -276,10 +281,11 @@ class ValueEvaluator {
       }
       case UnaryOperator::NEG: {
         assertAllowedTypes<int, float>( operand );
-        return std::visit( Overloaded{ []( const int val ) -> Value { return Value{ -val }; },
-                                       []( const float val ) -> Value { return Value{ -val }; },
-                                       []( auto&& _ ) -> Value { std::unreachable(); } },
-                           operand.getData() );
+        return std::visit(
+            Overloaded{ [&]( const int val ) -> Value { return clamp_to_int( -static_cast<long long>( val ) ); },
+                        [&]( const float val ) -> Value { return clamp_to_float( -val ); },
+                        []( auto&& _ ) -> Value { std::unreachable(); } },
+            operand.getData() );
       }
       case UnaryOperator::NOT: {
         assertAllowedTypes<bool>( operand );
@@ -297,7 +303,7 @@ class ValueEvaluator {
       return castScalar( operand, std::get<BaseType>( type_cast_to.internal_ ) );
     }
     if ( !operand_is_array || !target_is_array ) {
-      throw NotAllowedTypeException( Position{ 1, 1 }, "order incompatiblity scalar<->arr when casting" );
+      throw InvalidCastException( Position{ 1, 1 }, "order incompatiblity scalar<->arr when casting" );
     }
     const auto& arr = std::get<Value::ArrayValue>( op_data );
     const auto& target_arr_type = std::get<ArrayType>( type_cast_to.internal_ );

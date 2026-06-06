@@ -5,11 +5,9 @@
 #include <functional>
 #include <optional>
 #include <ranges>
-#include <stdexcept>
 #include <variant>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
-#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
 #include "Interpreter/BuiltinFunctions.hpp"
 #include "Interpreter/CallStack.h"
 #include "Interpreter/RuntimeValue.h"
@@ -300,7 +298,9 @@ inline Interpreter::CallContextGuard::CallContextGuard( Environment& env, const 
   env.call_stack_.push( CallContext{ func_def, expect_variable_count } );
 }
 inline Interpreter::CallContextGuard::~CallContextGuard() {
-  env_.call_stack_.pop();
+  if ( !env_.call_stack_.empty() ) {
+    env_.call_stack_.pop();
+  }
 }
 
 /* AccumulatorGuard
@@ -319,7 +319,9 @@ void Interpreter::AccumulatorGuard::validate( Position pos ) {
   }
 }
 Interpreter::AccumulatorGuard::~AccumulatorGuard() noexcept {
-  acc_.pop();
+  if ( !acc_.empty() ) {
+    acc_.pop();
+  }
 }
 
 /* Debug Guard
@@ -373,13 +375,13 @@ Interpreter::Interpreter( std::unique_ptr<const ProgramNode> program ) : program
 }
 
 void Interpreter::execute() {
-  static bool was_executed = false;
-  if ( !was_executed ) {
-    this->program_->accept( *this );
-    was_executed = true;
-  } else {
-    throw std::runtime_error( "cannot execute twice" );
-  }
+  // static bool was_executed = false;
+  // if ( !was_executed ) {
+  this->program_->accept( *this );
+  //   was_executed = true;
+  // } else {
+  //   throw std::runtime_error( "cannot execute twice" );
+  // }
 }
 
 void Interpreter::visit( const FunctionDefNode& node ) {
@@ -429,7 +431,7 @@ void Interpreter::visit( const FunctionDefNode& node ) {
     throw VoidValueException( node.getPosition(), "non-void function did not return value" );
   }
   if ( ret_val.getType() != node.getReturnType() ) {
-    throw InvalidTypeException( node.getPosition(), "returned value does not match function return type" );
+    throw NotAllowedTypeException( node.getPosition(), "returned value does not match function return type" );
   }
   putValInAcc( std::move( ret_val ) );
 }
@@ -444,7 +446,7 @@ void Interpreter::visit( const VarOrConstDeclNode& node ) {
   }
   Value assigned_value = runtime_val.extractValue();
   if ( node.getType() != assigned_value.getValueType() ) {
-    throw InvalidTypeException( node.getPosition(), "initializer value does not match variable type" );
+    throw NotAllowedTypeException( node.getPosition(), "initializer value does not match variable type" );
   }
   if ( !environment_.tryAddVarOrConst( Variable{ std::string( node.getIdentifier() ), node.getType().copy(),
                                                  node.getMutability(),
@@ -462,7 +464,7 @@ void Interpreter::visit( const IfStatementNode& node ) {
       RuntimeValue runtime_val = getRecentValFromAcc();
       return runtime_val.evaluateValue<bool>();
     } catch ( const std::bad_variant_access& ) {
-      throw InvalidTypeException( node.getPosition(), "if condition must be type bool" );
+      throw NotAllowedTypeException( node.getPosition(), "if condition must be type bool" );
     }
   };
 
@@ -490,7 +492,7 @@ void Interpreter::visit( const WhileStatementNode& node ) {
       RuntimeValue runtime_condition_val = getRecentValFromAcc();
       return runtime_condition_val.evaluateValue<bool>();
     } catch ( const std::bad_variant_access& ) {
-      throw InvalidTypeException( node.getCondition()->getPosition(), "while condition must be type bool" );
+      throw NotAllowedTypeException( node.getCondition()->getPosition(), "while condition must be type bool" );
     }
   };
   while ( evaluate_condition() ) {
@@ -554,7 +556,7 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
   auto right_val_from_acc = getRecentValFromAcc();
 
   if ( left_val_from_acc.getType() != right_val_from_acc.getType() ) {
-    throw InvalidTypeException( node.getPosition(), "assignment operand must match type" );
+    throw NotAllowedTypeException( node.getPosition(), "assignment operand must match type" );
   }
   if ( !left_val_from_acc.isAssignableTo() ) {
     throw InvalidAccessException( node.getLeftOperand()->getPosition(), "cannot assign to immutable value" );
@@ -570,16 +572,20 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
   switch ( node.getAssignmentType() ) {
     case AssignmentType::ASSIGN: val_assigned_to = std::move( val_assigned_from ); break;
     case AssignmentType::ADD_ASSIGN:
-      val_assigned_to = ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, std::plus<>{} );
+      val_assigned_to =
+          ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::ADD );
     case AssignmentType::SUB_ASSIGN:
-      val_assigned_to = ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, std::minus<>{} );
+      val_assigned_to =
+          ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::SUB );
     case AssignmentType::MUL_ASSIGN:
-      val_assigned_to = ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, std::multiplies<>{} );
+      val_assigned_to =
+          ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::MUL );
     case AssignmentType::DIV_ASSIGN:
-      val_assigned_to = ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, std::divides<>{} );
+      val_assigned_to =
+          ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::DIV );
     case AssignmentType::MOD_ASSIGN:
       val_assigned_to =
-          ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::FmodModulus{} );
+          ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::MOD );
   }
   putValInAcc( RuntimeValue{} );
 }
@@ -593,7 +599,7 @@ void Interpreter::visit( const BinaryExprNode& node ) {
   RuntimeValue right_operand_rt_val = getRecentValFromAcc();
 
   if ( left_operand_rt_val.getType() != right_operand_rt_val.getType() ) {
-    throw InvalidTypeException( node.getPosition(), "type mismatch in binary expr" );
+    throw NotAllowedTypeException( node.getPosition(), "type mismatch in binary expr" );
   }
   Value l_operand = left_operand_rt_val.extractValue();
   Value r_operand = right_operand_rt_val.extractValue();
@@ -683,7 +689,7 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
   node.getExpression().accept( *this );
   RuntimeValue runtime_val = getRecentValFromAcc();
   if ( !std::holds_alternative<ArrayType>( runtime_val.getType().internal_ ) ) {
-    throw InvalidTypeException( node.getPosition(), "array identifier op's are only available on array types" );
+    throw NotAllowedTypeException( node.getPosition(), "array identifier op's are only available on array types" );
   }
   Value val_inside = runtime_val.extractValue();
   auto& arr_inside = std::get<Value::ArrayValue>( val_inside.getData() );
@@ -708,7 +714,7 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
     case ArrayIdentifierOpType::FILTER: {  // arr<T> -> bool foo(T) -> arr<T>/c
 
       if ( actual_func.getReturnType() != BaseType::BOOL ) {
-        throw InvalidTypeException(
+        throw NotAllowedTypeException(
             node.getPosition(),
             "operator filter requires function to return type 'bool' (note: signature 'bool foo(T)')" );
       }
@@ -770,14 +776,17 @@ void Interpreter::visit( const FunctionCallNode& node ) {
 void Interpreter::visit( const ArrayLiteralNode& node ) {
   DebugGuard dbg_guard{ *this, node };
 
-  assert( node.getPositions().size() > 0 && "empty literal is illegal [parser]" );
+  // assert( node.getPositions().size() > 0 && "empty literal is illegal [parser]" );
+  if ( node.getPositions().empty() ) {
+    // throw VoidValueException( node.getPositions()[0]->getPosition(), "array literal position cannot be void" );
+    putValInAcc( RuntimeValue{ Value::makeArray() } );
+    return;
+  }
   std::vector<Value> array_positions;
   array_positions.reserve( node.getPositions().size() );
   node.getPositions()[0]->accept( *this );
   RuntimeValue first_val = getRecentValFromAcc();
-  if ( !first_val ) {
-    throw VoidValueException( node.getPositions()[0]->getPosition(), "array literal position cannot be void" );
-  }
+
   const Type& deduced_type = first_val.getType();
   array_positions.push_back( first_val.extractValue() );
 
@@ -789,7 +798,7 @@ void Interpreter::visit( const ArrayLiteralNode& node ) {
       throw VoidValueException( initializer_expr->getPosition(), "array literal n cannot be void" );
     }
     if ( nth_value.getType() != deduced_type ) {
-      throw InvalidTypeException( initializer_expr->getPosition(), "array must be homogenous" );
+      throw NotAllowedTypeException( initializer_expr->getPosition(), "array must be homogenous" );
     }
     array_positions.push_back( nth_value.extractValue() );
   }

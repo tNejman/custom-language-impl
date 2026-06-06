@@ -3,7 +3,6 @@
 #include <cassert>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
-#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
 #include "Interpreter/Interpreter.h"
 #include "Parser/Node.h"
 #include "Parser/Types.hpp"
@@ -53,7 +52,7 @@ TEST_F( InterpreterAssignmentTest, wrong_type ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  ASSERT_THROW( IT.execute(), InvalidTypeException );
+  ASSERT_THROW( IT.execute(), NotAllowedTypeException );
 }
 
 TEST_F( InterpreterAssignmentTest, new_val_using_old_val ) {
@@ -183,7 +182,7 @@ TEST_F( InterpreterAssignmentTest, special_assignment_int ) {
         MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ), AssignmentType::MOD_ASSIGN ) );
     MAKE_FUNCTIONS();
     MAKE_INTERPRETER
-    ASSERT_THROW( IT.execute(), InvalidTypeException );
+    ASSERT_THROW( IT.execute(), NotAllowedTypeException );
   }
 }
 
@@ -228,7 +227,7 @@ TEST_F( InterpreterAssignmentTest, special_assignment_char ) {
     MAKE_FUNCTIONS();
     MAKE_INTERPRETER
 
-    ASSERT_THROW( IT.execute(), InvalidTypeException );
+    ASSERT_THROW( IT.execute(), NotAllowedTypeException );
   }
 }
 
@@ -247,7 +246,7 @@ TEST_F( InterpreterAssignmentTest, special_assignment_bool ) {
     MAKE_FUNCTIONS();
     MAKE_INTERPRETER
 
-    ASSERT_THROW( IT.execute(), InvalidTypeException );
+    ASSERT_THROW( IT.execute(), NotAllowedTypeException );
   }
 }
 
@@ -269,6 +268,6 @@ TEST_F( InterpreterAssignmentTest, special_assignment_bool ) {
 //     MAKE_FUNCTIONS();
 //     MAKE_INTERPRETER
 
-//     ASSERT_THROW( IT.execute(), InvalidTypeException );
+//     ASSERT_THROW( IT.execute(), NotAllowedTypeException );
 //   }
 // }

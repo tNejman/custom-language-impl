@@ -35,7 +35,7 @@ struct RuntimeValue {
   const std::variant<RValue, LValue, IndexRef, Void>& peekData() const noexcept;
   // std::variant<RValue, LValue, IndexRef, Void> getData() noexcept;
   bool isAssignableTo() const noexcept;
-  Value copyValue() const noexcept;
+  Value copyValue() const;
   Value extractValue();
   Type getType() const noexcept;
   bool isVoid() const noexcept;

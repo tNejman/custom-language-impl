@@ -62,7 +62,7 @@ std::optional<std::reference_wrapper<CallContext>> CallStack::nth( size_t idx ) 
   return call_stack_[idx];
 }
 std::optional<std::reference_wrapper<const CallContext>> CallStack::nth( size_t idx ) const noexcept {
-  if ( call_stack_.size() >= idx ) {
+  if ( idx >= call_stack_.size() ) {
     return std::nullopt;
   }
   return call_stack_[idx];
