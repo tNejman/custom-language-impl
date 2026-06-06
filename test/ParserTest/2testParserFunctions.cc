@@ -10,7 +10,7 @@
 void assertFunctionDeclaration( const FunctionDefNode* node, Type expected_type, const std::string expected_id,
                                 const int expected_param_count, const int expected_statement_count ) {
   ASSERT_NE( nullptr, node );
-  ASSERT_EQ( node->getType(),
+  ASSERT_EQ( node->getReturnType(),
              expected_type );  // struct Type supplements operator ==, so must be on the left in case it's base type
   ASSERT_EQ( expected_id, node->getIdentifier() );
   ASSERT_EQ( expected_param_count, node->getParameters().size() );
@@ -40,7 +40,7 @@ TEST_F( ParserFunctionTest, no_param_list ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 0, 0 );
 }
 
@@ -62,7 +62,7 @@ TEST_F( ParserFunctionTest, param_list ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
 }
 
@@ -156,7 +156,7 @@ TEST_F( ParserReturnTypeTest, void_type ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 0, 0 );
 }
 
@@ -182,7 +182,7 @@ TEST_F( ParserReturnTypeTest, base_type ) {
                                                     TokenType::NEWLINE,
                                                     TokenType::KW_DONE,
                                                     TokenType::NEWLINE } );
-    auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+    auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
     assertFunctionDeclaration( fun_def_ptr, Type{ bt }, function_identifier, 0, 0 );
   }
 }
@@ -211,7 +211,7 @@ TEST_F( ParserReturnTypeTest, array_from_base_type ) {
                                                     TokenType::NEWLINE,
                                                     TokenType::KW_DONE,
                                                     TokenType::NEWLINE } );
-    auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+    auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
     assertFunctionDeclaration( fun_def_ptr, Type::buildTypeArrayTypeFromBase( bt ), function_identifier, 0, 0 );
   }
 }
@@ -242,7 +242,7 @@ TEST_F( ParserReturnTypeTest, double_array_from_base_type ) {
                                                     TokenType::NEWLINE,
                                                     TokenType::KW_DONE,
                                                     TokenType::NEWLINE } );
-    auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+    auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
     assertFunctionDeclaration( fun_def_ptr, Type::buildTypeArrayFromBaseNRec( bt, 2 ), function_identifier, 0, 0 );
   }
 }
@@ -295,7 +295,7 @@ TEST_F( ParserParamListTest, param_then_zero_params ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
 }
 
@@ -319,7 +319,7 @@ TEST_F( ParserParamListTest, param_then_one_param ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   ASSERT_NE( nullptr, fun_def_ptr );
   ASSERT_EQ( 2, fun_def_ptr->getParameters().size() );
 }
@@ -347,7 +347,7 @@ TEST_F( ParserParamListTest, param_then_more_than_one_param ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   ASSERT_NE( nullptr, fun_def_ptr );
   ASSERT_EQ( 3, fun_def_ptr->getParameters().size() );
 }
@@ -407,7 +407,7 @@ TEST_F( ParserParamTest, type_identifier ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
   auto compr = ParameterDecl{ "x", Type{ BaseType::INT }, PassMode::REFERENCE, Mutability::IMMUTABLE };
   ASSERT_EQ( compr, fun_def_ptr->getParameters()[0] );
@@ -431,7 +431,7 @@ TEST_F( ParserParamTest, modifier_copy_type_identifier ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
   auto compr = ParameterDecl{ "x", Type{ BaseType::INT }, PassMode::COPY, Mutability::IMMUTABLE };
   ASSERT_EQ( compr, fun_def_ptr->getParameters()[0] );
@@ -455,7 +455,7 @@ TEST_F( ParserParamTest, modifier_mut_type_identifier ) {
                                                   TokenType::NEWLINE,
                                                   TokenType::KW_DONE,
                                                   TokenType::NEWLINE } );
-  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getStatementList()[0].get() );
+  auto* fun_def_ptr = dynamic_cast<const FunctionDefNode*>( program_ptr->getFunctionList()[0].get() );
   assertFunctionDeclaration( fun_def_ptr, Type{ BaseType::VOID }, function_identifier, 1, 0 );
   auto compr = ParameterDecl{ "x", Type{ BaseType::INT }, PassMode::REFERENCE, Mutability::MUTABLE };
   ASSERT_EQ( compr, fun_def_ptr->getParameters()[0] );

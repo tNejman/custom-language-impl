@@ -10,7 +10,7 @@ FunctionDefNode::FunctionDefNode( Position position, std::string identifier, Typ
       block_( std::move( block ) ) {
   assert( !getIdentifier().empty() );
 }
-void FunctionDefNode::accept( Visitor& v ) const noexcept {
+void FunctionDefNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 
@@ -28,7 +28,7 @@ VarOrConstDeclNode::VarOrConstDeclNode( Position positon, std::string identifier
   assert( !identifier_.empty() );
   assert( initializer_expression_ != nullptr );
 }
-void VarOrConstDeclNode::accept( Visitor& v ) const noexcept {
+void VarOrConstDeclNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 std::string_view VarOrConstDeclNode::getIdentifier() const noexcept {
@@ -50,7 +50,7 @@ IfStatementNode::IfStatementNode( Position position, ExprBlockPairVec cond_block
     assert( expr != nullptr );
   }
 }
-void IfStatementNode::accept( Visitor& v ) const noexcept {
+void IfStatementNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const ExprBlockPairVec& IfStatementNode::getCondBlockPairs() const noexcept {
@@ -64,7 +64,7 @@ WhileStatementNode::WhileStatementNode( Position position, std::unique_ptr<IExpr
     : INode( position ), condition_( std::move( condition ) ), block_( std::move( block ) ) {
   assert( condition_ != nullptr );
 }
-void WhileStatementNode::accept( Visitor& v ) const noexcept {
+void WhileStatementNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode* WhileStatementNode::getCondition() const noexcept {
@@ -76,7 +76,7 @@ const Block& WhileStatementNode::getBlock() const noexcept {
 
 ControlFlowNode::ControlFlowNode( Position position, ControlFlowType type ) : INode( position ), type_( type ) {
 }
-void ControlFlowNode::accept( Visitor& v ) const noexcept {
+void ControlFlowNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 ControlFlowType ControlFlowNode::getControlFlowType() const noexcept {
@@ -85,9 +85,9 @@ ControlFlowType ControlFlowNode::getControlFlowType() const noexcept {
 
 ReturnNode::ReturnNode( Position position, std::unique_ptr<IExpressionNode> expression )
     : INode( position ), expression_( std::move( expression ) ) {
-  assert( expression_ != nullptr );
+  // this one time expr can be nullptr because return 'void' is valid
 }
-void ReturnNode::accept( Visitor& v ) const noexcept {
+void ReturnNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode* ReturnNode::getExpression() const noexcept {
@@ -103,7 +103,7 @@ AssignmentExprNode::AssignmentExprNode( Position position, std::unique_ptr<IExpr
   assert( left_operand_ != nullptr );
   assert( right_operand_ != nullptr );
 }
-void AssignmentExprNode::accept( Visitor& v ) const noexcept {
+void AssignmentExprNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode* AssignmentExprNode::getLeftOperand() const noexcept {
@@ -125,7 +125,7 @@ BinaryExprNode::BinaryExprNode( Position position, std::unique_ptr<IExpressionNo
   assert( left_operand_ != nullptr );
   assert( right_operand_ != nullptr );
 }
-void BinaryExprNode::accept( Visitor& v ) const noexcept {
+void BinaryExprNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode* BinaryExprNode::getLeftOperand() const noexcept {
@@ -142,7 +142,7 @@ UnaryExprNode::UnaryExprNode( Position position, std::unique_ptr<IExpressionNode
     : IExpressionNode( position ), operand_( std::move( opernad ) ), operator_( un_operator ) {
   assert( operand_ != nullptr );
 }
-void UnaryExprNode::accept( Visitor& v ) const noexcept {
+void UnaryExprNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode* UnaryExprNode::getOperand() const noexcept {
@@ -156,7 +156,7 @@ CastExprNode::CastExprNode( Position position, std::unique_ptr<IExpressionNode> 
     : IExpressionNode( position ), expression_( std::move( expression ) ), type_( std::move( type ) ) {
   assert( expression_ != nullptr );
 }
-void CastExprNode::accept( Visitor& v ) const noexcept {
+void CastExprNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode* CastExprNode::getExpression() const noexcept {
@@ -172,10 +172,10 @@ ArrayIdentifierOpNode::ArrayIdentifierOpNode( Position position, std::unique_ptr
       left_operand_( std::move( left_operand ) ),
       type_( type ),
       identifier_( std::move( identifier ) ) {
-  assert( left_operand != nullptr );
+  assert( left_operand_ != nullptr );
   assert( !identifier_.empty() );
 }
-void ArrayIdentifierOpNode::accept( Visitor& v ) const noexcept {
+void ArrayIdentifierOpNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const IExpressionNode& ArrayIdentifierOpNode::getExpression() const noexcept {
@@ -192,7 +192,7 @@ FunctionCallNode::FunctionCallNode( Position position, std::string identifier, E
     : IExpressionNode( position ), identifier_( std::move( identifier ) ), arguments_( std::move( arguments ) ) {
   assert( !identifier_.empty() );
 }
-void FunctionCallNode::accept( Visitor& v ) const noexcept {
+void FunctionCallNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 std::string_view FunctionCallNode::getIdentifier() const noexcept {
@@ -208,7 +208,7 @@ ArrayLiteralNode::ArrayLiteralNode( Position position, ExpressionVec array_posit
     assert( expr != nullptr );
   }
 }
-void ArrayLiteralNode::accept( Visitor& v ) const noexcept {
+void ArrayLiteralNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const ExpressionVec& ArrayLiteralNode::getPositions() const noexcept {
@@ -218,7 +218,7 @@ const ExpressionVec& ArrayLiteralNode::getPositions() const noexcept {
 LiteralExprNode::LiteralExprNode( Position position, Type type, Value value )
     : IExpressionNode( position ), type_( std::move( type ) ), value_( std::move( value ) ) {
 }
-void LiteralExprNode::accept( Visitor& v ) const noexcept {
+void LiteralExprNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const Type& LiteralExprNode::getType() const noexcept {
@@ -232,7 +232,7 @@ PrimaryIdentifierNode::PrimaryIdentifierNode( Position position, std::string ide
     : IExpressionNode( position ), identifier_( std::move( identifier ) ) {
   assert( !identifier_.empty() );
 }
-void PrimaryIdentifierNode::accept( Visitor& v ) const noexcept {
+void PrimaryIdentifierNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 std::string_view PrimaryIdentifierNode::getIdentifier() const noexcept {
@@ -249,7 +249,7 @@ ProgramNode::ProgramNode( Position position, std::vector<std::unique_ptr<INode>>
     assert( func_def != nullptr );
   }
 }
-void ProgramNode::accept( Visitor& v ) const noexcept {
+void ProgramNode::accept( Visitor& v ) const  {
   v.visit( *this );
 }
 const std::vector<std::unique_ptr<INode>>& ProgramNode::getStatementList() const noexcept {

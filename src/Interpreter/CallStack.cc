@@ -1,5 +1,6 @@
 #include "Interpreter/CallStack.h"
 
+#include <format>
 #include <optional>
 
 /* CallContext
@@ -7,17 +8,21 @@
 
 */
 
-CallContext::CallContext( ContextType context_type ) noexcept
+CallContext::CallContext( ContextType context_type, size_t expected_var_count ) noexcept
     : type_( context_type ), variables_(), function_sig_( std::nullopt ) {
   assert( context_type != ContextType::FUNCTION_CALL && "function call context must be initialized with function ptr" );
+  variables_.reserve( expected_var_count );
 }
-CallContext::CallContext( const FunctionDefNode& func_sig ) noexcept
+CallContext::CallContext( const FunctionDefNode& func_sig, size_t expected_var_count ) noexcept
     : type_( ContextType::FUNCTION_CALL ), variables_(), function_sig_( func_sig ) {
+  variables_.reserve( expected_var_count );
 }
 CallContext::ContextType CallContext::getType() const noexcept {
   return type_;
 }
 void CallContext::addVariable( Variable variable ) noexcept {
+  const std::string msg = std::format( "reallocating variables; overflow identifier: {}", variable.getIdentifier() );
+  assert( variables_.size() < variables_.capacity() && msg.c_str() );
   variables_.push_back( std::move( variable ) );
 }
 const std::vector<Variable>& CallContext::getVariables() const noexcept {
@@ -63,7 +68,7 @@ std::optional<std::reference_wrapper<const CallContext>> CallStack::nth( size_t 
   return call_stack_[idx];
 }
 
-const std::vector<CallContext>& CallStack::view() const noexcept {
+const std::deque<CallContext>& CallStack::view() const noexcept {
   return call_stack_;
 }
 bool CallStack::empty() const noexcept {

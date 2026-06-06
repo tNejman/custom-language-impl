@@ -1,5 +1,9 @@
 #include "Interpreter/RuntimeValue.h"
 
+#include <variant>
+
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
+
 RuntimeValue::RuntimeValue( Value val ) noexcept : mutability_( Mutability::IMMUTABLE ), data_( std::move( val ) ) {
 }
 RuntimeValue::RuntimeValue( Variable& var ) noexcept : mutability_( var.getMutability() ), data_( var ) {};
@@ -17,7 +21,7 @@ RuntimeValue& RuntimeValue::operator=( RuntimeValue&& other ) noexcept {
   return *this;
 }
 RuntimeValue::operator bool() const noexcept {
-  return std::holds_alternative<Void>( data_ );
+  return isVoid();
 }
 Mutability RuntimeValue::getMutability() const noexcept {
   return mutability_;
@@ -40,14 +44,16 @@ Value RuntimeValue::extractValue() {
   return std::visit( Overloaded{ []( RValue val ) -> Value { return val; },
                                  []( LValue var ) -> Value { return var.get().getValue()->copy(); },
                                  []( IndexRef i_ref ) -> Value { return i_ref.get()->copy(); },
-                                 []( Void ) -> Value { throw std::runtime_error( "tried extracting void value" ); } },
+                                 []( Void ) -> Value { std::unreachable(); } },
                      std::move( data_ ) );
 }
 Type RuntimeValue::getType() const noexcept {
-  return std::visit(
-      Overloaded{ []( const RValue& val ) -> Type { return val.getValueType().copy(); },
-                  []( const LValue& val ) -> Type { return val.get().getType().copy(); },
-                  []( const IndexRef& val ) -> Type { return val.get()->getValueType().copy(); },
-                  []( Void ) -> Type { throw std::runtime_error( "tried getting type of void value" ); } },
-      data_ );
+  return std::visit( Overloaded{ []( const RValue& val ) -> Type { return val.getValueType().copy(); },
+                                 []( const LValue& val ) -> Type { return val.get().getType().copy(); },
+                                 []( const IndexRef& val ) -> Type { return val.get()->getValueType().copy(); },
+                                 []( Void ) -> Type { std::unreachable(); } },
+                     data_ );
+}
+bool RuntimeValue::isVoid() const noexcept {
+  return std::holds_alternative<Void>( data_ );
 }

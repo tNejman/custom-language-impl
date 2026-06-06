@@ -1,11 +1,10 @@
 #pragma once
 
+#include <deque>
 #include <functional>
 #include <memory>
 #include <stack>
-#include <string>
 #include <string_view>
-#include <variant>
 
 #include "Interpreter/BuiltinFunctions.hpp"
 #include "Interpreter/CallStack.h"
@@ -17,8 +16,6 @@
 #include "Parser/Visitor.h"
 
 class Interpreter;
-
-// using FunctionSymbol = std::variant<std::reference_wrapper<const FunctionDefNode>, BuiltinFunction>;
 
 enum class DebugEvent {
   BEFORE_NODE_VISIT,
@@ -42,7 +39,7 @@ class Interpreter : public Visitor {
     enum class ControlFlow { BREAK, CONTINUE, NONE, RETURN };
 
    private:
-    std::vector<BuiltinFunction> builtin_storage_;
+    std::deque<BuiltinFunction> builtin_storage_;
     std::vector<std::reference_wrapper<const IFunction>> functions_;
     CallStack call_stack_;
     ControlFlow loop_control_type_;
@@ -53,11 +50,9 @@ class Interpreter : public Visitor {
     // std::optional<std::reference_wrapper<const BuiltinFunction>> getBuiltinFunctionByIdentifier(
     //     const std::string identifier ) const noexcept;
     std::optional<std::reference_wrapper<const IFunction>> getFunctionBySignature(
-        const std::string_view identifier, const Type& return_type,
-        const std::vector<ParameterDecl>& parameters ) noexcept;
+        const std::string_view identifier, const std::vector<ParameterDecl>& parameters ) noexcept;
     std::optional<std::reference_wrapper<const IFunction>> getFunctionBySignature(
-        const std::string_view identifier, const Type& return_type,
-        const std::vector<RuntimeValue>& call_args ) noexcept;
+        const std::string_view identifier, const std::vector<RuntimeValue>& call_args ) noexcept;
 
     bool tryAddUserFunction( const FunctionDefNode& node );
     bool tryAddBuiltinFunction( BuiltinFunction function );
@@ -98,8 +93,8 @@ class Interpreter : public Visitor {
     Environment& env_;
 
    public:
-    CallContextGuard( Environment& env, CallContext::ContextType context_type );
-    CallContextGuard( Environment& env, const FunctionDefNode& func_def );
+    CallContextGuard( Environment& env, CallContext::ContextType context_type, size_t expect_variable_count );
+    CallContextGuard( Environment& env, const FunctionDefNode& func_def, size_t expect_variable_count );
     ~CallContextGuard();
   };
 
@@ -110,6 +105,7 @@ class Interpreter : public Visitor {
 
    public:
     AccumulatorGuard( std::stack<RuntimeValue>& acc ) noexcept;
+    void validate( Position pos );
     ~AccumulatorGuard() noexcept;
   };
 

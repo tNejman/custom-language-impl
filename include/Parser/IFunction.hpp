@@ -41,5 +41,5 @@ class IFunction : public INode {
   [[nodiscard]] bool isVoid() const noexcept {
     return return_type_ == BaseType::VOID;
   }
-  virtual void accept( Visitor& v ) const noexcept = 0;
+  virtual void accept( Visitor& v ) const override = 0;
 };

@@ -91,8 +91,8 @@ TEST_F( ParserStatementTest, function_def ) {
                                               TokenType::NEWLINE,
                                               TokenType::KW_DONE,
                                               TokenType::NEWLINE } );
-  ASSERT_EQ( 1, program->getStatementList().size() );
-  auto* function_def_ptr = dynamic_cast<const FunctionDefNode*>( program->getStatementList()[0].get() );
+  ASSERT_EQ( 1, program->getFunctionList().size() );
+  auto* function_def_ptr = dynamic_cast<const FunctionDefNode*>( program->getFunctionList()[0].get() );
   ASSERT_NE( nullptr, function_def_ptr );
 }
 

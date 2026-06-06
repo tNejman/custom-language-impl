@@ -16,7 +16,7 @@ class INode {
   INode& operator=( const INode& ) = delete;
   INode& operator=( INode&& ) noexcept = default;
   bool operator==( const INode& ) const noexcept = default;
-  virtual void accept( Visitor& v ) const noexcept = 0;
+  virtual void accept( Visitor& v ) const = 0;
   Position getPosition() const noexcept {
     return position_;
   }

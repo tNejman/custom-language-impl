@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <stdexcept>
+#include <limits>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
+#include "Lexer/Limits.hpp"
 #include "Parser/Node.h"
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
@@ -21,7 +24,7 @@ class ValueEvaluator {
         []( const auto& val_unpacked ) {
           using T = std::decay_t<decltype( val_unpacked )>;
           if constexpr ( !( std::is_same_v<T, AllowedTypes> || ... ) ) {
-            throw std::runtime_error( "TypeError: left operand" );
+            throw NotAllowedTypeException( Position{ 1, 1 }, "TypeError: left operand" );
           }
         },
         val.getData() );
@@ -76,7 +79,7 @@ class ValueEvaluator {
 
   static Value castScalar( const Value& val, BaseType target ) {
     if ( target == BaseType::VOID ) {
-      throw std::runtime_error( "Cannot cast to 'void'" );
+      throw VoidValueException( Position{ 1, 1 }, "Cannot cast to 'void'" );
     }
     return std::visit( Overloaded{ [&]( int v ) -> Value {
                                     switch ( target ) {
@@ -91,7 +94,8 @@ class ValueEvaluator {
                                      switch ( target ) {
                                        case BaseType::INT: return static_cast<int>( v );
                                        case BaseType::FLOAT: return v;
-                                       case BaseType::CHAR: throw std::runtime_error( "cannot cast float to char" );
+                                       case BaseType::CHAR:
+                                         throw InvalidCastException( Position{ 1, 1 }, "cannot cast float to char" );
                                        case BaseType::BOOL: return v != 0.0f;
                                        case BaseType::VOID: std::unreachable();
                                      }
@@ -99,9 +103,11 @@ class ValueEvaluator {
                                    [&]( char v ) -> Value {
                                      switch ( target ) {
                                        case BaseType::INT: return static_cast<int>( v );
-                                       case BaseType::FLOAT: throw std::runtime_error( "cannot cast char to float" );
+                                       case BaseType::FLOAT:
+                                         throw InvalidCastException( Position{ 1, 1 }, "cannot cast char to float" );
                                        case BaseType::CHAR: return v;
-                                       case BaseType::BOOL: throw std::runtime_error( "cannot cast char to bool" );
+                                       case BaseType::BOOL:
+                                         throw InvalidCastException( Position{ 1, 1 }, "cannot cast char to bool" );
                                        case BaseType::VOID: std::unreachable();
                                      }
                                    },
@@ -109,13 +115,15 @@ class ValueEvaluator {
                                      switch ( target ) {
                                        case BaseType::INT: return v ? 1 : 0;
                                        case BaseType::FLOAT: return v ? 1.0f : 0.0f;
-                                       case BaseType::CHAR: throw std::runtime_error( "cannot cast bool to char" );
+                                       case BaseType::CHAR:
+                                         throw InvalidCastException( Position{ 1, 1 }, "cannot cast bool to char" );
                                        case BaseType::BOOL: return v;
                                        case BaseType::VOID: std::unreachable();
                                      }
                                    },
                                    []( const Value::ArrayValue& ) -> Value {
-                                     throw std::runtime_error( "Cannot cast ArrayValue, is not a scalar" );
+                                     throw InvalidCastException( Position{ 1, 1 },
+                                                                 "Cannot cast ArrayValue, is not a scalar" );
                                    } },
                        val.getData() );
   }
@@ -135,17 +143,14 @@ class ValueEvaluator {
   requires std::is_same_v<OperatorType, std::less<>> || std::is_same_v<OperatorType, std::less_equal<>>
            || std::is_same_v<OperatorType, std::greater<>> || std::is_same_v<OperatorType, std::greater_equal<>>
   static Value evaluateRelational( const Value& lhs, const Value& rhs, OperatorType op ) {
-    // assertAllowedTypes<int, float, char>( lhs, rhs );
     return std::visit( Overloaded{ [op]( const int l_op, const int r_op ) -> bool { return op( l_op, r_op ); },
                                    [op]( const float l_op, const float r_op ) -> bool { return op( l_op, r_op ); },
                                    [op]( const char l_op, const char r_op ) -> bool { return op( l_op, r_op ); },
                                    []( const auto&, const auto& ) -> bool {
-                                     throw std::runtime_error( "can only compare int,float,char" );
+                                     throw NotAllowedTypeException( Position{ 1, 1 },
+                                                                    "can only compare int,float,char" );
                                    } },
                        lhs.getData(), rhs.getData() );
-    // return std::visit( [op]( const auto& l_op, const auto& r_op ) -> bool { return op( l_op, r_op ); },
-    // lhs.getData(),
-    //                    rhs.getData() );
   }
 
   struct FmodModulus {
@@ -166,32 +171,57 @@ class ValueEvaluator {
     }
   };
 
-  template <typename OperatorType>
-  requires std::is_same_v<OperatorType, std::plus<>> || std::is_same_v<OperatorType, std::minus<>>
-           || std::is_same_v<OperatorType, std::multiplies<>> || std::is_same_v<OperatorType, std::divides<>>
-           || std::is_same_v<OperatorType, FmodModulus>
-  static Value evaluateNumeric( const Value& lhs, const Value& rhs, OperatorType op ) {
-    // assertAllowedTypes<int, float>( lhs, rhs );
+  enum class NumericOp { ADD, SUB, MUL, DIV, MOD };
+
+  static Value evaluateNumeric( const Value& lhs, const Value& rhs, NumericOp op ) {
+    auto clamp_to_int = []( long long val ) -> int {
+      return static_cast<int>( std::clamp<long long>( val, tkom_limits::MIN_INT, tkom_limits::MAX_INT ) );
+    };
+    auto clamp_to_float = []( float val ) -> float {
+      return std::clamp<float>( val, tkom_limits::MIN_FLOAT, tkom_limits::MAX_FLOAT );
+    };
     return std::visit(
         Overloaded{ [&]( const int l, const int r ) -> Value {
-                     if ( std::is_same_v<OperatorType, std::divides<>> ) {
-                       throw std::runtime_error( "cannot divide ints" );
+                     switch ( op ) {
+                       case NumericOp::ADD:
+                         return clamp_to_int( static_cast<long long>( l ) + static_cast<long long>( r ) );
+                       case NumericOp::SUB:
+                         return clamp_to_int( static_cast<long long>( l ) - static_cast<long long>( r ) );
+                       case NumericOp::MUL:
+                         return clamp_to_int( static_cast<long long>( l ) * static_cast<long long>( r ) );
+                       case NumericOp::DIV: throw InvalidOperationException( Position{ 1, 1 }, "cannot divide ints" );
+                       case NumericOp::MOD:
+                         if ( r == 0 ) {
+                           throw InvalidOperationException( Position{ 1, 1 }, "cannot mod by 0" );
+                         } else {
+                           return clamp_to_int( static_cast<long long>( l ) % static_cast<long long>( r ) );
+                         }
+                       default: std::unreachable();
                      }
-                     if ( std::is_same_v<OperatorType, FmodModulus> && r == 0 ) {
-                       throw std::runtime_error( "cannot modulo by zero" );
-                     }
-                     return Value{ static_cast<int>( op( l, r ) ) };
                    },
                     [&]( const float l, const float r ) -> Value {
-                      if ( ( std::is_same_v<OperatorType, std::divides<>> || std::is_same_v<OperatorType, FmodModulus> )
-                           && r == 0.f ) {
-                        throw std::runtime_error( "cannot divide by zero" );
+                      switch ( op ) {
+                        case NumericOp::ADD: return clamp_to_float( l + r );
+                        case NumericOp::SUB: return clamp_to_float( l - r );
+                        case NumericOp::MUL: return clamp_to_float( l * r );
+                        case NumericOp::DIV:
+                          if ( r == 0.f ) {
+                            throw InvalidOperationException( Position{ 1, 1 }, "cannot divide by 0" );
+                          } else {
+                            return clamp_to_float( l / r );
+                          }
+                        case NumericOp::MOD:
+                          if ( r == 0.f ) {
+                            throw InvalidOperationException( Position{ 1, 1 }, "cannot mod by 0" );
+                          } else {
+                            return clamp_to_float( FmodModulus{}( l, r ) );
+                          }
+                        default: std::unreachable();
                       }
-                      return Value{ op( l, r ) };
                     },
                     []( const auto&, const auto& ) -> Value {
-                      throw std::runtime_error(
-                          "numeric operations are only legal on 'int-int' and 'float-float' pairs" );
+                      throw InvalidOperationException(
+                          Position{ 1, 1 }, "numeric operations are only legal on 'int-int' and 'float-float' pairs" );
                     } },
         lhs.getData(), rhs.getData() );
   }
@@ -216,10 +246,10 @@ class ValueEvaluator {
     const Value::ArrayValue& array = std::get<Value::ArrayValue>( lhs.getData() );
     const int idx = std::get<int>( rhs.getData() );
     if ( idx < 0 ) {
-      throw std::runtime_error( "Array index must be positive" );
+      throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index must be positive" );
     }
     if ( array.size() >= static_cast<size_t>( idx ) ) {
-      throw std::runtime_error( "Array index out of bounds" );
+      throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index exceeding array size" );
     }
     return array[static_cast<size_t>( idx )].copy();
   }
@@ -267,7 +297,7 @@ class ValueEvaluator {
       return castScalar( operand, std::get<BaseType>( type_cast_to.internal_ ) );
     }
     if ( !operand_is_array || !target_is_array ) {
-      throw std::runtime_error( "order incompatiblity scalar<->arr when casting" );
+      throw NotAllowedTypeException( Position{ 1, 1 }, "order incompatiblity scalar<->arr when casting" );
     }
     const auto& arr = std::get<Value::ArrayValue>( op_data );
     const auto& target_arr_type = std::get<ArrayType>( type_cast_to.internal_ );

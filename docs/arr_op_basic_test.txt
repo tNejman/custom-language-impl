@@ -1,0 +1,82 @@
+1. Concatenation (++)
+Standard Operations
+
+Basic Concatenation: [1, 2] ++ [3, 4] -> Expect [1, 2, 3, 4].
+
+Different Lengths: [1] ++ [2, 3, 4] -> Expect [1, 2, 3, 4].
+
+Duplicate Elements: [1, 2] ++ [2, 1] -> Expect [1, 2, 2, 1].
+
+Empty Arrays (Identity)
+
+Empty Left-Hand Side (LHS): [] ++ [1, 2] -> Expect [1, 2].
+
+Empty Right-Hand Side (RHS): [1, 2] ++ [] -> Expect [1, 2].
+
+Both Empty: [] ++ [] -> Expect [].
+
+Complex & Nested Data
+
+Mixed Types (if dynamically typed): [1, "a"] ++ [true, 3.14] -> Expect [1, "a", true, 3.14].
+
+Nested Arrays: [[1, 2], 3] ++ [[4]] -> Expect [[1, 2], 3, [4]].
+
+State & Memory Integrity
+
+Immutability Check: After let C = A ++ B, assert that A and B remain completely unmodified.
+
+Self-Concatenation: A ++ A -> Expect [A_elements, A_elements]. (Important to verify the evaluator doesn't run into reference iteration bugs when reading and writing to the same underlying memory object).
+
+2. Diff / Filter (--)
+Standard Multiplicity (Instance Counting)
+
+Single Removal: [1, 2, 3] -- [2] -> Expect [1, 3].
+
+The Baseline Spec Test: [1, 2, 2, 2, 3, 3] -- [1, 2, 3] -> Expect [2, 2, 3].
+
+Total Annihilation: [1, 2, 2] -- [1, 2, 2] -> Expect [].
+
+Mismatch & Excess Handling
+
+No Overlap: [1, 2] -- [3, 4] -> Expect [1, 2].
+
+RHS Has Excess Multiplicity: [1, 2] -- [2, 2, 2] -> Expect [1]. (The extra 2s in RHS should be safely ignored).
+
+RHS Has Uncontained Elements: [1, 2, 2] -- [2, 3, 4] -> Expect [1, 2].
+
+Order Preservation (Unsorted Data)
+
+First-In First-Out Removal: [3, 1, 2, 1] -- [1] -> Expect [3, 2, 1]. (Crucial: The standard implementation of this spec usually removes the first encountered instance of the match to preserve the order of the remaining elements).
+
+Interleaved Removal: [5, 4, 5, 4, 5] -- [5, 5] -> Expect [4, 4, 5].
+
+Empty Arrays
+
+Empty LHS: [] -- [1, 2, 3] -> Expect [].
+
+Empty RHS: [1, 2, 3] -- [] -> Expect [1, 2, 3].
+
+Both Empty: [] -- [] -> Expect [].
+
+Complex & Nested Data
+
+Mixed Types (if dynamically typed): [1, "1", true] -- [1] -> Expect ["1", true]. (Ensures strict type equality; the integer 1 shouldn't delete the string "1" or the boolean true).
+
+Nested Array Equality: [[1, 2], [3, 4]] -- [[1, 2]] -> Expect [[3, 4]]. (If your language supports deep equality checks for arrays).
+
+State & Memory Integrity
+
+Immutability Check: After let C = A -- B, assert that A and B remain perfectly unmodified.
+
+Self-Diff: A -- A -> Expect []. (Again, checks for reference invalidation issues).
+
+3. Type Mismatches (Exception Handling)
+If these operators are strictly for array-to-array operations, you must verify the fallback logic throws the correct exceptions, just like your numeric operators do.
+
+LHS Array, RHS Primitive: [1, 2] ++ 3 -> Must throw InvalidOperationException.
+
+LHS Primitive, RHS Array: 3 ++ [1, 2] -> Must throw InvalidOperationException.
+
+LHS Array, RHS Primitive: [1, 2, 3] -- 2 -> Must throw InvalidOperationException. (Unless your language intentionally supports syntactic sugar treating array -- primitive as array -- [primitive]).
+
+LHS Primitive, RHS Array: 2 -- [1, 2] -> Must throw InvalidOperationException.

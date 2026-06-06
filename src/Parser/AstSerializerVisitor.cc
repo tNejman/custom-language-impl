@@ -180,6 +180,10 @@ void AstSerializerVisitor::visit( const ProgramNode& node ) {
   serializeBlock( node.getStatementList() );
 }
 
+void AstSerializerVisitor::visit( const BuiltinFunction& ) {
+  throw std::runtime_error( "not implemented" );
+}
+
 std::string AstSerializerVisitor::getString() noexcept {
   std::string result = std::move( string_builder_ ).str();
   flushBuffer();

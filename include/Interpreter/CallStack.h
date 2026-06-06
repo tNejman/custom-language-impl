@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <functional>
 #include <vector>
 
@@ -18,8 +19,8 @@ class CallContext {
   struct TraceWrapper {};
 
  public:
-  CallContext( ContextType context_type ) noexcept;
-  CallContext( const FunctionDefNode& func_sig ) noexcept;
+  CallContext( ContextType context_type, size_t expected_var_count ) noexcept;
+  CallContext( const FunctionDefNode& func_sig, size_t expected_var_count ) noexcept;
   ContextType getType() const noexcept;
   void addVariable( Variable variable ) noexcept;
   const std::vector<Variable>& getVariables() const noexcept;
@@ -29,7 +30,7 @@ class CallContext {
 
 class CallStack {
  private:
-  std::vector<CallContext> call_stack_;
+  std::deque<CallContext> call_stack_;
 
  public:
   CallContext pop();
@@ -38,7 +39,7 @@ class CallStack {
   const CallContext& top() const noexcept;
   std::optional<std::reference_wrapper<CallContext>> nth( size_t idx ) noexcept;
   std::optional<std::reference_wrapper<const CallContext>> nth( size_t idx ) const noexcept;
-  const std::vector<CallContext>& view() const noexcept;
+  const std::deque<CallContext>& view() const noexcept;
   bool empty() const noexcept;
   size_t size() const noexcept;
 };

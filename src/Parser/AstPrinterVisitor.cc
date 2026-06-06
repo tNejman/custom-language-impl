@@ -249,3 +249,8 @@ void AstPrinterVisitor::visit( const ProgramNode& node ) {
     statement->accept( *this );
   }
 }
+
+void AstPrinterVisitor::visit( const BuiltinFunction& ) {
+  // std::println("")
+  throw std::runtime_error( "not implemented" );
+}

@@ -1,4 +1,4 @@
-add_library(Parser
+add_library(Parser STATIC
     AstPrinterVisitor.cc
     AstSerializerVisitor.cc
     Node.cc

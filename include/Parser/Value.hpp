@@ -24,7 +24,7 @@ struct Value {
   Value( bool val ) : data_( val ) {
   }
   Value( ArrayValue val ) : data_( std::move( val ) ) {
-    assert( !val.empty() && "ArrayValue must be initialized with a non-empty vector" );
+    assert( !std::get<ArrayValue>( data_ ).empty() && "ArrayValue must be initialized with a non-empty vector" );
   }
 
   Value( const Value& ) = delete;
@@ -75,6 +75,14 @@ struct Value {
     Value::ArrayValue arr;
     arr.reserve( sizeof...( args ) );
     ( arr.push_back( std::move( args ) ), ... );
+    return arr;
+  }
+  static Value makeCharArray( const std::string& str ) {
+    Value::ArrayValue arr;
+    arr.reserve( str.size() );
+    for ( const auto c : str ) {
+      arr.push_back( c );
+    }
     return arr;
   }
 };

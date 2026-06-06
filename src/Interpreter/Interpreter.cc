@@ -8,9 +8,10 @@
 #include <stdexcept>
 #include <variant>
 
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
+#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
 #include "Interpreter/BuiltinFunctions.hpp"
 #include "Interpreter/CallStack.h"
-#include "Interpreter/InterpreterHelper.hpp"
 #include "Interpreter/RuntimeValue.h"
 #include "Interpreter/ValueEvaluator.hpp"
 #include "Interpreter/Variable.h"
@@ -45,28 +46,32 @@
 // }
 
 std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionBySignature(
-    const std::string_view identifier, const Type& return_type,
-    const std::vector<ParameterDecl>& parameters ) noexcept {
+    const std::string_view identifier, const std::vector<ParameterDecl>& parameters ) noexcept {
   if ( identifier == "write" ) {
     tryAddBuiltinFunction( builtin_functions::buildBuiltinWrite( parameters ) );
   }
-  auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
-    return fun.getIdentifier() == identifier && fun.getReturnType() == return_type && fun.getParameters() == parameters;
-  } );
-  if ( it == functions_.end() ) {
-    return std::nullopt;
+  // auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
+  //   return fun.getIdentifier() == identifier && fun.getParameters() == parameters;
+  // } );
+  // if ( it == functions_.end() ) {
+  //   return std::nullopt;
+  // }
+  // return *it;
+  for ( const auto& fun : functions_ ) {
+    if ( fun.get().getIdentifier() == identifier && fun.get().getParameters() == parameters ) {
+      return fun;
+    }
   }
-  return *it;
+  return std::nullopt;
 }
 
 std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionBySignature(
-    const std::string_view identifier, const Type& return_type, const std::vector<RuntimeValue>& call_args ) noexcept {
+    const std::string_view identifier, const std::vector<RuntimeValue>& call_args ) noexcept {
   if ( identifier == "write" ) {
     tryAddBuiltinFunction( builtin_functions::buildBuiltinWrite( call_args ) );
   }
-  auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
-    return matchFunctionSignature( fun.getParameters(), call_args ) && fun.getReturnType() == return_type;
-  } );
+  auto it = std::ranges::find_if(
+      functions_, [&]( const IFunction& fun ) { return matchFunctionSignature( fun.getParameters(), call_args ); } );
   if ( it == functions_.end() ) {
     return std::nullopt;
   }
@@ -74,14 +79,14 @@ std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment:
 }
 
 bool Interpreter::Environment::tryAddUserFunction( const FunctionDefNode& node ) {
-  if ( getFunctionBySignature( node.getIdentifier(), node.getReturnType(), node.getParameters() ) ) {
+  if ( getFunctionBySignature( node.getIdentifier(), node.getParameters() ) ) {
     return false;
   }
   functions_.push_back( std::ref( node ) );
   return true;
 }
 bool Interpreter::Environment::tryAddBuiltinFunction( BuiltinFunction function ) {
-  if ( getFunctionBySignature( function.getIdentifier(), function.getReturnType(), function.getParameters() ) ) {
+  if ( getFunctionBySignature( function.getIdentifier(), function.getParameters() ) ) {
     return false;
   }
   auto& func_ref = builtin_storage_.emplace_back( std::move( function ) );
@@ -190,10 +195,13 @@ bool Interpreter::Environment::matchFunctionSignature( const std::vector<Paramet
       return false;
     }
     if ( param.getPassMode() == PassMode::REFERENCE ) {
-      std::visit( Overloaded{ []( const RValue& _ ) { throw std::runtime_error( "cannot get reference to rvalue" ); },
-                              []( const LValue& _ ) {}, []( const IndexRef& _ ) {},
-                              []( Void ) { throw std::runtime_error( "cannot pass void as call arg" ); } },
-                  call_arg.peekData() );
+      std::visit(
+          Overloaded{ []( const RValue& _ ) {
+                       throw InvalidAccessException( Position{ 1, 1 }, "cannot get reference to rvalue" );
+                     },
+                      []( const LValue& _ ) {}, []( const IndexRef& _ ) {},
+                      []( Void ) { throw VoidValueException( Position{ 1, 1 }, "cannot pass void as call arg" ); } },
+          call_arg.peekData() );
     }
   }
   return true;
@@ -213,7 +221,7 @@ void Interpreter::Environment::setFlowControlType( ControlFlow control_flow ) no
 
 RuntimeValue Interpreter::getRecentValFromAcc() {
   if ( accumulator_.empty() ) {
-    throw std::runtime_error( "tried fetching from empty accumulator" );
+    throw EmptyAccumulatorException( Position{ 1, 1 }, "tried fetching from empty accumulator" );
   }
   auto value_popped = std::move( accumulator_.top() );
   accumulator_.pop();
@@ -226,46 +234,52 @@ void Interpreter::putValInAcc( RuntimeValue val ) noexcept {
 Variable Interpreter::buildVarFromParam( RuntimeValue& runtime_val, const ParameterDecl& param ) noexcept {
   switch ( param.getPassMode() ) {
     case PassMode::COPY:
+      return std::visit( Overloaded{ [&]( const RValue& val ) -> Variable {
+                                      return Variable{ param.getIdentifier(), param.getType().copy(),
+                                                       param.getMutability(), std::make_shared<Value>( val.copy() ) };
+                                    },
+                                     [&]( const LValue& val ) -> Variable {
+                                       return Variable{ param.getIdentifier(), param.getType().copy(),
+                                                        param.getMutability(),
+                                                        std::make_shared<Value>( val.get().getValue()->copy() ) };
+                                     },
+                                     [&]( const IndexRef& val ) -> Variable {
+                                       return Variable{ param.getIdentifier(), param.getType().copy(),
+                                                        param.getMutability(), std::make_shared<Value>( val->copy() ) };
+                                     },
+                                     [&]( Void ) -> Variable {
+                                       throw VoidValueException( Position{ 1, 1 }, "cannot build variable from void" );
+                                     } },
+                         runtime_val.peekData() );
+    case PassMode::REFERENCE:
       return std::visit(
-          Overloaded{ [&]( const RValue& val ) -> Variable {
-                       return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(),
-                                        std::make_shared<Value>( val.copy() ) };
+          Overloaded{ [&]( const RValue& _ ) -> Variable {
+                       throw InvalidAccessException( Position{ 1, 1 }, "cannot make reference to an rvalue" );
                      },
                       [&]( const LValue& val ) -> Variable {
                         return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(),
-                                         std::make_shared<Value>( val.get().getValue()->copy() ) };
+                                         val.get().getValue() };
                       },
                       [&]( const IndexRef& val ) -> Variable {
-                        return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(),
-                                         std::make_shared<Value>( val->copy() ) };
+                        return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(), val };
                       },
-                      [&]( Void ) -> Variable { throw std::runtime_error( "cannot build variable from void" ); } },
-          runtime_val.peekData() );
-    case PassMode::REFERENCE:
-      return std::visit(
-          Overloaded{
-              [&]( const RValue& _ ) -> Variable { throw std::runtime_error( "cannot make reference to an rvalue" ); },
-              [&]( const LValue& val ) -> Variable {
-                return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(),
-                                 val.get().getValue() };
-              },
-              [&]( const IndexRef& val ) -> Variable {
-                return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(), val };
-              },
-              [&]( Void ) -> Variable { throw std::runtime_error( "cannot build variable from void" ); } },
+                      [&]( Void ) -> Variable {
+                        throw VoidValueException( Position{ 1, 1 }, "cannot build variable from void" );
+                      } },
           runtime_val.peekData() );
   }
 }
 
 void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>& statements,
                                        CallContext::ContextType context_type ) {
-  CallContextGuard cc_guard{ environment_, context_type };
+  CallContextGuard cc_guard{ environment_, context_type, statements.size() };
   for ( const auto& stmt_ptr : statements ) {
     // if ( debug_hook_ ) {
     //   debug_hook_( *this, *stmt_ptr );
     // }
     AccumulatorGuard acc_guard{ accumulator_ };
     stmt_ptr->accept( *this );
+    acc_guard.validate( stmt_ptr->getPosition() );
   }
 }
 
@@ -275,13 +289,15 @@ void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>
 
 */
 
-inline Interpreter::CallContextGuard::CallContextGuard( Environment& env, CallContext::ContextType context_type )
+inline Interpreter::CallContextGuard::CallContextGuard( Environment& env, CallContext::ContextType context_type,
+                                                        size_t expect_variable_count )
     : env_( env ) {
-  env.call_stack_.push( CallContext{ context_type } );
+  env.call_stack_.push( CallContext{ context_type, expect_variable_count } );
 }
-inline Interpreter::CallContextGuard::CallContextGuard( Environment& env, const FunctionDefNode& func_def )
+inline Interpreter::CallContextGuard::CallContextGuard( Environment& env, const FunctionDefNode& func_def,
+                                                        size_t expect_variable_count )
     : env_( env ) {
-  env.call_stack_.push( CallContext{ func_def } );
+  env.call_stack_.push( CallContext{ func_def, expect_variable_count } );
 }
 inline Interpreter::CallContextGuard::~CallContextGuard() {
   env_.call_stack_.pop();
@@ -296,11 +312,14 @@ inline Interpreter::CallContextGuard::~CallContextGuard() {
 Interpreter::AccumulatorGuard::AccumulatorGuard( std::stack<RuntimeValue>& acc ) noexcept
     : acc_( acc ), org_size_( acc.size() ) {
 }
-Interpreter::AccumulatorGuard::~AccumulatorGuard() noexcept {
-  if ( acc_.size() > org_size_ ) {
-    acc_.pop();
+void Interpreter::AccumulatorGuard::validate( Position pos ) {
+  assert( acc_.size() == org_size_ + 1u && "last statement didn't leave value in acc" );
+  if ( !acc_.top().isVoid() ) {
+    throw InvalidStatementException( pos, "last statement was non-void" );
   }
-  assert( acc_.size() == org_size_ && "statement put more than 1 value in acc" );
+}
+Interpreter::AccumulatorGuard::~AccumulatorGuard() noexcept {
+  acc_.pop();
 }
 
 /* Debug Guard
@@ -328,39 +347,48 @@ Interpreter::DebugGuard::~DebugGuard() noexcept {
 */
 
 Interpreter::Interpreter( std::unique_ptr<const ProgramNode> program ) : program_( std::move( program ) ) {
-  if ( !environment_.tryAddBuiltinFunction( BuiltinFunction{
-           Position{ 99999, 99999 }, "read", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
-           [] {
-             std::vector<ParameterDecl> params;
-             params.push_back( ParameterDecl{ "prompt", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
-                                              PassMode::REFERENCE, Mutability::IMMUTABLE } );
-             return params;
-           }(),
-           builtin_functions::read } ) ) {
-    throw std::runtime_error( "couldnt add 'read' to builtin functions" );
+  {
+    bool added_read = environment_.tryAddBuiltinFunction( BuiltinFunction{
+        Position{ 99999, 99999 }, "read", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
+        [] {
+          std::vector<ParameterDecl> params;
+          params.push_back( ParameterDecl{ "prompt", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ), PassMode::COPY,
+                                           Mutability::IMMUTABLE } );
+          return params;
+        }(),
+        builtin_functions::read } );
+    assert( added_read );
   }
-  if ( !environment_.tryAddBuiltinFunction( BuiltinFunction{
-           Position{ 99999, 99999 }, "exit", BaseType::INT,
-           [] {
-             std::vector<ParameterDecl> params;
-             params.push_back( ParameterDecl{ "code", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } );
-             return params;
-           }(),
-           builtin_functions::exit } ) ) {
-    throw std::runtime_error( "couldnt add 'exit' to builtin functions" );
+  {
+    bool added_exit = environment_.tryAddBuiltinFunction( BuiltinFunction{
+        Position{ 99999, 99999 }, "exit", BaseType::INT,
+        [] {
+          std::vector<ParameterDecl> params;
+          params.push_back( ParameterDecl{ "code", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } );
+          return params;
+        }(),
+        builtin_functions::exit } );
+    assert( added_exit );
   }
 }
 
 void Interpreter::execute() {
-  this->program_->accept( *this );
+  static bool was_executed = false;
+  if ( !was_executed ) {
+    this->program_->accept( *this );
+    was_executed = true;
+  } else {
+    throw std::runtime_error( "cannot execute twice" );
+  }
 }
 
 void Interpreter::visit( const FunctionDefNode& node ) {
   DebugGuard dbg_guard{ *this, node };
-  CallContextGuard guard{ environment_, node };
+  CallContextGuard guard{ environment_, node, node.getParameters().size() + node.getBlock().size() };
 
   if ( node.getIdentifier() == "write" ) {
-    throw std::runtime_error( "function 'write' already available for all possible types - cannot overload" );
+    throw InvalidOverloadException( Position{ 1, 1 },
+                                    "function 'write' already available for all possible types - cannot overload" );
   }
 
   std::vector<RuntimeValue> call_args;
@@ -371,18 +399,16 @@ void Interpreter::visit( const FunctionDefNode& node ) {
   std::reverse( call_args.begin(), call_args.end() );
 
   if ( !environment_.matchFunctionSignature( node.getParameters(), call_args ) ) {
-    throw std::runtime_error( "call args don't match function signature" );  // dont trust function call
+    throw FunctionSignatureMismatchException( Position{ 1, 1 },
+                                              "call args don't match function signature" );  // dont trust function call
   }
   for ( const auto& [runtime_value, param] : std::ranges::views::zip( call_args, node.getParameters() ) ) {
     if ( !environment_.tryAddVarOrConst( buildVarFromParam( runtime_value, param ) ) ) {
-      throw std::runtime_error( "shadowing a variable in the same scope" );
+      throw InvalidShadowException( node.getPosition(), "shadowing a variable in the same scope" );
     }
   }
   RuntimeValue ret_val{};
   for ( const auto& stmt : node.getBlock() ) {
-    // if ( debug_hook_ ) {
-    //   debug_hook_( *this, *stmt );
-    // }
     AccumulatorGuard acc_guard{ accumulator_ };
     stmt->accept( *this );
     if ( environment_.getFlowControlType() == Environment::ControlFlow::RETURN ) {
@@ -390,19 +416,20 @@ void Interpreter::visit( const FunctionDefNode& node ) {
       environment_.setFlowControlType( Environment::ControlFlow::NONE );
       break;
     }
+    acc_guard.validate( stmt->getPosition() );
   }
   if ( node.isVoid() ) {
     if ( ret_val ) {
-      throw std::runtime_error( "void function returned value" );
+      throw VoidValueException( Position{ 1, 1 }, "void function returned value" );
     }
     putValInAcc( RuntimeValue{} );
     return;
   }
   if ( !ret_val ) {
-    throw std::runtime_error( "non-void function did not return value" );
+    throw VoidValueException( node.getPosition(), "non-void function did not return value" );
   }
   if ( ret_val.getType() != node.getReturnType() ) {
-    throw std::runtime_error( "returned value does not match function return type" );
+    throw InvalidTypeException( node.getPosition(), "returned value does not match function return type" );
   }
   putValInAcc( std::move( ret_val ) );
 }
@@ -413,16 +440,16 @@ void Interpreter::visit( const VarOrConstDeclNode& node ) {
   node.getInitializerExpr()->accept( *this );
   RuntimeValue runtime_val = getRecentValFromAcc();
   if ( !runtime_val ) {
-    throw std::runtime_error( "cannot assign 'void' to a variable" );
+    throw VoidValueException( node.getPosition(), "cannot assign 'void' to a variable" );
   }
   Value assigned_value = runtime_val.extractValue();
   if ( node.getType() != assigned_value.getValueType() ) {
-    throw std::runtime_error( "initializer value does not match variable type" );
+    throw InvalidTypeException( node.getPosition(), "initializer value does not match variable type" );
   }
   if ( !environment_.tryAddVarOrConst( Variable{ std::string( node.getIdentifier() ), node.getType().copy(),
                                                  node.getMutability(),
                                                  std::make_shared<Value>( assigned_value.copy() ) } ) ) {
-    throw std::runtime_error( "duplicated variable at current scope" );
+    throw InvalidShadowException( node.getPosition(), "duplicated variable at current scope" );
   };
   putValInAcc( RuntimeValue{} );  // decl returns Void
 }
@@ -435,7 +462,7 @@ void Interpreter::visit( const IfStatementNode& node ) {
       RuntimeValue runtime_val = getRecentValFromAcc();
       return runtime_val.evaluateValue<bool>();
     } catch ( const std::bad_variant_access& ) {
-      throw std::runtime_error( "if condition must be type bool" );
+      throw InvalidTypeException( node.getPosition(), "if condition must be type bool" );
     }
   };
 
@@ -463,11 +490,11 @@ void Interpreter::visit( const WhileStatementNode& node ) {
       RuntimeValue runtime_condition_val = getRecentValFromAcc();
       return runtime_condition_val.evaluateValue<bool>();
     } catch ( const std::bad_variant_access& ) {
-      throw std::runtime_error( "while condition must be type bool" );
+      throw InvalidTypeException( node.getCondition()->getPosition(), "while condition must be type bool" );
     }
   };
   while ( evaluate_condition() ) {
-    CallContextGuard guard{ environment_, CallContext::ContextType::WHILE_BLOCK };
+    CallContextGuard guard{ environment_, CallContext::ContextType::WHILE_BLOCK, node.getBlock().size() };
     bool should_break = false;
     for ( const auto& stmt : node.getBlock() ) {
       // if ( debug_hook_ ) {
@@ -475,6 +502,7 @@ void Interpreter::visit( const WhileStatementNode& node ) {
       // }
       AccumulatorGuard acc_guard{ accumulator_ };
       stmt->accept( *this );
+      acc_guard.validate( stmt->getPosition() );
       auto ctrl = environment_.getFlowControlType();
       if ( ctrl != Environment::ControlFlow::NONE ) {
         should_break = ( ctrl == Environment::ControlFlow::BREAK || ctrl == Environment::ControlFlow::RETURN );
@@ -493,7 +521,7 @@ void Interpreter::visit( const ControlFlowNode& node ) {
   DebugGuard dbg_guard{ *this, node };
 
   if ( !environment_.isStateInWhileLoop() ) {
-    throw std::runtime_error( "loop control not in a loop" );
+    throw InvalidStatementException( node.getPosition(), "loop control not in a loop" );
   }
   switch ( node.getControlFlowType() ) {
     case ControlFlowType::BREAK: environment_.setFlowControlType( Environment::ControlFlow::BREAK ); break;
@@ -506,7 +534,7 @@ void Interpreter::visit( const ReturnNode& node ) {
   DebugGuard dbg_guard{ *this, node };
 
   if ( !environment_.isStateInFunctionBody() ) {
-    throw std::runtime_error( "return statement not in a function" );
+    throw InvalidStatementException( node.getPosition(), "return statement not in a function" );
   }
   if ( !node.getExpression() ) {
     putValInAcc( RuntimeValue{} );
@@ -526,20 +554,16 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
   auto right_val_from_acc = getRecentValFromAcc();
 
   if ( left_val_from_acc.getType() != right_val_from_acc.getType() ) {
-    throw std::runtime_error( "assignment operand must match type" );
+    throw InvalidTypeException( node.getPosition(), "assignment operand must match type" );
   }
   if ( !left_val_from_acc.isAssignableTo() ) {
-    throw std::runtime_error( "cannot assign to immutable value" );
+    throw InvalidAccessException( node.getLeftOperand()->getPosition(), "cannot assign to immutable value" );
   }
-  Value& val_assigned_to = [&]( const auto& rt_val_ins ) -> Value& {
-    using T = std::decay_t<decltype( rt_val_ins )>;
-    if constexpr ( std::is_same_v<T, LValue> ) {
-      return rt_val_ins.get().getValue();
-    } else if constexpr ( std::is_same_v<T, IndexRef> ) {
-      return *rt_val_ins;
-    }
-    throw std::runtime_error( "check type failed" );
-  }( left_val_from_acc );
+  Value& val_assigned_to =
+      std::visit( Overloaded{ []( const LValue& val ) -> Value& { return *( val.get().getValue() ); },
+                              []( const IndexRef& iref ) -> Value& { return *iref; },
+                              []( const auto& ) -> Value& { std::unreachable(); } },
+                  left_val_from_acc.peekData() );
 
   Value val_assigned_from = right_val_from_acc.extractValue();
 
@@ -569,7 +593,7 @@ void Interpreter::visit( const BinaryExprNode& node ) {
   RuntimeValue right_operand_rt_val = getRecentValFromAcc();
 
   if ( left_operand_rt_val.getType() != right_operand_rt_val.getType() ) {
-    throw std::runtime_error( "type mismatch in binary expr" );
+    throw InvalidTypeException( node.getPosition(), "type mismatch in binary expr" );
   }
   Value l_operand = left_operand_rt_val.extractValue();
   Value r_operand = right_operand_rt_val.extractValue();
@@ -598,20 +622,24 @@ void Interpreter::visit( const BinaryExprNode& node ) {
       putValInAcc( RuntimeValue{ ValueEvaluator::evaluateRelational( l_operand, r_operand, std::greater_equal<>{} ) } );
       return;
     case BinaryOperator::ADD:
-      putValInAcc( RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, std::plus<>{} ) } );
+      putValInAcc(
+          RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, ValueEvaluator::NumericOp::ADD ) } );
       return;
     case BinaryOperator::SUB:
-      putValInAcc( RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, std::minus<>{} ) } );
+      putValInAcc(
+          RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, ValueEvaluator::NumericOp::SUB ) } );
       return;
     case BinaryOperator::MUL:
-      putValInAcc( RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, std::multiplies<>{} ) } );
+      putValInAcc(
+          RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, ValueEvaluator::NumericOp::MUL ) } );
       return;
     case BinaryOperator::DIV:
-      putValInAcc( RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, std::divides<>{} ) } );
+      putValInAcc(
+          RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, ValueEvaluator::NumericOp::DIV ) } );
       return;
     case BinaryOperator::MOD:
       putValInAcc(
-          RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, ValueEvaluator::FmodModulus{} ) } );
+          RuntimeValue{ ValueEvaluator::evaluateNumeric( l_operand, r_operand, ValueEvaluator::NumericOp::MOD ) } );
       return;
     case BinaryOperator::CONCAT:
       putValInAcc( RuntimeValue{ ValueEvaluator::evaluateArrOp( l_operand, r_operand, ArrayBinaryOperator::CONCAT ) } );
@@ -631,7 +659,7 @@ void Interpreter::visit( const UnaryExprNode& node ) {
   node.getOperand()->accept( *this );
   RuntimeValue operand_rt_val = getRecentValFromAcc();
   if ( !operand_rt_val ) {
-    throw std::runtime_error( "cannot perform unary op on void" );
+    throw VoidValueException( node.getPosition(), "cannot perform unary op on void" );
   }
   Value operand_val = operand_rt_val.extractValue();
   putValInAcc( RuntimeValue{ ValueEvaluator::evaluateUnaryOp( operand_val, node.getOperator() ) } );
@@ -643,7 +671,7 @@ void Interpreter::visit( const CastExprNode& node ) {
   node.getExpression()->accept( *this );
   RuntimeValue operand_rt_val = getRecentValFromAcc();
   if ( !operand_rt_val ) {
-    throw std::runtime_error( "cannot cast void" );
+    throw VoidValueException( node.getPosition(), "cannot cast void" );
   }
   Value operand_val = operand_rt_val.extractValue();
   putValInAcc( RuntimeValue{ ValueEvaluator::evaluateCastOp( operand_val, node.getType() ) } );
@@ -655,7 +683,7 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
   node.getExpression().accept( *this );
   RuntimeValue runtime_val = getRecentValFromAcc();
   if ( !std::holds_alternative<ArrayType>( runtime_val.getType().internal_ ) ) {
-    throw std::runtime_error( "array identifier op's are only available on array types" );
+    throw InvalidTypeException( node.getPosition(), "array identifier op's are only available on array types" );
   }
   Value val_inside = runtime_val.extractValue();
   auto& arr_inside = std::get<Value::ArrayValue>( val_inside.getData() );
@@ -670,15 +698,19 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
   Value::ArrayValue new_arr;
   new_arr.reserve( arr_inside.size() );
 
+  auto func = environment_.getFunctionBySignature( node.getIdentifier(), mock_call_args );
+  if ( !func ) {
+    throw InvalidAccessException( node.getPosition(), "no compatible function found" );
+  }
+  auto& actual_func = func.value().get();
+
   switch ( node.getType() ) {
     case ArrayIdentifierOpType::FILTER: {  // arr<T> -> bool foo(T) -> arr<T>/c
-      auto func = environment_.getFunctionBySignature( node.getIdentifier(), BaseType::BOOL, mock_call_args );
-      if ( !func ) {
-        throw std::runtime_error( "no compatible function found" );
-      }
-      auto& actual_func = func.value().get();
+
       if ( actual_func.getReturnType() != BaseType::BOOL ) {
-        throw std::runtime_error( "operator filter requires function with signature 'bool foo(T)'" );
+        throw InvalidTypeException(
+            node.getPosition(),
+            "operator filter requires function to return type 'bool' (note: signature 'bool foo(T)')" );
       }
       for ( const auto& arg : arr_inside ) {
         putValInAcc( RuntimeValue{ arg.copy() } );
@@ -708,13 +740,13 @@ void Interpreter::visit( const FunctionCallNode& node ) {
     call_arg_decl->accept( *this );
     RuntimeValue arg_val = getRecentValFromAcc();
     if ( !arg_val ) {
-      throw std::runtime_error( "'void' is not a valid call arg" );
+      throw VoidValueException( call_arg_decl->getPosition(), "'void' is not a valid call arg" );
     }
     call_args.push_back( std::move( arg_val ) );
   }
   auto fun = environment_.getFunctionBySignature( node.getIdentifier(), call_args );
   if ( !fun ) {
-    throw std::runtime_error( "no matching function found" );
+    throw UnknownIdentifierException( node.getPosition(), "no matching function found" );
   }
   fun.value().get().accept( *this );
   // std::visit( Overloaded{ [&]( std::reference_wrapper<const FunctionDefNode> fun_def_node ) {
@@ -738,25 +770,26 @@ void Interpreter::visit( const FunctionCallNode& node ) {
 void Interpreter::visit( const ArrayLiteralNode& node ) {
   DebugGuard dbg_guard{ *this, node };
 
-  assert( node.getPositions().size() > 0 && "empty literal is illegal" );
+  assert( node.getPositions().size() > 0 && "empty literal is illegal [parser]" );
   std::vector<Value> array_positions;
   array_positions.reserve( node.getPositions().size() );
   node.getPositions()[0]->accept( *this );
   RuntimeValue first_val = getRecentValFromAcc();
   if ( !first_val ) {
-    throw std::runtime_error( "array literal position cannot be void" );
+    throw VoidValueException( node.getPositions()[0]->getPosition(), "array literal position cannot be void" );
   }
   const Type& deduced_type = first_val.getType();
   array_positions.push_back( first_val.extractValue() );
 
   for ( auto i = 1u; i < node.getPositions().size(); ++i ) {
-    node.getPositions()[i]->accept( *this );
+    const auto& initializer_expr = node.getPositions()[i];
+    initializer_expr->accept( *this );
     RuntimeValue nth_value = getRecentValFromAcc();
     if ( !nth_value ) {
-      throw std::runtime_error( "array literal n cannot be void" );
+      throw VoidValueException( initializer_expr->getPosition(), "array literal n cannot be void" );
     }
     if ( nth_value.getType() != deduced_type ) {
-      throw std::runtime_error( "array must be homogenous" );
+      throw InvalidTypeException( initializer_expr->getPosition(), "array must be homogenous" );
     }
     array_positions.push_back( nth_value.extractValue() );
   }
@@ -775,21 +808,25 @@ void Interpreter::visit( const PrimaryIdentifierNode& node ) {
 
   auto var = environment_.getVarByName( node.getIdentifier() );
   if ( !var ) {
-    throw std::runtime_error( "usage of unknown variable" );
+    throw UnknownIdentifierException( node.getPosition(), "usage of unknown variable" );
   }
   putValInAcc( RuntimeValue{ var->get() } );
 }
 
 void Interpreter::visit( const ProgramNode& node ) {
-  DebugGuard dbg_guard{ *this, node };
+  {
+    DebugGuard dbg_guard{ *this, node };
 
-  for ( const auto& func_def_ptr : node.getFunctionList() ) {
-    if ( !environment_.tryAddUserFunction( *func_def_ptr ) ) {
-      throw std::runtime_error( "duplicated function signature" );
+    for ( const auto& func_def_ptr : node.getFunctionList() ) {
+      if ( !environment_.tryAddUserFunction( *func_def_ptr ) ) {
+        throw InvalidOverloadException( node.getPosition(), "duplicated function signature" );
+      }
     }
+    handleStatementList( node.getStatementList(), CallContext::ContextType::TOP_LEVEL );
   }
-  handleStatementList( node.getStatementList(), CallContext::ContextType::TOP_LEVEL );
-  throw std::runtime_error( "check if call stack and acc empty after program execution" );
+  // throw std::runtime_error( "check if call stack and acc empty after program execution" );
+  //@TODO maybe check if call stack is empty
+  assert( accumulator_.empty() && "acc should be empty after program ends" );
 }
 
 void Interpreter::visit( const BuiltinFunction& node ) {

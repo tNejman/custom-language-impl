@@ -9,7 +9,8 @@
 #include <variant>
 #include <vector>
 
-#include "Drivers/Formatter.hpp"  // IWYU pragma: keep
+#include "Drivers/Formatter.hpp"                                              // IWYU pragma: keep
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"  // IWYU pragma: keep
 #include "Interpreter/RuntimeValue.h"
 #include "Parser/IFunction.hpp"
 #include "Parser/ParameterDecl.hpp"
@@ -30,7 +31,7 @@ class BuiltinFunction : public IFunction {
     assert( mapped_function_ != nullptr );
   }
   BuiltinFunction( BuiltinFunction&& other )
-      : IFunction( std::move( other ) ), mapped_function_( other.mapped_function_ ) {
+      : IFunction( std::move( other ) ), mapped_function_( std::move( other.mapped_function_ ) ) {
   }
   [[nodiscard]] BuiltinFunctionActionP getMappedFunction() const noexcept {
     return mapped_function_;
@@ -83,7 +84,8 @@ inline std::optional<Value> write( const std::vector<Value>& args ) {
 
 inline std::optional<Value> read( const std::vector<Value>& args ) {
   if ( args.size() != 1 || !builtin_functions_helper::isValueCharVector( args[0] ) ) {
-    throw std::runtime_error( "function read() may accept (char, char, ...) or (char[]) only as prompt" );
+    throw FunctionSignatureMismatchException(
+        Position{ 1, 1 }, "function read() may accept (char, char, ...) or (char[]) only as prompt" );
   }
   std::string input;
   std::cin >> input;
@@ -92,7 +94,8 @@ inline std::optional<Value> read( const std::vector<Value>& args ) {
 
 inline std::optional<Value> exit( const std::vector<Value>& args ) {
   if ( args.size() != 1 || !builtin_functions_helper::isValueInt( args[0] ) ) {
-    throw std::runtime_error(
+    throw FunctionSignatureMismatchException(
+        Position{ 1, 1 },
         "incompatible call with signature; note: function exit() accepts only one int (code) as arg" );
   }
   throw builtin_functions_helper::ExitException( std::get<int>( args[0].getData() ) );

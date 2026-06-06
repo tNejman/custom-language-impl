@@ -197,14 +197,14 @@ TEST_F( ParserOperatorsTest, access_map ) {
   std::vector<TokenInitializer> init = {
       { TokenType::IDENTIFIER, "x" }, TokenType::OP_MAP, { TokenType::IDENTIFIER, "y" }, TokenType::NEWLINE };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{x -> y}}", std::move( res ) );
+  EXPECT_EQ( "{{x MAP y}}", std::move( res ) );
 }
 
 TEST_F( ParserOperatorsTest, access_filter ) {
   std::vector<TokenInitializer> init = {
       { TokenType::IDENTIFIER, "x" }, TokenType::OP_FILTER, { TokenType::IDENTIFIER, "y" }, TokenType::NEWLINE };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{x ? y}}", std::move( res ) );
+  EXPECT_EQ( "{{x FILTER y}}", std::move( res ) );
 }
 
 TEST_F( ParserOperatorsTest, logical_before_assignment ) {
@@ -404,7 +404,7 @@ TEST_F( ParserOperatorsTest, operaor_map_chain ) {
       { TokenType::IDENTIFIER, "foo2" }, { TokenType::NEWLINE },
   };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{{arr -> foo1} -> foo2}}", std::move( res ) );
+  EXPECT_EQ( "{{{arr MAP foo1} MAP foo2}}", std::move( res ) );
 }
 
 TEST_F( ParserOperatorsTest, operaor_filter_chain ) {
@@ -413,7 +413,7 @@ TEST_F( ParserOperatorsTest, operaor_filter_chain ) {
       { TokenType::OP_FILTER },         { TokenType::IDENTIFIER, "foo2" }, { TokenType::NEWLINE },
   };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{{arr ? foo1} ? foo2}}", std::move( res ) );
+  EXPECT_EQ( "{{{arr FILTER foo1} FILTER foo2}}", std::move( res ) );
 }
 
 TEST_F( ParserOperatorsTest, operator_access_chain ) {
@@ -440,7 +440,7 @@ TEST_F( ParserOperatorsTest, mixed_access_operator_chain ) {
                                          { TokenType::IDENTIFIER, "k" },
                                          TokenType::NEWLINE };
   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-  EXPECT_EQ( "{{{{x[y]} -> z} ? k}}", std::move( res ) );
+  EXPECT_EQ( "{{{{x[y]} MAP z} FILTER k}}", std::move( res ) );
 }
 
 TEST_F( ParserOperatorsTest, additive_left_associativity ) {

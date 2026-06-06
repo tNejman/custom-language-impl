@@ -1,4 +1,4 @@
-add_library(Interpreter
+add_library(Interpreter STATIC
     CallStack.cc
     Interpreter.cc
     RuntimeValue.cc

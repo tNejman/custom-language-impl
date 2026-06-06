@@ -40,5 +40,5 @@ void Variable::setValue( std::shared_ptr<Value> new_val ) noexcept {
 
 [[nodiscard]] bool Variable::operator==( const Variable& other ) const noexcept {
   return this->identifier_ == other.identifier_ && this->type_ == other.type_ && this->mutability_ == other.mutability_
-         && this->value_ == other.value_;
+         && *( this->value_ ) == *( other.value_ );
 }

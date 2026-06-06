@@ -4,6 +4,7 @@
 #include <optional>
 #include <variant>
 
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
 #include "Interpreter/Variable.h"
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
@@ -37,6 +38,7 @@ struct RuntimeValue {
   Value copyValue() const noexcept;
   Value extractValue();
   Type getType() const noexcept;
+  bool isVoid() const noexcept;
 
   template <typename TypeExtracted>
   TypeExtracted evaluateValue() const {
@@ -47,7 +49,9 @@ struct RuntimeValue {
               return std::get<TypeExtracted>( ( *( var.get().getValue() ) ).getData() );
             },
             []( const IndexRef& i_ref ) -> TypeExtracted { return std::get<TypeExtracted>( i_ref->getData() ); },
-            []( const Void& ) -> TypeExtracted { throw std::runtime_error( "tried extracting void value" ); } },
+            []( const Void& ) -> TypeExtracted {
+              throw VoidValueException( Position{ 1, 1 }, "tried extracting void value" );
+            } },
         data_ );
   }
 };
