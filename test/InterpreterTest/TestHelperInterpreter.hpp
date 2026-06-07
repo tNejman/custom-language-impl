@@ -4,7 +4,6 @@
 
 #include <print>
 
-
 // #include "MockParser.hpp"
 #include "Interpreter/CallStack.h"
 #include "Interpreter/Interpreter.h"
@@ -46,6 +45,9 @@ class InterpreterTestFriend {
     auto& environment = env( i );
     environment.call_stack_.push( CallContext{ context_type, expect_variable_count } );
   }
+  static void addMockCallArg( Interpreter& i, Value v ) {
+    acc( i ).push( RuntimeValue{ std::move( v ) } );
+  }
 };
 
 using ITF = InterpreterTestFriend;
@@ -73,8 +75,10 @@ void assertAccSize( Interpreter& i, size_t expected_size ) {
 void assertAccTopVal( Interpreter& i, bool is_void, const auto& val ) {
   const auto& acc = ITF::acc( i );
   ASSERT_EQ( is_void, acc.top().isVoid() );
-  std::print( "\n\n\n{}, {}\n\n\n", acc.top().copyValue(), val );
-  ASSERT_EQ( acc.top().copyValue(), val );
+  // std::print( "\n\n\n{}, {}\n\n\n", acc.top().copyValue(), val );
+  if ( !is_void ) {
+    ASSERT_EQ( acc.top().copyValue(), val );
+  }
 }
 
 void assertTopCallContextVarCount( Interpreter& i, size_t expected_count ) {
@@ -118,6 +122,7 @@ void assertTopCallContextVarCount( Interpreter& i, size_t expected_count ) {
 
 #define MAKE_BREAK() std::make_unique<ControlFlowNode>( Position{ 1, 1 }, ControlFlowType::BREAK )
 #define MAKE_CONTINUE() std::make_unique<ControlFlowNode>( Position{ 1, 1 }, ControlFlowType::CONTINUE )
+#define MAKE_RETURN( ret_val ) std::make_unique<ReturnNode>( Position{ 1, 1 }, ret_val )
 
 template <typename Container, typename... Args>
 Container makeContainer( Args&&... args ) {

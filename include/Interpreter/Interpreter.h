@@ -70,7 +70,7 @@ class Interpreter : public Visitor {
     bool isStateInFunctionBody() const noexcept;
 
     bool matchFunctionSignature( const std::vector<ParameterDecl>& params,
-                                 const std::vector<RuntimeValue>& call_args ) const noexcept;
+                                 const std::vector<RuntimeValue>& call_args ) const;
 
     ControlFlow getFlowControlType() const noexcept;
     void setFlowControlType( ControlFlow ) noexcept;
@@ -84,7 +84,7 @@ class Interpreter : public Visitor {
   RuntimeValue getRecentValFromAcc();
   void putValInAcc( RuntimeValue acc_val ) noexcept;
 
-  Variable buildVarFromParam( RuntimeValue& runtime_val, const ParameterDecl& param ) noexcept;
+  Variable buildVarFromParam( RuntimeValue& runtime_val, const ParameterDecl& param );
 
   void handleStatementList( const std::vector<std::unique_ptr<INode>>&, CallContext::ContextType context_type );
 

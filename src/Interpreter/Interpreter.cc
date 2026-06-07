@@ -184,22 +184,30 @@ bool Interpreter::Environment::isStateInFunctionBody() const noexcept {
 }
 
 bool Interpreter::Environment::matchFunctionSignature( const std::vector<ParameterDecl>& params,
-                                                       const std::vector<RuntimeValue>& call_args ) const noexcept {
+                                                       const std::vector<RuntimeValue>& call_args ) const {
   if ( params.size() != call_args.size() ) {
     return false;
   }
   for ( auto&& [param, call_arg] : std::views::zip( params, call_args ) ) {
-    if ( param.getMutability() != call_arg.getMutability() || param.getType() != call_arg.getType() ) {
+    if ( param.getType() != call_arg.getType() ) {
       return false;
     }
+
+    if ( param.getPassMode() != PassMode::COPY ) {
+      if ( param.getMutability() == Mutability::MUTABLE && call_arg.getMutability() != Mutability::MUTABLE ) {
+        return false;
+      }
+    }
+
     if ( param.getPassMode() == PassMode::REFERENCE ) {
-      std::visit(
-          Overloaded{ []( const RValue& _ ) {
-                       throw InvalidAccessException( Position{ 1, 1 }, "cannot get reference to rvalue" );
-                     },
-                      []( const LValue& _ ) {}, []( const IndexRef& _ ) {},
-                      []( Void ) { throw VoidValueException( Position{ 1, 1 }, "cannot pass void as call arg" ); } },
-          call_arg.peekData() );
+      bool is_valid_ref =
+          std::visit( Overloaded{ []( const RValue& ) { return false; }, []( const LValue& ) { return true; },
+                                  []( const IndexRef& ) { return true; }, []( Void ) { return false; } },
+                      call_arg.peekData() );
+
+      if ( !is_valid_ref ) {
+        return false;
+      }
     }
   }
   return true;
@@ -229,7 +237,7 @@ void Interpreter::putValInAcc( RuntimeValue val ) noexcept {
   accumulator_.push( std::move( val ) );
 }
 
-Variable Interpreter::buildVarFromParam( RuntimeValue& runtime_val, const ParameterDecl& param ) noexcept {
+Variable Interpreter::buildVarFromParam( RuntimeValue& runtime_val, const ParameterDecl& param ) {
   switch ( param.getPassMode() ) {
     case PassMode::COPY:
       return std::visit( Overloaded{ [&]( const RValue& val ) -> Variable {
@@ -278,7 +286,7 @@ void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>
     // }
     AccumulatorGuard acc_guard{ accumulator_ };
     stmt_ptr->accept( *this );
-    if (environment_.getFlowControlType() != Environment::ControlFlow::NONE) {
+    if ( environment_.getFlowControlType() != Environment::ControlFlow::NONE ) {
       break;
     }
     acc_guard.validate( stmt_ptr->getPosition() );
@@ -542,13 +550,14 @@ void Interpreter::visit( const ReturnNode& node ) {
   if ( !environment_.isStateInFunctionBody() ) {
     throw InvalidStatementException( node.getPosition(), "return statement not in a function" );
   }
+  environment_.setFlowControlType( Environment::ControlFlow::RETURN );
+
   if ( !node.getExpression() ) {
     putValInAcc( RuntimeValue{} );
     return;
   }
   node.getExpression()->accept( *this );
   // evaluated ret may just rest in acc; even void; caller catches
-  environment_.setFlowControlType( Environment::ControlFlow::RETURN );
 }
 
 void Interpreter::visit( const AssignmentExprNode& node ) {
@@ -559,6 +568,12 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
   node.getRightOperand()->accept( *this );
   auto right_val_from_acc = getRecentValFromAcc();
 
+  if ( !left_val_from_acc ) {
+    throw VoidValueException( node.getLeftOperand()->getPosition(), "cannot assign to void" );
+  }
+  if ( !right_val_from_acc ) {
+    throw VoidValueException( node.getLeftOperand()->getPosition(), "cannot assign void" );
+  }
   if ( left_val_from_acc.getType() != right_val_from_acc.getType() ) {
     throw NotAllowedTypeException( node.getPosition(), "assignment operand must match type" );
   }
@@ -578,18 +593,23 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
     case AssignmentType::ADD_ASSIGN:
       val_assigned_to =
           ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::ADD );
+      break;
     case AssignmentType::SUB_ASSIGN:
       val_assigned_to =
           ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::SUB );
+      break;
     case AssignmentType::MUL_ASSIGN:
       val_assigned_to =
           ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::MUL );
+      break;
     case AssignmentType::DIV_ASSIGN:
       val_assigned_to =
           ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::DIV );
+      break;
     case AssignmentType::MOD_ASSIGN:
       val_assigned_to =
           ValueEvaluator::evaluateNumeric( val_assigned_to, val_assigned_from, ValueEvaluator::NumericOp::MOD );
+      break;
   }
   putValInAcc( RuntimeValue{} );
 }
