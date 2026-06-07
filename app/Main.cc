@@ -1,6 +1,9 @@
 #include <fstream>
 #include <iostream>
 
+#include "Exceptions/InterpreterExceptions/_InterpreterException.hpp"
+#include "Exceptions/LexerExceptions/_LexerException.hpp"
+#include "Exceptions/ParserExceptions/_ParserException.hpp"
 #include "Interpreter/Interpreter.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
@@ -25,9 +28,18 @@ int main( int argc, char* argv[] ) {
 
     Interpreter interpreter( std::move( program ) );
     interpreter.execute();
-  } catch ( const std::exception& e ) {
-    std::cerr << "Error: " << e.what() << "\n";
+  } catch ( const LexerException& e ) {
+    std::cerr << e.what() << "\n";
     return 1;
+  } catch ( const ParserException& e ) {
+    std::cerr << e.what() << "\n";
+    return 1;
+  } catch ( const InterpreterException& e ) {
+    std::cerr << e.what() << "\n";
+    return 1;
+  } catch ( ... ) {
+    std::cerr << "unknown error" << "\n";
+    return 2;
   }
 
   return 0;
