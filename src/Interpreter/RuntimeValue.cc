@@ -17,6 +17,9 @@ RuntimeValue::RuntimeValue( std::reference_wrapper<Value> val, Mutability mut ) 
 }
 RuntimeValue::RuntimeValue() noexcept : mutability_( Mutability::IMMUTABLE ), data_( Void{} ) {
 }
+extern "C" const char* __asan_default_options() {
+  return "detect_container_overflow=0";
+}
 RuntimeValue::RuntimeValue( RuntimeValue&& other ) noexcept
     : mutability_( other.mutability_ ), data_( std::move( other.data_ ) ) {
 }
@@ -68,10 +71,10 @@ Type RuntimeValue::getType() const noexcept {
                      data_ );
 }
 bool RuntimeValue::isVoid() const noexcept {
-  std::visit( Overloaded{ []( const RValue& val ) { std::println( "\nrval: {}\n", val.copy() ); },
-                          []( const LValue& val ) { std::println( "\nlvavl: {}\n", val.get().getValue()->copy() ); },
-                          []( const IndexRef& val ) { std::println( "\niref: {}\n", val.get().copy() ); },
-                          []( Void ) { std::println( "\nVOID\n" ); } },
-              data_ );
+  // std::visit( Overloaded{ []( const RValue& val ) { std::println( "\nrval: {}\n", val.copy() ); },
+  //                         []( const LValue& val ) { std::println( "\nlvavl: {}\n", val.get().getValue()->copy() ); },
+  //                         []( const IndexRef& val ) { std::println( "\niref: {}\n", val.get().copy() ); },
+  //                         []( Void ) { std::println( "\nVOID\n" ); } },
+  //             data_ );
   return std::holds_alternative<Void>( data_ );
 }

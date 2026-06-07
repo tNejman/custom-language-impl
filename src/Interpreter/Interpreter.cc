@@ -68,8 +68,9 @@ std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment:
   if ( identifier == "write" ) {
     tryAddBuiltinFunction( builtin_functions::buildBuiltinWrite( call_args ) );
   }
-  auto it = std::ranges::find_if(
-      functions_, [&]( const IFunction& fun ) { return matchFunctionSignature( fun.getParameters(), call_args ); } );
+  auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
+    return matchFunctionSignature( fun.getParameters(), call_args ) && fun.getIdentifier() == identifier;
+  } );
   if ( it == functions_.end() ) {
     return std::nullopt;
   }
@@ -83,12 +84,17 @@ bool Interpreter::Environment::tryAddUserFunction( const FunctionDefNode& node )
   functions_.push_back( std::ref( node ) );
   return true;
 }
+
 bool Interpreter::Environment::tryAddBuiltinFunction( BuiltinFunction function ) {
-  if ( getFunctionBySignature( function.getIdentifier(), function.getParameters() ) ) {
+  const auto& id = function.getIdentifier();
+  const auto& params = function.getParameters();
+  auto it = std::ranges::find_if(
+      functions_, [&]( const IFunction& fun ) { return fun.getIdentifier() == id && fun.getParameters() == params; } );
+  if ( it != functions_.end() ) {
     return false;
   }
-  auto& func_ref = builtin_storage_.emplace_back( std::move( function ) );
-  functions_.push_back( func_ref );
+  builtin_storage_.emplace_back( std::move( function ) );
+  functions_.push_back( builtin_storage_.back() );
   return true;
 }
 
@@ -284,7 +290,7 @@ void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>
     // if ( debug_hook_ ) {
     //   debug_hook_( *this, *stmt_ptr );
     // }
-    AccumulatorGuard acc_guard{ accumulator_ };
+    AccumulatorGuard acc_guard{ accumulator_, environment_ };
     stmt_ptr->accept( *this );
     if ( environment_.getFlowControlType() != Environment::ControlFlow::NONE ) {
       break;
@@ -321,8 +327,8 @@ inline Interpreter::CallContextGuard::~CallContextGuard() {
 
 */
 
-Interpreter::AccumulatorGuard::AccumulatorGuard( std::stack<RuntimeValue>& acc ) noexcept
-    : acc_( acc ), org_size_( acc.size() ) {
+Interpreter::AccumulatorGuard::AccumulatorGuard( std::stack<RuntimeValue>& acc, Environment& e ) noexcept
+    : acc_( acc ), e_( e ), org_size_( acc.size() ) {
 }
 void Interpreter::AccumulatorGuard::validate( Position pos ) {
   assert( acc_.size() == org_size_ + 1u && "last statement didn't leave value in acc" );
@@ -331,7 +337,7 @@ void Interpreter::AccumulatorGuard::validate( Position pos ) {
   }
 }
 Interpreter::AccumulatorGuard::~AccumulatorGuard() noexcept {
-  if ( !acc_.empty() ) {
+  if ( !acc_.empty() && e_.getFlowControlType() != Environment::ControlFlow::RETURN ) {
     acc_.pop();
   }
 }
@@ -362,26 +368,14 @@ Interpreter::DebugGuard::~DebugGuard() noexcept {
 
 Interpreter::Interpreter( std::unique_ptr<const ProgramNode> program ) : program_( std::move( program ) ) {
   {
-    bool added_read = environment_.tryAddBuiltinFunction( BuiltinFunction{
-        Position{ 99999, 99999 }, "read", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
-        [] {
-          std::vector<ParameterDecl> params;
-          params.push_back( ParameterDecl{ "prompt", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ), PassMode::COPY,
-                                           Mutability::IMMUTABLE } );
-          return params;
-        }(),
-        builtin_functions::read } );
+    bool added_read = environment_.tryAddBuiltinFunction(
+        BuiltinFunction{ Position{ 99999, 99999 }, "read", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
+                         std::vector<ParameterDecl>(), builtin_functions::read } );
     assert( added_read );
   }
   {
     bool added_exit = environment_.tryAddBuiltinFunction( BuiltinFunction{
-        Position{ 99999, 99999 }, "exit", BaseType::INT,
-        [] {
-          std::vector<ParameterDecl> params;
-          params.push_back( ParameterDecl{ "code", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } );
-          return params;
-        }(),
-        builtin_functions::exit } );
+        Position{ 99999, 99999 }, "exit", BaseType::INT, std::vector<ParameterDecl>(), builtin_functions::exit } );
     assert( added_exit );
   }
 }
@@ -423,7 +417,7 @@ void Interpreter::visit( const FunctionDefNode& node ) {
   }
   RuntimeValue ret_val{};
   for ( const auto& stmt : node.getBlock() ) {
-    AccumulatorGuard acc_guard{ accumulator_ };
+    AccumulatorGuard acc_guard{ accumulator_, environment_ };
     stmt->accept( *this );
     if ( environment_.getFlowControlType() == Environment::ControlFlow::RETURN ) {
       ret_val = getRecentValFromAcc();
@@ -457,8 +451,15 @@ void Interpreter::visit( const VarOrConstDeclNode& node ) {
     throw VoidValueException( node.getPosition(), "cannot assign 'void' to a variable" );
   }
   Value assigned_value = runtime_val.extractValue();
+
   if ( node.getType() != assigned_value.getValueType() ) {
-    throw NotAllowedTypeException( node.getPosition(), "initializer value does not match variable type" );
+    bool is_init_void_array = std::holds_alternative<Value::ArrayValue>( assigned_value.getData() )
+                              && std::holds_alternative<BaseType>( assigned_value.getValueType().internal_ )
+                              && std::get<BaseType>( assigned_value.getValueType().internal_ ) == BaseType::VOID;
+
+    if ( !is_init_void_array ) {
+      throw NotAllowedTypeException( node.getPosition(), "initializer value does not match variable type" );
+    }
   }
   if ( !environment_.tryAddVarOrConst( Variable{ std::string( node.getIdentifier() ), node.getType().copy(),
                                                  node.getMutability(),
@@ -514,7 +515,7 @@ void Interpreter::visit( const WhileStatementNode& node ) {
       // if ( debug_hook_ ) {
       //   debug_hook_( *this, *stmt );
       // }
-      AccumulatorGuard acc_guard{ accumulator_ };
+      AccumulatorGuard acc_guard{ accumulator_, environment_ };
       stmt->accept( *this );
       acc_guard.validate( stmt->getPosition() );
       auto ctrl = environment_.getFlowControlType();
@@ -557,7 +558,8 @@ void Interpreter::visit( const ReturnNode& node ) {
     return;
   }
   node.getExpression()->accept( *this );
-  // evaluated ret may just rest in acc; even void; caller catches
+  auto pushed_val = getRecentValFromAcc();  // extract val to avoid returning reference to local
+  putValInAcc( RuntimeValue{ pushed_val.extractValue() } );
 }
 
 void Interpreter::visit( const AssignmentExprNode& node ) {
@@ -641,8 +643,8 @@ void Interpreter::visit( const BinaryExprNode& node ) {
       return right_operand_rt_val.extractValue();
     }
   }();
-  std::println( "\nlop binexpr:{}\n", l_operand );
-  std::println( "\nrop binexpr:{}\n", r_operand );
+  // std::println( "\nlop binexpr:{}\n", l_operand );
+  // std::println( "\nrop binexpr:{}\n", r_operand );
 
   switch ( node.getOperator() ) {
     case BinaryOperator::AND: {
@@ -765,6 +767,7 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
           new_arr.push_back( arg.copy() );
         }
       }
+      break;
     }
     case ArrayIdentifierOpType::MAP: {
       for ( const auto& arg : arr_inside ) {
@@ -772,6 +775,7 @@ void Interpreter::visit( const ArrayIdentifierOpNode& node ) {
         actual_func.accept( *this );
         new_arr.push_back( getRecentValFromAcc().extractValue() );
       }
+      break;
     }
   }
   putValInAcc( RuntimeValue{ std::move( new_arr ) } );
@@ -794,22 +798,10 @@ void Interpreter::visit( const FunctionCallNode& node ) {
   if ( !fun ) {
     throw UnknownIdentifierException( node.getPosition(), "no matching function found" );
   }
+  for ( auto& arg : call_args ) {
+    putValInAcc( std::move( arg ) );
+  }
   fun.value().get().accept( *this );
-  // std::visit( Overloaded{ [&]( std::reference_wrapper<const FunctionDefNode> fun_def_node ) {
-  //                          for ( auto& call_arg_val : call_args ) {
-  //                            putValInAcc( std::move( call_arg_val ) );
-  //                          }
-  //                          fun_def_node.get().accept( *this );
-  //                        },
-  //                         [&]( const BuiltinFunction& b_fun ) {
-  //                           std::vector<Value> call_args_eval;
-  //                           call_args_eval.reserve( call_args.size() );
-  //                           for ( auto& call_arg : call_args ) {
-  //                             call_arg.extractValue();
-  //                           }
-  //                           b_fun.getMappedFunction()( call_args_eval );
-  //                         } },
-  //             fun->get() );
   // visiting/calling function already puts ret val in acc
 }
 
@@ -884,4 +876,10 @@ void Interpreter::visit( const BuiltinFunction& node ) {
   for ( const auto& _ : node.getParameters() ) {
     call_args.push_back( getRecentValFromAcc() );
   }
+  auto res = f( call_args );
+  if ( res ) {
+    putValInAcc( RuntimeValue{ std::move( res ).value() } );
+    return;
+  }
+  putValInAcc( RuntimeValue{} );
 }

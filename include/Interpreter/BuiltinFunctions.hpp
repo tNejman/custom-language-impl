@@ -5,6 +5,7 @@
 #include <iostream>
 #include <optional>
 #include <print>
+#include <ranges>
 #include <stdexcept>
 #include <variant>
 #include <vector>
@@ -18,7 +19,9 @@
 #include "Parser/Value.hpp"
 #include "VecCopy.hpp"
 
-using BuiltinFunctionActionP = std::function<std::optional<Value>( const std::vector<Value>& )>;
+
+using BuiltinFunctionActionP = std::function<std::optional<Value>( std::vector<RuntimeValue>& )>;
+
 class BuiltinFunction : public IFunction {
  private:
   BuiltinFunctionActionP mapped_function_;
@@ -65,25 +68,24 @@ inline bool isValueInt( const Value& val ) {
 
 class ExitException : public std::runtime_error {
  public:
-  ExitException( int code )
-      : std::runtime_error( std::format( "Explicitly called program termination. Exit code {}", code ) ) {
+  ExitException() : std::runtime_error( std::format( "Explicitly called program termination" ) ) {
   }
 };
 };  // namespace builtin_functions_helper
 
 namespace builtin_functions {
 
-inline std::optional<Value> write( const std::vector<Value>& args ) {
+inline std::optional<Value> write( const std::vector<RuntimeValue>& args ) {
   std::string combined;
-  for ( const auto& val : args ) {
-    combined += std::format( "{} ", val );
+  for ( const auto& val : args | std::views::reverse ) {
+    combined += std::format( "{} ", val.copyValue() );
   }
   std::println( "{}", combined );
   return std::nullopt;
 }
 
-inline std::optional<Value> read( const std::vector<Value>& args ) {
-  if ( args.size() != 1 || !builtin_functions_helper::isValueCharVector( args[0] ) ) {
+inline std::optional<Value> read( const std::vector<RuntimeValue>& args ) {
+  if ( args.size() != 0 ) {
     throw FunctionSignatureMismatchException(
         Position{ 1, 1 }, "function read() may accept (char, char, ...) or (char[]) only as prompt" );
   }
@@ -92,13 +94,13 @@ inline std::optional<Value> read( const std::vector<Value>& args ) {
   return Value::ArrayValue( std::vector<Value>( input.begin(), input.end() ) );
 }
 
-inline std::optional<Value> exit( const std::vector<Value>& args ) {
-  if ( args.size() != 1 || !builtin_functions_helper::isValueInt( args[0] ) ) {
+inline std::optional<Value> exit( const std::vector<RuntimeValue>& args ) {
+  if ( args.size() != 0 ) {
     throw FunctionSignatureMismatchException(
         Position{ 1, 1 },
         "incompatible call with signature; note: function exit() accepts only one int (code) as arg" );
   }
-  throw builtin_functions_helper::ExitException( std::get<int>( args[0].getData() ) );
+  throw builtin_functions_helper::ExitException();
 }
 
 inline BuiltinFunction buildBuiltinWrite( const std::vector<RuntimeValue>& call_args ) {
@@ -106,7 +108,7 @@ inline BuiltinFunction buildBuiltinWrite( const std::vector<RuntimeValue>& call_
   int i = 0;
   for ( const auto& arg : call_args ) {
     params.push_back(
-        ParameterDecl{ std::format( "x{}", i ), arg.getType().copy(), PassMode::COPY, Mutability::IMMUTABLE } );
+        ParameterDecl{ std::format( "x{}", i++ ), arg.getType().copy(), PassMode::COPY, Mutability::IMMUTABLE } );
   }
   return BuiltinFunction{ Position{ 99999u, 99999u }, "write", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
                           std::move( params ), builtin_functions::write };

@@ -22,7 +22,6 @@ struct RuntimeValue {
  public:
   explicit RuntimeValue( Value val ) noexcept;
   explicit RuntimeValue( Variable& var ) noexcept;
-  // explicit RuntimeValue( std::shared_ptr<Value> val, Mutability mut ) noexcept;
   explicit RuntimeValue( std::reference_wrapper<Value> val, Mutability mut ) noexcept;
   explicit RuntimeValue() noexcept;
   explicit RuntimeValue( const RuntimeValue& ) = delete;

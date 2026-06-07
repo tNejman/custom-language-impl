@@ -81,3 +81,9 @@ class InvalidStatementException : public InterpreterException {
   InvalidStatementException( Position pos, const std::string& msg ) : InterpreterException( pos, msg ) {
   }
 };
+
+class StackOverflowException : public InterpreterException {
+ public:
+  StackOverflowException( Position pos, const std::string& msg ) : InterpreterException( pos, msg ) {
+  }
+};

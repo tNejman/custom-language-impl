@@ -101,10 +101,11 @@ class Interpreter : public Visitor {
   struct AccumulatorGuard {
    private:
     std::stack<RuntimeValue>& acc_;
+    Environment& e_;
     size_t org_size_;
 
    public:
-    AccumulatorGuard( std::stack<RuntimeValue>& acc ) noexcept;
+    AccumulatorGuard( std::stack<RuntimeValue>& acc, Environment& e ) noexcept;
     void validate( Position pos );
     ~AccumulatorGuard() noexcept;
   };

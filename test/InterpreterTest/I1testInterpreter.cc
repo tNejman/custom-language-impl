@@ -20,13 +20,10 @@ TEST_F( InterpreterTest, ctor_adds_builtin_functions ) {
   MAKE_INTERPRETER
   ASSERT_EQ( 2u, ITF::funcs( IT ).size() );
   {
-    auto params_read{ makeParams( ParameterDecl{ "prompt", Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
-                                                 PassMode::COPY, Mutability::IMMUTABLE } ) };
-    ASSERT_NE( std::nullopt, ITF::env( IT ).getFunctionBySignature( "read", params_read ) );
+    ASSERT_NE( std::nullopt, ITF::env( IT ).getFunctionBySignature( "read", makeParams() ) );
   }
   {
-    auto params_exit{ makeParams( ParameterDecl{ "code", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } ) };
-    ASSERT_NE( std::nullopt, ITF::env( IT ).getFunctionBySignature( "exit", params_exit ) );
+    ASSERT_NE( std::nullopt, ITF::env( IT ).getFunctionBySignature( "exit", makeParams() ) );
   }
 }
 

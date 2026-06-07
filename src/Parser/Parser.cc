@@ -32,7 +32,7 @@ void Parser::skipComments() {
 }
 
 void Parser::skipNewlines() {
-  while ( current_token_.type_ == TokenType::NEWLINE ) nextToken();
+  while ( current_token_.type_ == TokenType::NEWLINE || current_token_.type_ == TokenType::COMMENT ) nextToken();
 }
 
 StmtFunVecPair Parser::tryBuildStmtOrFunDefList() {
@@ -538,6 +538,7 @@ Parser::Parser( ILexer& lexer ) : lexer_( lexer ), current_token_( getFirstToken
 std::unique_ptr<ProgramNode> Parser::buildProgram() {
   Token first_token = current_token_;
   auto [statement_list, function_list] = tryBuildStmtOrFunDefList();
+  skipNewlines();
   consumeSpecificTokenOrThrow<NotConsumedTokensException>( TokenType::END_OF_FILE, current_token_ );
   return std::make_unique<ProgramNode>( first_token.position_, std::move( statement_list ),
                                         std::move( function_list ) );

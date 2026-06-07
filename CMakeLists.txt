@@ -68,9 +68,11 @@ function(apply_compiler_flags target)
             -Wvla -Wshift-overflow 
             -fno-omit-frame-pointer
             
-            # -fsanitize=address
-            # -fsanitize=undefined
+            -fsanitize=address
+            -fsanitize=undefined
         )
+        
+        # target_link_options(${target} PRIVATE -fsanitize=address -fsanitize=undefined)
     else()
         message(WARNING "Target '${target}' not found - skipping compiler flags")
     endif()
@@ -79,13 +81,14 @@ endfunction()
 message(STATUS "Global CXX Flags: ${CMAKE_CXX_FLAGS}")
 message(STATUS "Debug CXX Flags: ${CMAKE_CXX_FLAGS_DEBUG}")
 
+add_link_options(-fsanitize=address)
+add_link_options(-fsanitize=undefined)
+
 foreach(module ${MODULES})
     add_subdirectory(src/${module})
     apply_compiler_flags(${module})
 endforeach()
 
-# add_link_options(-fsanitize=address)
-# add_link_options(-fsanitize=undefined)
 # add_compile_options(-stdlib=libc++)
 # add_link_options(-stdlib=libc++)
 

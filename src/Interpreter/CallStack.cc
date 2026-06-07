@@ -3,6 +3,9 @@
 #include <format>
 #include <optional>
 
+#include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
+
+
 /* CallContext
 
 
@@ -48,6 +51,9 @@ CallContext CallStack::pop() {
 }
 void CallStack::push( CallContext call_context ) {
   call_stack_.push_back( std::move( call_context ) );
+  if ( call_stack_.size() > 100 ) {
+    throw StackOverflowException( Position{ 1, 1 }, "exceeded 100 call contexts" );
+  }
 }
 CallContext& CallStack::top() noexcept {
   return call_stack_.back();

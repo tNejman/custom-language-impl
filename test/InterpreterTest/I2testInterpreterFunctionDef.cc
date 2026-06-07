@@ -833,3 +833,153 @@ TEST_F( InterpreterFunctionDefTest, return_terminates_function_immediately ) {
   ASSERT_NO_THROW( IT.visit( *func ) );
   assertAccTopVal( IT, true, 0 );
 }
+
+/* @WARNING PARAMETER EDGE CASES */
+
+TEST_F( InterpreterFunctionDefTest, nested_function_calls_as_arguments ) {
+  /*
+  def int identity(copy int x) do
+    return x
+  done
+  def int outer(copy int y) do
+    return y
+  done
+  outer(identity(5))
+  */
+  auto func_outer = std::make_unique<FunctionDefNode>(
+      Position{ 1, 1 }, "outer", BaseType::INT,
+      makeParams( ParameterDecl{ "y", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } ),
+      makeBlock( MAKE_RETURN( MAKE_ID( "y" ) ) ) );
+  auto func_identify = std::make_unique<FunctionDefNode>(
+      Position{ 1, 1 }, "identify", BaseType::INT,
+      makeParams( ParameterDecl{ "x", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } ),
+      makeBlock( MAKE_RETURN( MAKE_ID( "x" ) ) ) );
+
+  auto call = std::make_unique<FunctionCallNode>(
+      Position{ 1, 1 }, "outer",
+      makeExpressions( std::make_unique<FunctionCallNode>( Position{ 1, 1 }, "identify",
+                                                           makeExpressions( MAKE_LITERAL( BaseType::INT, 5 ) ) ) ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  ITF::funcs( IT ).push_back( *func_outer );
+  ITF::funcs( IT ).push_back( *func_identify );
+  IT.visit( *call );
+  assertAccTopVal( IT, false, 5 );
+}
+
+/* @WARNING RECURSION */
+
+TEST_F( InterpreterFunctionDefTest, simple_recursion_factorial ) {
+  /*
+  def int fact(int n) do
+    if (n == 0) do return 1 done
+    return n * fact(n - 1)
+  done
+  */
+  auto func_fact = std::make_unique<FunctionDefNode>(
+      Position{ 1, 1 }, "fact", BaseType::INT,
+      makeParams( ParameterDecl{ "n", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } ),
+      makeBlock( MAKE_RETURN( MAKE_ID( "n" ) ) ) );
+
+  Interpreter IT{ nullptr };
+
+  int execution_depth = 0;
+  IT.setDebugHook( [&execution_depth]( Interpreter& interpreter, const INode& node, DebugEvent event ) {
+    if ( dynamic_cast<const ReturnNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
+      auto current_n = ITF::env( interpreter ).getVarByNameThisScopeOnly( "n" );
+      if ( current_n.has_value() ) {
+        execution_depth++;
+      }
+    }
+  } );
+
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  ITF::addMockCallArg( IT, 3 );
+
+  IT.visit( *func_fact );
+  ASSERT_EQ( 1, execution_depth );
+}
+
+TEST_F( InterpreterFunctionDefTest, infinite_recursion_handles_stack_overflow ) {
+  /*
+  def void infinite_loop() do
+    return infinite_loop()
+  done
+  */
+  auto infinite_func = std::make_unique<FunctionDefNode>(
+      Position{ 1, 1 }, "infinite_loop", BaseType::VOID, makeParams(),
+      makeBlock( std::make_unique<FunctionCallNode>( Position{ 1, 1 }, "infinite_loop", makeExpressions() ) ) );
+
+  Interpreter IT{ nullptr };
+  ITF::funcs( IT ).push_back( *infinite_func );
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  ASSERT_THROW( IT.visit( *infinite_func ), StackOverflowException );
+}
+
+/* @WARNING FUNCTION OVERLOADING
+
+
+*/
+
+TEST_F( InterpreterFunctionDefTest, overload_by_parameter_count_resolves_correctly ) {
+  /*
+  def int foo() do
+    return 1
+  done
+  def int foo(int x) do
+    return 2
+  done
+  foo()
+  */
+  auto func_no_args = std::make_unique<FunctionDefNode>( Position{ 1, 1 }, "foo", BaseType::INT, makeParams(),
+                                                         makeBlock( MAKE_RETURN( MAKE_LITERAL( BaseType::INT, 1 ) ) ) );
+
+  auto func_one_arg = std::make_unique<FunctionDefNode>(
+      Position{ 2, 1 }, "foo", BaseType::INT,
+      makeParams( ParameterDecl{ "x", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } ),
+      makeBlock( MAKE_RETURN( MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
+
+  auto call = std::make_unique<FunctionCallNode>( Position{ 3, 1 }, "foo", makeExpressions() );
+
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+
+  ITF::funcs( IT ).push_back( *func_no_args );
+  ITF::funcs( IT ).push_back( *func_one_arg );
+
+  ASSERT_NO_THROW( IT.visit( *call ) );
+  assertAccTopVal( IT, false, 1 );
+}
+
+TEST_F( InterpreterFunctionDefTest, overload_by_parameter_type_resolves_correctly ) {
+  /*
+  def int bar(int x) do
+    return 1
+  done
+  def int bar(bool x) do
+    return 2
+  done
+  bar(42)
+  */
+  auto func_int = std::make_unique<FunctionDefNode>(
+      Position{ 1, 1 }, "bar", BaseType::INT,
+      makeParams( ParameterDecl{ "x", BaseType::INT, PassMode::COPY, Mutability::IMMUTABLE } ),
+      makeBlock( MAKE_RETURN( MAKE_LITERAL( BaseType::INT, 1 ) ) ) );
+
+  auto func_bool = std::make_unique<FunctionDefNode>(
+      Position{ 2, 1 }, "bar", BaseType::INT,
+      makeParams( ParameterDecl{ "x", BaseType::BOOL, PassMode::COPY, Mutability::IMMUTABLE } ),
+      makeBlock( MAKE_RETURN( MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
+
+  auto call = std::make_unique<FunctionCallNode>( Position{ 3, 1 }, "bar",
+                                                  makeExpressions( MAKE_LITERAL( BaseType::INT, 42 ) ) );
+
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+
+  ITF::funcs( IT ).push_back( *func_int );
+  ITF::funcs( IT ).push_back( *func_bool );
+
+  ASSERT_NO_THROW( IT.visit( *call ) );
+  assertAccTopVal( IT, false, 1 );
+}

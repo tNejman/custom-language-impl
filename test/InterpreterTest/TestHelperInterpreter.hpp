@@ -124,6 +124,8 @@ void assertTopCallContextVarCount( Interpreter& i, size_t expected_count ) {
 #define MAKE_CONTINUE() std::make_unique<ControlFlowNode>( Position{ 1, 1 }, ControlFlowType::CONTINUE )
 #define MAKE_RETURN( ret_val ) std::make_unique<ReturnNode>( Position{ 1, 1 }, ret_val )
 
+#define MAKE_ARR_OP_SPEC(arr,type, id) std::make_unique<ArrayIdentifierOpNode>(Position{1,1}, arr, type, id)
+
 template <typename Container, typename... Args>
 Container makeContainer( Args&&... args ) {
   Container c;

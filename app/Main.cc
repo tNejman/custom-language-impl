@@ -1,24 +1,34 @@
-// #include <iomanip>
-// #include <iostream>
-// #include <sstream>
-// #include <vector>
+#include <fstream>
+#include <iostream>
 
-// #include "Drivers/LexerDriver.h"
-// #include "Lexer/Token.hpp"
+#include "Interpreter/Interpreter.h"
+#include "Lexer/Lexer.h"
+#include "Parser/Parser.h"
 
-// void assertTokensType( std::string &&code, std::vector<TokenType> &&expected ) {
-//   std::stringstream ss{ code };
-//   Lexer lexer{ ss };
-//   for ( const auto &exp : expected ) {
-//     // std::cout << "Excpected: " << std::left << std::setw( 12 ) << exp << "Actual: " << lexer.getNextToken().type_
-//     //           << std::endl;
-//   }
-// }
+int main( int argc, char* argv[] ) {
+  if ( argc != 2 ) {
+    std::cerr << "Usage: " << argv[0] << " <script>\n";
+    return 1;
+  }
 
-int main( int argc, const char **argv ) {
-  // if ( argc == 1 ) {
-  //   LexerDriver ld{ LexerDriverMode::CIN, "" };
-  // } else if ( argc == 3 && argv[1] == "-m" && argv[2] == "cin" ) {
-  //   LexerDriver
-  // }
+  std::ifstream file( argv[1] );
+  if ( !file.is_open() ) {
+    std::cerr << "Error: could not open file '" << argv[1] << "'\n";
+    return 1;
+  }
+
+  try {
+    Lexer lexer( file );
+    Parser parser( lexer );
+
+    auto program = parser.buildProgram();
+
+    Interpreter interpreter( std::move( program ) );
+    interpreter.execute();
+  } catch ( const std::exception& e ) {
+    std::cerr << "Error: " << e.what() << "\n";
+    return 1;
+  }
+
+  return 0;
 }
