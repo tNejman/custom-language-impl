@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include <print>
+
+
 // #include "MockParser.hpp"
 #include "Interpreter/CallStack.h"
 #include "Interpreter/Interpreter.h"
@@ -181,6 +184,8 @@ void executeAndAssertNodeVisits( Interpreter& IT, ExpectedCounts... expected_cou
   std::array<int, sizeof...( ExpectedCounts )> expected = { static_cast<int>( expected_counts )... };
   std::array<int, sizeof...( SoughtTypes )> actual = { 0 };
 
+  std::array<const char*, sizeof...( SoughtTypes )> type_names = { typeid( SoughtTypes ).name()... };
+
   IT.setDebugHook( [&actual]( Interpreter& interpreter, const INode& node, DebugEvent event ) {
     std::size_t index = 0;
 
@@ -193,6 +198,7 @@ void executeAndAssertNodeVisits( Interpreter& IT, ExpectedCounts... expected_cou
   IT.execute();
 
   for ( std::size_t i = 0; i < expected.size(); ++i ) {
+    std::println( "expecting: {}", type_names[i] );
     ASSERT_EQ( expected[i], actual[i] );
   }
 }

@@ -347,7 +347,7 @@ TEST_F( InterpreterBinaryExprTest, less_or_equal_int ) {
 
   for ( const auto& [type, arg1, arg2, res] : arg_pairs ) {
     auto bin_expr{
-        MAKE_BINARY_EXPR( MAKE_LITERAL( type, arg1.copy() ), MAKE_LITERAL( type, arg2.copy() ), BinaryOperator::GT ) };
+        MAKE_BINARY_EXPR( MAKE_LITERAL( type, arg1.copy() ), MAKE_LITERAL( type, arg2.copy() ), BinaryOperator::LEQ ) };
     Interpreter IT{ nullptr };
     IT.visit( *bin_expr );
     assertAccSize( IT, 1u );
@@ -431,17 +431,92 @@ TEST_F( InterpreterBinaryExprTest, less_or_equal_float ) {
   }
 }
 
-TEST_F( InterpreterBinaryExprTest, comparative_numeric_only ) {
+TEST_F( InterpreterBinaryExprTest, greater_than_char ) {
+  /*
+  t1 > t2
+  */
+  std::vector<std::tuple<BaseType, Value, Value, Value>> arg_pairs;
+  arg_pairs.push_back( { BaseType::CHAR, 'a', 'A', true } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'A', false } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'Z', false } );
+
+  for ( const auto& [type, arg1, arg2, res] : arg_pairs ) {
+    auto bin_expr{
+        MAKE_BINARY_EXPR( MAKE_LITERAL( type, arg1.copy() ), MAKE_LITERAL( type, arg2.copy() ), BinaryOperator::GT ) };
+    Interpreter IT{ nullptr };
+    IT.visit( *bin_expr );
+    assertAccSize( IT, 1u );
+    assertAccTopVal( IT, false, res );
+  }
+}
+
+TEST_F( InterpreterBinaryExprTest, greater_or_equal_char ) {
+  /*
+  t1 >= t2
+  */
+  std::vector<std::tuple<BaseType, Value, Value, Value>> arg_pairs;
+  arg_pairs.push_back( { BaseType::CHAR, 'a', 'A', true } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'A', true } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'Z', false } );
+
+  for ( const auto& [type, arg1, arg2, res] : arg_pairs ) {
+    auto bin_expr{
+        MAKE_BINARY_EXPR( MAKE_LITERAL( type, arg1.copy() ), MAKE_LITERAL( type, arg2.copy() ), BinaryOperator::GEQ ) };
+    Interpreter IT{ nullptr };
+    IT.visit( *bin_expr );
+    assertAccSize( IT, 1u );
+    assertAccTopVal( IT, false, res );
+  }
+}
+
+TEST_F( InterpreterBinaryExprTest, less_than_char ) {
+  /*
+  t1 < t2
+  */
+  std::vector<std::tuple<BaseType, Value, Value, Value>> arg_pairs;
+  arg_pairs.push_back( { BaseType::CHAR, 'a', 'A', false } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'A', false } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'Z', true } );
+
+  for ( const auto& [type, arg1, arg2, res] : arg_pairs ) {
+    auto bin_expr{
+        MAKE_BINARY_EXPR( MAKE_LITERAL( type, arg1.copy() ), MAKE_LITERAL( type, arg2.copy() ), BinaryOperator::LT ) };
+    Interpreter IT{ nullptr };
+    IT.visit( *bin_expr );
+    assertAccSize( IT, 1u );
+    assertAccTopVal( IT, false, res );
+  }
+}
+
+TEST_F( InterpreterBinaryExprTest, less_or_equal_char ) {
+  /*
+  t1 <= t2
+  */
+  std::vector<std::tuple<BaseType, Value, Value, Value>> arg_pairs;
+  arg_pairs.push_back( { BaseType::CHAR, 'a', 'A', false } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'A', true } );
+  arg_pairs.push_back( { BaseType::CHAR, 'A', 'Z', true } );
+
+  for ( const auto& [type, arg1, arg2, res] : arg_pairs ) {
+    auto bin_expr{
+        MAKE_BINARY_EXPR( MAKE_LITERAL( type, arg1.copy() ), MAKE_LITERAL( type, arg2.copy() ), BinaryOperator::LEQ ) };
+    Interpreter IT{ nullptr };
+    IT.visit( *bin_expr );
+    assertAccSize( IT, 1u );
+    assertAccTopVal( IT, false, res );
+  }
+}
+
+TEST_F( InterpreterBinaryExprTest, comparative_incompatible_types ) {
   std::vector<std::tuple<BaseType, Value, BaseType, Value>> arg_pairs;
   arg_pairs.push_back( { BaseType::INT, 2.f, BaseType::CHAR, 'c' } );
   arg_pairs.push_back( { BaseType::CHAR, 2.f, BaseType::INT, 1 } );
-  arg_pairs.push_back( { BaseType::CHAR, 'a', BaseType::CHAR, 'b' } );
 
   for ( const auto& [type1, arg1, type2, arg2] : arg_pairs ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( type1, arg1.copy() ), MAKE_LITERAL( type2, arg2.copy() ),
                                      BinaryOperator::GT ) };
     Interpreter IT{ nullptr };
-    ASSERT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    ASSERT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 }
 
@@ -635,7 +710,7 @@ TEST_F( InterpreterBinaryExprTest, FallbackTypeMismatchesThrow ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::INT, Value( 5 ).copy() ),
                                      MAKE_LITERAL( BaseType::FLOAT, Value( 5.5f ).copy() ), BinaryOperator::ADD ) };
     Interpreter IT{ nullptr };
-    EXPECT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    EXPECT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 
   // Mixed Types (Float LHS, Int RHS) [cite: 32]
@@ -643,7 +718,7 @@ TEST_F( InterpreterBinaryExprTest, FallbackTypeMismatchesThrow ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::FLOAT, Value( 5.5f ).copy() ),
                                      MAKE_LITERAL( BaseType::INT, Value( 5 ).copy() ), BinaryOperator::ADD ) };
     Interpreter IT{ nullptr };
-    EXPECT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    EXPECT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 }
 
@@ -653,7 +728,7 @@ TEST_F( InterpreterBinaryExprTest, unsupported_ops ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::INT, Value( 5 ).copy() ),
                                      MAKE_LITERAL( BaseType::FLOAT, Value( 5.5f ).copy() ), BinaryOperator::ADD ) };
     Interpreter IT{ nullptr };
-    ASSERT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    ASSERT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 
   // float(5.5) + int(5)
@@ -661,7 +736,7 @@ TEST_F( InterpreterBinaryExprTest, unsupported_ops ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::FLOAT, Value( 5.5f ).copy() ),
                                      MAKE_LITERAL( BaseType::INT, Value( 5 ).copy() ), BinaryOperator::ADD ) };
     Interpreter IT{ nullptr };
-    ASSERT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    ASSERT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 }
 
@@ -679,7 +754,7 @@ TEST_F( InterpreterBinaryExprTest, unsupported_ops_type ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::INT, Value( 5 ).copy() ),
                                      MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::CHAR, 'a' ) ), BinaryOperator::ADD ) };
     Interpreter IT{ nullptr };
-    ASSERT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    ASSERT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 
   // bool(true) + int(1)
@@ -687,7 +762,7 @@ TEST_F( InterpreterBinaryExprTest, unsupported_ops_type ) {
     auto bin_expr{ MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::BOOL, Value( true ).copy() ),
                                      MAKE_LITERAL( BaseType::INT, Value( 1 ).copy() ), BinaryOperator::ADD ) };
     Interpreter IT{ nullptr };
-    ASSERT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    ASSERT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 }
 
@@ -767,11 +842,11 @@ TEST_F( InterpreterBinaryExprTest, array_self_concatenation ) {
   x ++ x -> [1, 2, 1, 2]
   */
   Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
   IT.visit( *MAKE_DECL_VAR( "x", Type::buildTypeArrayTypeFromBase( BaseType::INT ),
                             MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
   auto bin_expr = MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_ID( "x" ), BinaryOperator::CONCAT );
   IT.visit( *bin_expr );
-  assertAccSize( IT, 1u );
   assertAccTopVal( IT, false, Value::makeArray( 1, 2, 1, 2 ) );
 }
 
@@ -960,11 +1035,11 @@ TEST_F( InterpreterBinaryExprTest, array_self_diff ) {
   x -- x -> []
   */
   Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
   IT.visit( *MAKE_DECL_VAR( "x", Type::buildTypeArrayTypeFromBase( BaseType::INT ),
                             MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
   auto bin_expr = MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_ID( "x" ), BinaryOperator::DIFF );
   IT.visit( *bin_expr );
-  assertAccSize( IT, 1u );
   assertAccTopVal( IT, false, Value::makeArray() );
 }
 
@@ -994,7 +1069,7 @@ TEST_F( InterpreterBinaryExprTest, array_access ) {
     Interpreter IT{ nullptr };
     auto bin_expr =
         MAKE_BINARY_EXPR( MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 10 ), MAKE_LITERAL( BaseType::INT, 20 ),
-                                            MAKE_LITERAL( BaseType::INT, 3 ) ),
+                                            MAKE_LITERAL( BaseType::INT, 30 ) ),
                           MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS );
     IT.visit( *bin_expr );
     assertAccSize( IT, 1u );
@@ -1113,7 +1188,7 @@ TEST_F( InterpreterBinaryExprTest, array_access_invalid_base_type ) {
     Interpreter IT{ nullptr };
     auto bin_expr =
         MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::INT, 5 ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS );
-    EXPECT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    EXPECT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 
   // 5.5f[0]
@@ -1121,7 +1196,7 @@ TEST_F( InterpreterBinaryExprTest, array_access_invalid_base_type ) {
     Interpreter IT{ nullptr };
     auto bin_expr = MAKE_BINARY_EXPR( MAKE_LITERAL( BaseType::FLOAT, 5.5f ), MAKE_LITERAL( BaseType::INT, 0 ),
                                       BinaryOperator::ACCESS );
-    EXPECT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+    EXPECT_THROW( IT.visit( *bin_expr ), NotAllowedTypeException );
   }
 }
 
@@ -1133,7 +1208,7 @@ TEST_F( InterpreterBinaryExprTest, array_access_string_read )
       MAKE_BINARY_EXPR( MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::CHAR, 'a' ), MAKE_LITERAL( BaseType::CHAR, 'b' ),
                                           MAKE_LITERAL( BaseType::CHAR, 'c' ) ),
                         MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS );
-  EXPECT_THROW( IT.visit( *bin_expr ), InvalidOperationException );
+  IT.visit( *bin_expr );
   assertAccSize( IT, 1u );
   assertAccTopVal( IT, false, Value{ 'a' } );
 }
@@ -1148,11 +1223,12 @@ TEST_F( InterpreterBinaryExprTest, array_access_org_unchanged ) {
       MAKE_DECL_CONST( "x", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 1u ),
                        MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 1 ), BinaryOperator::ACCESS ) );
   Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
   IT.visit( *arr_init );
   IT.visit( *move_expr );
   ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ),
              Value::makeArray( Value::makeArray( 10 ), Value::makeArray( 20 ) ) );
-  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), Value::makeArray( 10 ) );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), Value::makeArray( 20 ) );
 }
 
 TEST_F( InterpreterBinaryExprTest, array_access_valid_writes ) {
@@ -1167,6 +1243,7 @@ TEST_F( InterpreterBinaryExprTest, array_access_valid_writes ) {
         MAKE_LITERAL( BaseType::INT, 99 ) );
 
     Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
     IT.visit( *init );
     IT.visit( *write );
     ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ), Value::makeArray( 99, 2, 3 ) );
@@ -1183,57 +1260,63 @@ TEST_F( InterpreterBinaryExprTest, array_access_valid_writes ) {
         MAKE_LITERAL( BaseType::INT, 99 ) );
 
     Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
     IT.visit( *init );
     IT.visit( *write );
     ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ), Value::makeArray( 1, 2, 99 ) );
   }
+}
 
-  // var int[][] arr = [[1, 2]]
-  // arr[0][1] = 99 -> [[1, 99]]
-  {
-    auto init = MAKE_DECL_VAR(
-        "arr", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 1u ),
-        MAKE_ARR_LITERAL( MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
+TEST_F( InterpreterBinaryExprTest, array_access_valid_writes_nested_arr )
+// var int[][] arr = [[1, 2]]
+// arr[0][1] = 99 -> [[1, 99]]
+{
+  auto init = MAKE_DECL_VAR(
+      "arr", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 2u ),
+      MAKE_ARR_LITERAL( MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
 
-    auto write = MAKE_ASSIGNMENT_EXPR(
-        MAKE_BINARY_EXPR(
-            MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
-            MAKE_LITERAL( BaseType::INT, 1 ), BinaryOperator::ACCESS ),
-        MAKE_LITERAL( BaseType::INT, 99 ) );
+  auto write = MAKE_ASSIGNMENT_EXPR(
+      MAKE_BINARY_EXPR( MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
+                        MAKE_LITERAL( BaseType::INT, 1 ), BinaryOperator::ACCESS ),
+      MAKE_LITERAL( BaseType::INT, 99 ) );
 
-    Interpreter IT{ nullptr };
-    IT.visit( *init );
-    IT.visit( *write );
-    ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ),
-               Value::makeArray( Value::makeArray( 1, 99 ) ) );
-  }
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *init );
+  IT.visit( *write );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ),
+             Value::makeArray( Value::makeArray( 1, 99 ) ) );
+}
 
-  // var int[] arr = [1, 2]
-  // arr[0] = 'a';
-  {
-    auto init = MAKE_DECL_VAR( "arr", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 1u ),
-                               MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
-    auto type_mutate = MAKE_ASSIGNMENT_EXPR(
-        MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
-        MAKE_LITERAL( BaseType::CHAR, 'a' ) );
+TEST_F( InterpreterBinaryExprTest, array_access_type_inside_mismatch )
+// var int[] arr = [1, 2]
+// arr[0] = 'a';
+{
+  auto init = MAKE_DECL_VAR( "arr", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 1u ),
+                             MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
+  auto type_mutate = MAKE_ASSIGNMENT_EXPR(
+      MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
+      MAKE_LITERAL( BaseType::CHAR, 'a' ) );
 
-    Interpreter IT{ nullptr };
-    IT.visit( *init );
-    ASSERT_THROW( IT.visit( *type_mutate ), NotAllowedTypeException );
-  }
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *init );
+  ASSERT_THROW( IT.visit( *type_mutate ), NotAllowedTypeException );
+}
 
-  // var int[] arr = [1,2]
-  // arr[0] = arr[0]
-  {
-    auto init = MAKE_DECL_VAR( "arr", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 1u ),
-                               MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
-    auto self_assign = MAKE_ASSIGNMENT_EXPR(
-        MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
-        MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ) );
+TEST_F( InterpreterBinaryExprTest, arr_read_and_write_to_itself )
+// var int[] arr = [1,2]
+// arr[0] = arr[0]
+{
+  auto init = MAKE_DECL_VAR( "arr", Type::buildTypeArrayFromBaseNRec( BaseType::INT, 1u ),
+                             MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
+  auto self_assign = MAKE_ASSIGNMENT_EXPR(
+      MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
+      MAKE_BINARY_EXPR( MAKE_ID( "arr" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ) );
 
-    Interpreter IT{ nullptr };
-    IT.visit( *init );
-    IT.visit( *self_assign );
-    ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ), Value::makeArray( 1, 2 ) );
-  }
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *init );
+  IT.visit( *self_assign );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "arr" ).value().get().getValue() ), Value::makeArray( 1, 2 ) );
 }

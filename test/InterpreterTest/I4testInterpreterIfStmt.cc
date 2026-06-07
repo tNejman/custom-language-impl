@@ -166,21 +166,23 @@ TEST_F( InterpreterIfStmtTest, can_mutate_outer_variables ) {
       x = 2
   done
   */
-  MAKE_STATEMENTS( MAKE_VAR_INT( "x", 1 ),
-                   MAKE_IF( makeExprBlockPairVec(
-                                MAKE_LITERAL( BaseType::BOOL, true ),
-                                makeBlock( MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) ),
-                            makeBlock() ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
+  auto decl = MAKE_VAR_INT( "x", 1 );
+  auto if_expr = MAKE_IF(
+      makeExprBlockPairVec( MAKE_LITERAL( BaseType::BOOL, true ),
+                            makeBlock( MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) ),
+      makeBlock() );
 
-  IT.setDebugHook( []( Interpreter& interpreter, const INode& node, DebugEvent event ) {
-    if ( dynamic_cast<const IfStatementNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-      Variable compr{ "x", BaseType::INT, Mutability::MUTABLE, std::make_shared<Value>( 2 ) };
-      ASSERT_EQ( compr, ITF::varsGlob( IT )[0] );
-    }
-  } );
-  IT.execute();
+  // IT.setDebugHook( []( Interpreter& interpreter, const INode& node, DebugEvent event ) {
+  //   if ( dynamic_cast<const IfStatementNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
+  //     Variable compr{ "x", BaseType::INT, Mutability::MUTABLE, std::make_shared<Value>( 2 ) };
+  //     ASSERT_EQ( compr, ITF::varsGlob( IT )[0] );
+  //   }
+  // } )
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  IT.visit( *if_expr );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), 2 );
 }
 
 TEST_F( InterpreterIfStmtTest, scope_decl_not_pollute_global ) {

@@ -19,16 +19,13 @@ TEST_F( InterpreterAssignmentTest, change_val ) {
   var int x = 1
   x = 2
   */
-  MAKE_STATEMENTS( MAKE_VAR_INT( "x", 1 ), MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  IT.setDebugHook( []( Interpreter& IT, const INode& node, DebugEvent event ) {
-    if ( dynamic_cast<const AssignmentExprNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-      ASSERT_EQ( *( ITF::varsGlob( IT )[0].getValue() ), 2 );
-    }
-  } );
-  IT.execute();
+  auto decl = MAKE_VAR_INT( "x", 1 );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  IT.visit( *assignment );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), 2 );
 }
 
 TEST_F( InterpreterAssignmentTest, const_err ) {
@@ -36,23 +33,25 @@ TEST_F( InterpreterAssignmentTest, const_err ) {
   int x = 1
   x = 2
   */
-  MAKE_STATEMENTS( MAKE_CONST_INT( "x", 1 ), MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  ASSERT_THROW( IT.execute(), InvalidAccessException );
+  auto decl = MAKE_CONST_INT( "x", 1 );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  ASSERT_THROW( IT.visit( *assignment ), InvalidAccessException );
 }
+
 TEST_F( InterpreterAssignmentTest, wrong_type ) {
   /*
   var int x = 1
   x = 'c'
   */
-  MAKE_STATEMENTS( MAKE_VAR_INT( "x", 1 ),
-                   MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::CHAR, 'c' ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  ASSERT_THROW( IT.execute(), NotAllowedTypeException );
+  auto decl = MAKE_VAR_INT( "x", 1 );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::CHAR, 'c' ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  ASSERT_THROW( IT.visit( *assignment ), NotAllowedTypeException );
 }
 
 TEST_F( InterpreterAssignmentTest, new_val_using_old_val ) {
@@ -60,19 +59,14 @@ TEST_F( InterpreterAssignmentTest, new_val_using_old_val ) {
   var int x = 1
   x = x + 1
   */
-  MAKE_STATEMENTS(
-      MAKE_VAR_INT( "x", 1 ),
-      MAKE_ASSIGNMENT_EXPR(
-          MAKE_ID( "x" ), MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 1 ), BinaryOperator::ADD ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  IT.setDebugHook( []( Interpreter& IT, const INode& node, DebugEvent event ) {
-    if ( dynamic_cast<const AssignmentExprNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-      ASSERT_EQ( *( ITF::varsGlob( IT )[0].getValue() ), 2 );
-    }
-  } );
-  IT.execute();
+  auto decl = MAKE_VAR_INT( "x", 1 );
+  auto assignment = MAKE_ASSIGNMENT_EXPR(
+      MAKE_ID( "x" ), MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 1 ), BinaryOperator::ADD ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  IT.visit( *assignment );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), 2 );
 }
 
 TEST_F( InterpreterAssignmentTest, assignment_returns_void_and_cannot_assign_void ) {
@@ -80,13 +74,13 @@ TEST_F( InterpreterAssignmentTest, assignment_returns_void_and_cannot_assign_voi
   var int x = 1
   x = x = 2 <- err
   */
-  MAKE_STATEMENTS( MAKE_VAR_INT( "x", 1 ),
-                   MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ),
-                                         MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  ASSERT_THROW( IT.execute(), VoidValueException );
+  auto decl = MAKE_VAR_INT( "x", 1 );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ),
+                                        MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  ASSERT_THROW( IT.visit( *assignment ), VoidValueException );
 }
 
 TEST_F( InterpreterAssignmentTest, assign_to_arr_pos ) {
@@ -94,32 +88,26 @@ TEST_F( InterpreterAssignmentTest, assign_to_arr_pos ) {
   var int[] x = [1]
   x[0] = 2
   */
-
-  MAKE_STATEMENTS( MAKE_DECL_VAR( "x", Type::buildTypeArrayTypeFromBase( BaseType::INT ),
-                                  MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ) ) ),
-                   MAKE_ASSIGNMENT_EXPR(
-                       MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
-                       MAKE_LITERAL( BaseType::INT, 2 ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  IT.setDebugHook( [skips = 0]( Interpreter& interpreter, const INode& node, DebugEvent event ) mutable {
-    if ( dynamic_cast<const AssignmentExprNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-      ASSERT_EQ( *( ITF::varsTop( IT )[0].getValue() ), Value::makeArray( 2 ) );
-    }
-  } );
-  IT.execute();
+  auto decl = MAKE_DECL_VAR( "x", Type::buildTypeArrayTypeFromBase( BaseType::INT ),
+                             MAKE_ARR_LITERAL( MAKE_LITERAL( BaseType::INT, 1 ) ) );
+  auto assignment = MAKE_ASSIGNMENT_EXPR(
+      MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 0 ), BinaryOperator::ACCESS ),
+      MAKE_LITERAL( BaseType::INT, 2 ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  IT.visit( *assignment );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), Value::makeArray( 2 ) );
 }
 
 TEST_F( InterpreterAssignmentTest, assign_to_rvalue ) {
   /*
   1 = 2
   */
-  MAKE_STATEMENTS( MAKE_ASSIGNMENT_EXPR( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  ASSERT_THROW( IT.execute(), InvalidAccessException );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( MAKE_LITERAL( BaseType::INT, 1 ), MAKE_LITERAL( BaseType::INT, 2 ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  ASSERT_THROW( IT.visit( *assignment ), InvalidAccessException );
 }
 
 TEST_F( InterpreterAssignmentTest, assign_to_rvalue_expr ) {
@@ -128,13 +116,15 @@ TEST_F( InterpreterAssignmentTest, assign_to_rvalue_expr ) {
   int y = 2
   (x * y) = 2
   */
-  MAKE_STATEMENTS( MAKE_CONST_INT( "x", 1 ), MAKE_VAR_INT( "y", 2 ),
-                   MAKE_ASSIGNMENT_EXPR( MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_ID( "y" ), BinaryOperator::MUL ),
-                                         MAKE_LITERAL( BaseType::INT, 2 ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
-
-  ASSERT_THROW( IT.execute(), InvalidAccessException );
+  auto declX = MAKE_CONST_INT( "x", 1 );
+  auto declY = MAKE_VAR_INT( "y", 2 );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( MAKE_BINARY_EXPR( MAKE_ID( "x" ), MAKE_ID( "y" ), BinaryOperator::MUL ),
+                                        MAKE_LITERAL( BaseType::INT, 2 ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *declX );
+  IT.visit( *declY );
+  ASSERT_THROW( IT.visit( *assignment ), InvalidAccessException );
 }
 
 TEST_F( InterpreterAssignmentTest, assign_to_void ) {
@@ -143,14 +133,13 @@ TEST_F( InterpreterAssignmentTest, assign_to_void ) {
   done
   foo() = 1
   */
-  MAKE_STATEMENTS(
-      MAKE_ASSIGNMENT_EXPR( std::make_unique<FunctionCallNode>( Position{ 1, 1 }, "foo", makeExpressions() ),
-                            MAKE_LITERAL( BaseType::INT, 1 ) ) );
-  MAKE_FUNCTIONS(
-      std::make_unique<FunctionDefNode>( Position{ 1, 1 }, "foo", BaseType::VOID, makeParams(), makeBlock() ) );
-  MAKE_INTERPRETER
-
-  ASSERT_THROW( IT.execute(), InvalidAccessException );
+  auto funcDef = std::make_unique<FunctionDefNode>( Position{ 1, 1 }, "foo", BaseType::VOID, makeParams(), makeBlock() );
+  auto assignment = MAKE_ASSIGNMENT_EXPR( std::make_unique<FunctionCallNode>( Position{ 1, 1 }, "foo", makeExpressions() ),
+                                        MAKE_LITERAL( BaseType::INT, 1 ) );
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *funcDef );
+  ASSERT_THROW( IT.visit( *assignment ), InvalidAccessException );
 }
 
 TEST_F( InterpreterAssignmentTest, special_assignment_int ) {
@@ -164,25 +153,21 @@ TEST_F( InterpreterAssignmentTest, special_assignment_int ) {
                                                                    { AssignmentType::MOD_ASSIGN, 0 } };
 
   for ( const auto [at, val] : assignment_types ) {
-    MAKE_STATEMENTS( MAKE_VAR_INT( "x", 10 ),
-                     MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ), at ) );
-    MAKE_FUNCTIONS();
-    MAKE_INTERPRETER
-
-    IT.setDebugHook( [&val]( Interpreter& interpreter, const INode& node, DebugEvent event ) mutable {
-      if ( dynamic_cast<const AssignmentExprNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-        ASSERT_EQ( *( ITF::varsTop( IT )[0].getValue() ), val );
-      }
-    } );
-    IT.execute();
+    auto decl = MAKE_VAR_INT( "x", 10 );
+    auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ), at );
+    Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+    IT.visit( *decl );
+    IT.visit( *assignment );
+    ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), val );
   }
   {  // no div for ints
-    MAKE_STATEMENTS(
-        MAKE_VAR_INT( "x", 10 ),
-        MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ), AssignmentType::MOD_ASSIGN ) );
-    MAKE_FUNCTIONS();
-    MAKE_INTERPRETER
-    ASSERT_THROW( IT.execute(), NotAllowedTypeException );
+    auto decl = MAKE_VAR_INT( "x", 10 );
+    auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ), AssignmentType::DIV_ASSIGN );
+    Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+    IT.visit( *decl );
+    ASSERT_THROW( IT.visit( *assignment ), NotAllowedTypeException );
   }
 }
 
@@ -198,17 +183,13 @@ TEST_F( InterpreterAssignmentTest, special_assignment_float ) {
                                                                      { AssignmentType::MOD_ASSIGN, 0.f } };
 
   for ( const auto [at, val] : assignment_types ) {
-    MAKE_STATEMENTS( MAKE_DECL_VAR( "x", BaseType::FLOAT, MAKE_LITERAL( BaseType::FLOAT, 10.f ) ),
-                     MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::FLOAT, 2.f ), at ) );
-    MAKE_FUNCTIONS();
-    MAKE_INTERPRETER
-
-    IT.setDebugHook( [&val]( Interpreter& interpreter, const INode& node, DebugEvent event ) mutable {
-      if ( dynamic_cast<const AssignmentExprNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-        ASSERT_EQ( *( ITF::varsTop( IT )[0].getValue() ), val );
-      }
-    } );
-    IT.execute();
+    auto decl = MAKE_DECL_VAR( "x", BaseType::FLOAT, MAKE_LITERAL( BaseType::FLOAT, 10.f ) );
+    auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::FLOAT, 2.f ), at );
+    Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+    IT.visit( *decl );
+    IT.visit( *assignment );
+    ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), val );
   }
 }
 
@@ -222,12 +203,12 @@ TEST_F( InterpreterAssignmentTest, special_assignment_char ) {
                                                    AssignmentType::MOD_ASSIGN };
 
   for ( const auto at : assignment_types ) {
-    MAKE_STATEMENTS( MAKE_DECL_VAR( "x", BaseType::CHAR, MAKE_LITERAL( BaseType::CHAR, 'c' ) ),
-                     MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::CHAR, 'b' ), at ) );
-    MAKE_FUNCTIONS();
-    MAKE_INTERPRETER
-
-    ASSERT_THROW( IT.execute(), NotAllowedTypeException );
+    auto decl = MAKE_DECL_VAR( "x", BaseType::CHAR, MAKE_LITERAL( BaseType::CHAR, 'c' ) );
+    auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::CHAR, 'b' ), at );
+    Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+    IT.visit( *decl );
+    ASSERT_THROW( IT.visit( *assignment ), NotAllowedTypeException );
   }
 }
 
@@ -241,12 +222,12 @@ TEST_F( InterpreterAssignmentTest, special_assignment_bool ) {
                                                    AssignmentType::MOD_ASSIGN };
 
   for ( const auto at : assignment_types ) {
-    MAKE_STATEMENTS( MAKE_DECL_VAR( "x", BaseType::BOOL, MAKE_LITERAL( BaseType::BOOL, true ) ),
-                     MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::BOOL, true ), at ) );
-    MAKE_FUNCTIONS();
-    MAKE_INTERPRETER
-
-    ASSERT_THROW( IT.execute(), NotAllowedTypeException );
+    auto decl = MAKE_DECL_VAR( "x", BaseType::BOOL, MAKE_LITERAL( BaseType::BOOL, true ) );
+    auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::BOOL, true ), at );
+    Interpreter IT{ nullptr };
+    ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+    IT.visit( *decl );
+    ASSERT_THROW( IT.visit( *assignment ), NotAllowedTypeException );
   }
 }
 
@@ -258,16 +239,15 @@ TEST_F( InterpreterAssignmentTest, special_assignment_bool ) {
 //   std::vector<AssignmentType> assignment_types = { AssignmentType::ADD_ASSIGN, AssignmentType::SUB_ASSIGN,
 //                                                    AssignmentType::MUL_ASSIGN, AssignmentType::DIV_ASSIGN,
 //                                                    AssignmentType::MOD_ASSIGN };
-
-//   // to make array: MAKE_DECL_VAR("x", Type::buildTypeArrayTypeFromBase(BaseType::CHAR), Value::makeArray('a', 'b',
-//   // 'c'));
-
+//
 //   for ( const auto at : assignment_types ) {
-//     MAKE_STATEMENTS( MAKE_DECL_VAR( "x", BaseType::BOOL, MAKE_LITERAL( BaseType::BOOL, true ) ),
-//                      MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::BOOL, true ), at ) );
-//     MAKE_FUNCTIONS();
-//     MAKE_INTERPRETER
-
-//     ASSERT_THROW( IT.execute(), NotAllowedTypeException );
+//     auto decl = MAKE_DECL_VAR( "x", BaseType::BOOL, MAKE_LITERAL( BaseType::BOOL, true ) );
+//     auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::BOOL, true ), at );
+//     Interpreter IT{ nullptr };
+//     ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+//     IT.visit( *decl );
+//     ASSERT_THROW( IT.visit( *assignment ), NotAllowedTypeException );
 //   }
+// }
+
 // }

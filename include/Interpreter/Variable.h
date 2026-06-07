@@ -14,6 +14,7 @@ struct Variable {
 
  public:
   Variable( std::string identifier, Type type, Mutability mutability, std::shared_ptr<Value> value ) noexcept;
+  Variable( std::string identifier, Type type, Mutability mutability, Value value ) noexcept;
   Variable( const Variable& ) = delete;
   Variable( Variable&& other ) noexcept;
 

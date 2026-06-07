@@ -10,6 +10,15 @@ Variable::Variable( std::string identifier, Type type, Mutability mutability, st
       value_( std::move( value ) ) {
   assert( value_ != nullptr );
 }
+
+Variable::Variable( std::string identifier, Type type, Mutability mutability, Value value ) noexcept
+    : identifier_( std::move( identifier ) ),
+      type_( std::move( type ) ),
+      mutability_( mutability ),
+      value_( std::make_shared<Value>( value.copy() ) ) {
+  assert( value_ != nullptr );
+}
+
 Variable::Variable( Variable&& other ) noexcept
     : identifier_( std::move( other.identifier_ ) ),
       type_( std::move( other.type_ ) ),

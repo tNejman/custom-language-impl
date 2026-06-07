@@ -42,7 +42,7 @@ class Interpreter : public Visitor {
     std::deque<BuiltinFunction> builtin_storage_;
     std::vector<std::reference_wrapper<const IFunction>> functions_;
     CallStack call_stack_;
-    ControlFlow loop_control_type_;
+    ControlFlow loop_control_type_ = ControlFlow::NONE;
 
    public:
     // std::vector<std::reference_wrapper<const IFunction>> getFunctionByIdentifier(

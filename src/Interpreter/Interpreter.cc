@@ -243,28 +243,29 @@ Variable Interpreter::buildVarFromParam( RuntimeValue& runtime_val, const Parame
                                      },
                                      [&]( const IndexRef& val ) -> Variable {
                                        return Variable{ param.getIdentifier(), param.getType().copy(),
-                                                        param.getMutability(), std::make_shared<Value>( val->copy() ) };
+                                                        param.getMutability(), val.get().copy() };
                                      },
                                      [&]( Void ) -> Variable {
                                        throw VoidValueException( Position{ 1, 1 }, "cannot build variable from void" );
                                      } },
                          runtime_val.peekData() );
     case PassMode::REFERENCE:
-      return std::visit(
-          Overloaded{ [&]( const RValue& _ ) -> Variable {
-                       throw InvalidAccessException( Position{ 1, 1 }, "cannot make reference to an rvalue" );
-                     },
-                      [&]( const LValue& val ) -> Variable {
-                        return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(),
-                                         val.get().getValue() };
-                      },
-                      [&]( const IndexRef& val ) -> Variable {
-                        return Variable{ param.getIdentifier(), param.getType().copy(), param.getMutability(), val };
-                      },
-                      [&]( Void ) -> Variable {
-                        throw VoidValueException( Position{ 1, 1 }, "cannot build variable from void" );
-                      } },
-          runtime_val.peekData() );
+      return std::visit( Overloaded{ [&]( const RValue& _ ) -> Variable {
+                                      throw InvalidAccessException( Position{ 1, 1 },
+                                                                    "cannot make reference to an rvalue" );
+                                    },
+                                     [&]( const LValue& val ) -> Variable {
+                                       return Variable{ param.getIdentifier(), param.getType().copy(),
+                                                        param.getMutability(), val.get().getValue() };
+                                     },
+                                     [&]( const IndexRef& val ) -> Variable {
+                                       return Variable{ param.getIdentifier(), param.getType().copy(),
+                                                        param.getMutability(), val.get().copy() };
+                                     },
+                                     [&]( Void ) -> Variable {
+                                       throw VoidValueException( Position{ 1, 1 }, "cannot build variable from void" );
+                                     } },
+                         runtime_val.peekData() );
   }
 }
 
@@ -277,6 +278,9 @@ void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>
     // }
     AccumulatorGuard acc_guard{ accumulator_ };
     stmt_ptr->accept( *this );
+    if (environment_.getFlowControlType() != Environment::ControlFlow::NONE) {
+      break;
+    }
     acc_guard.validate( stmt_ptr->getPosition() );
   }
 }
@@ -563,7 +567,7 @@ void Interpreter::visit( const AssignmentExprNode& node ) {
   }
   Value& val_assigned_to =
       std::visit( Overloaded{ []( const LValue& val ) -> Value& { return *( val.get().getValue() ); },
-                              []( const IndexRef& iref ) -> Value& { return *iref; },
+                              []( const IndexRef& iref ) -> Value& { return iref.get(); },
                               []( const auto& ) -> Value& { std::unreachable(); } },
                   left_val_from_acc.peekData() );
 
@@ -598,11 +602,27 @@ void Interpreter::visit( const BinaryExprNode& node ) {
   node.getRightOperand()->accept( *this );
   RuntimeValue right_operand_rt_val = getRecentValFromAcc();
 
-  if ( left_operand_rt_val.getType() != right_operand_rt_val.getType() ) {
+  if ( ( left_operand_rt_val.getType() != right_operand_rt_val.getType() )
+       && left_operand_rt_val.getType() != BaseType::VOID && right_operand_rt_val.getType() != BaseType::VOID
+       && node.getOperator() != BinaryOperator::ACCESS ) {
     throw NotAllowedTypeException( node.getPosition(), "type mismatch in binary expr" );
   }
-  Value l_operand = left_operand_rt_val.extractValue();
-  Value r_operand = right_operand_rt_val.extractValue();
+  Value l_operand = [&] {
+    if ( node.getOperator() == BinaryOperator::ACCESS ) {
+      return Value{ 0 };
+    } else {
+      return left_operand_rt_val.extractValue();
+    }
+  }();
+  Value r_operand = [&] {
+    if ( node.getOperator() == BinaryOperator::ACCESS ) {
+      return Value{ 0 };
+    } else {
+      return right_operand_rt_val.extractValue();
+    }
+  }();
+  std::println( "\nlop binexpr:{}\n", l_operand );
+  std::println( "\nrop binexpr:{}\n", r_operand );
 
   switch ( node.getOperator() ) {
     case BinaryOperator::AND: {
@@ -654,7 +674,7 @@ void Interpreter::visit( const BinaryExprNode& node ) {
       putValInAcc( RuntimeValue{ ValueEvaluator::evaluateArrOp( l_operand, r_operand, ArrayBinaryOperator::DIFF ) } );
       return;
     case BinaryOperator::ACCESS:
-      putValInAcc( RuntimeValue{ ValueEvaluator::evaluateArrAccess( l_operand, r_operand ) } );
+      putValInAcc( ValueEvaluator::evaluateArrAccess( left_operand_rt_val, right_operand_rt_val ) );
       return;
   }
 }

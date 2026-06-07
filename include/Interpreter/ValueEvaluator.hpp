@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
+#include "Interpreter/RuntimeValue.h"
 #include "Lexer/Limits.hpp"
 #include "Parser/Node.h"
 #include "Parser/Types.hpp"
@@ -66,11 +67,10 @@ class ValueEvaluator {
       auto it = std::find_if( freq.begin(), freq.end(), [&val]( const std::pair<Value, int>& elem_ref_count_pair ) {
         return elem_ref_count_pair.first == val;
       } );
-      if ( it == freq.end() ) {
-        result.push_back( val.copy() );
-      } else if ( it->second > 0 ) {
-        result.push_back( val.copy() );
+      if ( it != freq.end() && it->second > 0 ) {
         it->second--;
+      } else {
+        result.push_back( val.copy() );
       }
     }
     return result;
@@ -228,7 +228,7 @@ class ValueEvaluator {
   static Value evaluateArrOp( const Value& lhs, const Value& rhs, ArrayBinaryOperator op ) {
     assertAllowedTypes<Value::ArrayValue>( lhs, rhs );
     const Value::ArrayValue& lhs_arr = std::get<Value::ArrayValue>( lhs.getData() );
-    const Value::ArrayValue& rhs_arr = std::get<Value::ArrayValue>( lhs.getData() );
+    const Value::ArrayValue& rhs_arr = std::get<Value::ArrayValue>( rhs.getData() );
     switch ( op ) {
       case ArrayBinaryOperator::CONCAT: {
         return Value{ buildConcatenatedVector( lhs_arr, rhs_arr ) };
@@ -239,18 +239,52 @@ class ValueEvaluator {
     }
   }
 
-  static Value evaluateArrAccess( const Value& lhs, const Value& rhs ) {
-    assertAllowedTypes<Value::ArrayValue>( lhs );
-    assertAllowedTypes<int>( rhs );
-    const Value::ArrayValue& array = std::get<Value::ArrayValue>( lhs.getData() );
-    const int idx = std::get<int>( rhs.getData() );
+  // static Value& evaluateArrAccess( Value& lhs, Value& rhs ) {
+  //   assertAllowedTypes<Value::ArrayValue>( lhs );
+  //   assertAllowedTypes<int>( rhs );
+  //   Value::ArrayValue& array = std::get<Value::ArrayValue>( lhs.getData() );
+  //   const int idx = std::get<int>( rhs.getData() );
+  //   if ( idx < 0 ) {
+  //     throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index must be positive" );
+  //   }
+  //   if ( static_cast<size_t>( idx ) >= array.size() ) {
+  //     throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index exceeding array size" );
+  //   }
+  //   return array[static_cast<size_t>( idx )];
+  // }
+
+  static RuntimeValue evaluateArrAccess( RuntimeValue& lhs, RuntimeValue& rhs ) {
+    if ( !lhs || !rhs ) {
+      throw VoidValueException( Position{ 1, 1 }, "cannot use void to access arr" );
+    }
+    assertAllowedTypes<Value::ArrayValue>( lhs.copyValue() );
+    assertAllowedTypes<int>( rhs.copyValue() );
+    const int idx = std::get<int>( rhs.copyValue().getData() );
     if ( idx < 0 ) {
       throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index must be positive" );
     }
-    if ( array.size() >= static_cast<size_t>( idx ) ) {
+    if ( static_cast<size_t>( idx ) >= std::get<Value::ArrayValue>( lhs.copyValue().getData() ).size() ) {
       throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index exceeding array size" );
     }
-    return array[static_cast<size_t>( idx )].copy();
+    size_t good_idx = static_cast<size_t>( idx );
+    return std::visit(
+        Overloaded{ [&]( const RValue& val ) -> RuntimeValue {
+                     return RuntimeValue{
+                         std::get<Value::ArrayValue>( val.getData() )[static_cast<size_t>( idx )].copy() };
+                   },
+                    [&]( LValue& val ) -> RuntimeValue {
+                      auto& var_val = ( *( val.get().getValue() ) ).getData();
+                      auto& arr = std::get<Value::ArrayValue>( var_val );
+                      auto& val_inside_arr = arr[good_idx];
+                      return RuntimeValue{ std::ref( val_inside_arr ), lhs.getMutability() };
+                    },
+                    [&]( IndexRef& val ) -> RuntimeValue {
+                      auto& val_ref = val.get();
+                      auto& arr = std::get<Value::ArrayValue>( val_ref.getData() );
+                      return RuntimeValue{ std::ref( arr[good_idx] ), lhs.getMutability() };
+                    },
+                    [&]( Void ) -> RuntimeValue { std::unreachable(); } },
+        lhs.peekData() );
   }
 
   static Value evaluateUnaryOp( const Value& operand, UnaryOperator op ) {

@@ -11,7 +11,7 @@
 
 using RValue = Value;
 using LValue = std::reference_wrapper<Variable>;
-using IndexRef = std::shared_ptr<Value>;
+using IndexRef = std::reference_wrapper<Value>;
 using Void = std::monostate;
 
 struct RuntimeValue {
@@ -22,7 +22,8 @@ struct RuntimeValue {
  public:
   explicit RuntimeValue( Value val ) noexcept;
   explicit RuntimeValue( Variable& var ) noexcept;
-  explicit RuntimeValue( std::shared_ptr<Value> val, Mutability mut ) noexcept;
+  // explicit RuntimeValue( std::shared_ptr<Value> val, Mutability mut ) noexcept;
+  explicit RuntimeValue( std::reference_wrapper<Value> val, Mutability mut ) noexcept;
   explicit RuntimeValue() noexcept;
   explicit RuntimeValue( const RuntimeValue& ) = delete;
   RuntimeValue( RuntimeValue&& other ) noexcept;
@@ -33,7 +34,7 @@ struct RuntimeValue {
 
   Mutability getMutability() const noexcept;
   const std::variant<RValue, LValue, IndexRef, Void>& peekData() const noexcept;
-  // std::variant<RValue, LValue, IndexRef, Void> getData() noexcept;
+  std::variant<RValue, LValue, IndexRef, Void>& peekData() noexcept;
   bool isAssignableTo() const noexcept;
   Value copyValue() const;
   Value extractValue();
@@ -48,7 +49,7 @@ struct RuntimeValue {
             []( const LValue& var ) -> TypeExtracted {
               return std::get<TypeExtracted>( ( *( var.get().getValue() ) ).getData() );
             },
-            []( const IndexRef& i_ref ) -> TypeExtracted { return std::get<TypeExtracted>( i_ref->getData() ); },
+            []( const IndexRef& i_ref ) -> TypeExtracted { return std::get<TypeExtracted>( i_ref.get().getData() ); },
             []( const Void& ) -> TypeExtracted {
               throw VoidValueException( Position{ 1, 1 }, "tried extracting void value" );
             } },

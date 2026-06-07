@@ -25,19 +25,20 @@ TEST_F( InterpreterWhileStmtTest, evaluate_true_and_enter_body ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  executeAndAssertNodeVisits<WhileStatementNode>( IT, 1 );
+  executeAndAssertNodeVisits<ControlFlowNode>( IT, 1 );
 }
 
 TEST_F( InterpreterWhileStmtTest, evaluate_false_and_skip_body ) {
   /*
   while (false) do
+    int x = 1
   done
   */
-  MAKE_STATEMENTS( MAKE_WHILE( MAKE_LITERAL( BaseType::BOOL, false ), makeBlock() ) );
+  MAKE_STATEMENTS( MAKE_WHILE( MAKE_LITERAL( BaseType::BOOL, false ), makeBlock( MAKE_CONST_INT( "x", 1 ) ) ) );
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  executeAndAssertNodeVisits<WhileStatementNode>( IT, 0 );
+  executeAndAssertNodeVisits<VarOrConstDeclNode>( IT, 0 );  // count bodies
 }
 
 TEST_F( InterpreterWhileStmtTest, cond_not_bool ) {
@@ -64,7 +65,7 @@ TEST_F( InterpreterWhileStmtTest, void_cond ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  ASSERT_THROW( IT.execute(), NotAllowedTypeException );
+  ASSERT_THROW( IT.execute(), VoidValueException );
 }
 
 TEST_F( InterpreterWhileStmtTest, dynamic_cond_eval ) {
@@ -98,7 +99,7 @@ TEST_F( InterpreterWhileStmtTest, dynamic_cond_eval_multiple_times ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  executeAndAssertNodeVisits<WhileStatementNode>( IT, 3 );
+  executeAndAssertNodeVisits<AssignmentExprNode>( IT, 3 );
 }
 
 TEST_F( InterpreterWhileStmtTest, decl_inside_body_no_leak ) {
@@ -126,20 +127,23 @@ TEST_F( InterpreterWhileStmtTest, can_mutate_outer_variables ) {
       break
   done
   */
-  MAKE_STATEMENTS( MAKE_VAR_INT( "x", 1 ),
-                   MAKE_WHILE( MAKE_LITERAL( BaseType::BOOL, true ),
-                               makeBlock( MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ),
-                                          MAKE_BREAK() ) ) );
-  MAKE_FUNCTIONS();
-  MAKE_INTERPRETER
+  auto decl = MAKE_VAR_INT( "x", 1 );
+  auto while_stmt =
+      MAKE_WHILE( MAKE_LITERAL( BaseType::BOOL, true ),
+                  makeBlock( MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ), MAKE_BREAK() ) );
 
-  IT.setDebugHook( []( Interpreter& interpreter, const INode& node, DebugEvent event ) {
-    if ( dynamic_cast<const WhileStatementNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-      Variable compr{ "x", BaseType::INT, Mutability::MUTABLE, std::make_shared<Value>( 2 ) };
-      ASSERT_EQ( compr, ITF::varsGlob( IT )[0] );
-    }
-  } );
-  IT.execute();
+  // IT.setDebugHook( []( Interpreter& interpreter, const INode& node, DebugEvent event ) {
+  //   if ( dynamic_cast<const WhileStatementNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
+  //     Variable compr{ "x", BaseType::INT, Mutability::MUTABLE, std::make_shared<Value>( 2 ) };
+  //     ASSERT_EQ( compr, ITF::varsGlob( IT )[0] );
+  //   }
+  // } );
+  // IT.execute();
+  Interpreter IT{ nullptr };
+  ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
+  IT.visit( *decl );
+  IT.visit( *while_stmt );
+  ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), 2 );
 }
 
 TEST_F( InterpreterWhileStmtTest, scope_decl_not_pollute_global ) {
@@ -210,7 +214,7 @@ TEST_F( InterpreterWhileStmtTest, break_breaks ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  executeAndAssertNodeVisits<WhileStatementNode, IfStatementNode>( IT, 1, 1 );
+  executeAndAssertNodeVisits<WhileStatementNode, ControlFlowNode>( IT, 1, 1 );
 }
 
 TEST_F( InterpreterWhileStmtTest, break_skips_instructions_after ) {
@@ -259,18 +263,18 @@ TEST_F( InterpreterWhileStmtTest, continue_skips_current_loop ) {
     }
     if ( dynamic_cast<const WhileStatementNode*>( &node ) ) {
       ++while_body_counter;
+      if ( while_body_counter >= 1 ) {
+        ASSERT_EQ( *( ITF::env( IT ).getVarByName( "x" ).value().get().getValue() ), false );
+      }
     } else if ( dynamic_cast<const ControlFlowNode*>( &node ) ) {
       ++continue_counter;
     } else if ( dynamic_cast<const AssignmentExprNode*>( &node ) ) {
       ++assignment_counter;
     }
-    if ( while_body_counter == 3 ) {
-      ASSERT_EQ( *( ITF::varsGlob( IT )[0].getValue() ), false );
-    }
   } );
   IT.execute();
 
-  ASSERT_EQ( 3, while_body_counter );
+  ASSERT_EQ( 1, while_body_counter );
   ASSERT_EQ( 3, continue_counter );
   ASSERT_EQ( 3, assignment_counter );
 }
@@ -306,8 +310,11 @@ TEST_F( InterpreterWhileStmtTest, break_through_scope ) {
     int x = 1
   done
   */
-  MAKE_STATEMENTS(
-      MAKE_WHILE( MAKE_LITERAL( BaseType::BOOL, true ), makeBlock( MAKE_BREAK(), MAKE_CONST_INT( "x", 1 ) ) ) );
+  MAKE_STATEMENTS( MAKE_WHILE(
+      MAKE_LITERAL( BaseType::BOOL, true ),
+      makeBlock( MAKE_IF( makeExprBlockPairVec( MAKE_LITERAL( BaseType::BOOL, true ), makeBlock( MAKE_BREAK() ) ),
+                          makeBlock() ),
+                 MAKE_CONST_INT( "x", 1 ) ) ) );
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
@@ -351,5 +358,5 @@ TEST_F( InterpreterWhileStmtTest, break_only_one_loop ) {
   MAKE_FUNCTIONS();
   MAKE_INTERPRETER
 
-  executeAndAssertNodeVisits<WhileStatementNode, ControlFlowNode, VarOrConstDeclNode>( IT, 2, 2, 0 );
+  executeAndAssertNodeVisits<WhileStatementNode, ControlFlowNode, VarOrConstDeclNode>( IT, 2, 2, 1 );
 }

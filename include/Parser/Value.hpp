@@ -49,9 +49,17 @@ struct Value {
     return data_;
   }
 
+  VariantType& getData() noexcept {
+    return data_;
+  }
+
   Type getValueType() const noexcept {
     return std::visit( Overloaded{ []( const ArrayValue& data ) -> Type {
-                                    return ArrayType{ std::make_unique<Type>( data[0].getValueType() ) };
+                                    if ( data.empty() ) {
+                                      return BaseType::VOID;
+                                    } else {
+                                      return ArrayType{ std::make_unique<Type>( data[0].getValueType() ) };
+                                    }
                                   },
                                    []( const int ) -> Type { return BaseType::INT; },
                                    []( const float ) -> Type { return BaseType::FLOAT; },
