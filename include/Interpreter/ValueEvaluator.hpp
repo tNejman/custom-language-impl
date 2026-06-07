@@ -239,20 +239,6 @@ class ValueEvaluator {
     }
   }
 
-  // static Value& evaluateArrAccess( Value& lhs, Value& rhs ) {
-  //   assertAllowedTypes<Value::ArrayValue>( lhs );
-  //   assertAllowedTypes<int>( rhs );
-  //   Value::ArrayValue& array = std::get<Value::ArrayValue>( lhs.getData() );
-  //   const int idx = std::get<int>( rhs.getData() );
-  //   if ( idx < 0 ) {
-  //     throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index must be positive" );
-  //   }
-  //   if ( static_cast<size_t>( idx ) >= array.size() ) {
-  //     throw IndexOutOfBoundsException( Position{ 1, 1 }, "Array index exceeding array size" );
-  //   }
-  //   return array[static_cast<size_t>( idx )];
-  // }
-
   static RuntimeValue evaluateArrAccess( RuntimeValue& lhs, RuntimeValue& rhs ) {
     if ( !lhs || !rhs ) {
       throw VoidValueException( Position{ 1, 1 }, "cannot use void to access arr" );

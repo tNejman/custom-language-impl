@@ -4,7 +4,6 @@
 
 #include <print>
 
-// #include "MockParser.hpp"
 #include "Interpreter/CallStack.h"
 #include "Interpreter/Interpreter.h"
 #include "Parser/Node.h"
@@ -75,7 +74,6 @@ void assertAccSize( Interpreter& i, size_t expected_size ) {
 void assertAccTopVal( Interpreter& i, bool is_void, const auto& val ) {
   const auto& acc = ITF::acc( i );
   ASSERT_EQ( is_void, acc.top().isVoid() );
-  // std::print( "\n\n\n{}, {}\n\n\n", acc.top().copyValue(), val );
   if ( !is_void ) {
     ASSERT_EQ( acc.top().copyValue(), val );
   }
@@ -209,12 +207,3 @@ void executeAndAssertNodeVisits( Interpreter& IT, ExpectedCounts... expected_cou
     ASSERT_EQ( expected[i], actual[i] );
   }
 }
-
-// #define MAKE_HOOK( ... )                                                            \
-//   IT.setDebugHook( [&]( Interpreter & IT, const INode& node, DebugEvent event )  { \
-//     __VA_ARGS__                                                                     \
-//   })
-
-// #define MAKE_HOOK_M( skips_enc, ... ) \
-//   IT.setDebugHook(                    \
-//       [skips = ( skips_enc )]( Interpreter& IT, const INode& node, DebugEvent event ) mutable { __VA_ARGS__ } )

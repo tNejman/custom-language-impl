@@ -234,24 +234,3 @@ TEST_F( InterpreterAssignmentTest, special_assignment_bool ) {
     ASSERT_THROW( IT.visit( *assignment ), InvalidOperationException );
   }
 }
-
-// TEST_F( InterpreterAssignmentTest, special_assignment_arr ) {
-//   /*
-//   var T[] x = [t]
-//   x += [t] | x -= [t] | x *= [t] | x /= [t] | x %= [t]
-//   */
-//   std::vector<AssignmentType> assignment_types = { AssignmentType::ADD_ASSIGN, AssignmentType::SUB_ASSIGN,
-//                                                    AssignmentType::MUL_ASSIGN, AssignmentType::DIV_ASSIGN,
-//                                                    AssignmentType::MOD_ASSIGN };
-//
-//   for ( const auto at : assignment_types ) {
-//     auto decl = MAKE_DECL_VAR( "x", BaseType::BOOL, MAKE_LITERAL( BaseType::BOOL, true ) );
-//     auto assignment = MAKE_ASSIGNMENT_EXPR_WITH_OP( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::BOOL, true ), at );
-//     Interpreter IT{ nullptr };
-//     ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
-//     IT.visit( *decl );
-//     ASSERT_THROW( IT.visit( *assignment ), NotAllowedTypeException );
-//   }
-// }
-
-// }

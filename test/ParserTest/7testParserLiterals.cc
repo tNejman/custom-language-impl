@@ -125,7 +125,6 @@ TEST_F( ParserLiteralTest, bool_array_1_elem ) {
 
 TEST_F( ParserLiteralTest, int_array_more_than_1_elem ) {
   // [1, 2]
-  //
   auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET,
                                                   { TokenType::INT_LITERAL, 1 },
                                                   TokenType::COMMA,
@@ -244,7 +243,7 @@ TEST_F( ParserLiteralTest, array_literal_nested_many_elements ) {
 
 TEST_F( ParserLiteralTest, array_literal_nested_many_times ) {
   // [[[[1]]]]
-  // 3 array depth
+  // 4 array depth
   auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET,
                                                   TokenType::LBRACKET,
                                                   TokenType::LBRACKET,
@@ -265,10 +264,6 @@ TEST_F( ParserLiteralTest, array_literal_nested_many_times ) {
     ASSERT_EQ( 1, array_literal_ptr->getPositions().size() );
     ASSERT_NE( nullptr, array_literal_ptr->getPositions()[0] );
 
-    // AstSerializerVisitor astv{};
-    // array_literal_ptr->getPositions()[0]->accept( astv );
-    // std::cout << astv.getString() << '\n';
-
     underlying_literal = array_literal_ptr->getPositions()[0].get();
   }
 
@@ -276,25 +271,27 @@ TEST_F( ParserLiteralTest, array_literal_nested_many_times ) {
   assertLiteralExpr( literal, Type{ BaseType::INT }, Value{ 1 } );
 }
 
-// @TODO
-// TEST_F( ParserLiteralTest, array_literal_wrapped_in_parenthesis ) {
-//   // ([1])
-//   auto program_ptr = initTokensAndBuildProgram( { TokenType::LPAREN,
-//                                                   TokenType::LBRACKET,
-//                                                   { TokenType::INT_LITERAL, 1 },
-//                                                   TokenType::RBRACKET,
-//                                                   TokenType::RPAREN,
-//                                                   TokenType::NEWLINE } );
-//     assertProgramCastNodeAndAssertArrayLiteralExpr(program_ptr, 1, const unsigned int expected_elem_count, const
-//     std::vector<Type> &types, const Value &values)
-// }
+TEST_F( ParserLiteralTest, array_literal_wrapped_in_parenthesis ) {
+  // ([1])
+  auto program_ptr = initTokensAndBuildProgram( { TokenType::LPAREN,
+                                                  TokenType::LBRACKET,
+                                                  { TokenType::INT_LITERAL, 1 },
+                                                  TokenType::RBRACKET,
+                                                  TokenType::RPAREN,
+                                                  TokenType::NEWLINE } );
+  std::vector<Type> expected_types;
+  expected_types.push_back( BaseType::INT );
+  Value expected_value = Value::makeArray( 1 );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1u, 1u, expected_types, expected_value );
+}
 
-// TEST_F( ParserLiteralTest, array_literal_expression_as_value ) {
-//   // [getValue(), 1 + 2]
-//   std::vector<TokenInitializer> init = {
-//       TokenType::LBRACKET, { TokenType::IDENTIFIER, "getValue" }, TokenType::LPAREN,  TokenType::RPAREN,
-//       TokenType::COMMA,    { TokenType::INT_LITERAL, 1 },         TokenType::OP_PLUS, { TokenType::INT_LITERAL, 2 },
-//       TokenType::RBRACKET };
-//   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-//   ASSERT_EQ( "{[getValue(), {1 + 2}]}", std::move( res ) );
-// }
+TEST_F( ParserLiteralTest, array_literal_expression_as_value ) {
+  // [getValue(), 1 + 2]
+  std::vector<TokenInitializer> init = { TokenType::LBRACKET, { TokenType::IDENTIFIER, "getValue" },
+                                         TokenType::LPAREN,   TokenType::RPAREN,
+                                         TokenType::COMMA,    { TokenType::INT_LITERAL, 1 },
+                                         TokenType::OP_PLUS,  { TokenType::INT_LITERAL, 2 },
+                                         TokenType::RBRACKET, TokenType::NEWLINE };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  ASSERT_EQ( "{[getValue(), {1 + 2}]}", std::move( res ) );
+}

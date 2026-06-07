@@ -448,9 +448,6 @@ std::vector<std::unique_ptr<IExpressionNode>> Parser::tryBuildArgumentListExpr()
 std::unique_ptr<IExpressionNode> Parser::tryBuildArrayLiteralExpr() {
   CONSUME_SPECIFIC_TOKEN_OR_RETURN_NULLPTR( TokenType::LBRACKET, opening_bracket_marker )
   auto array_positions = tryBuildArgumentListExpr();
-  // if ( array_positions.empty() ) {
-  //   throw MissingExpressionException( opening_bracket_marker.position_, "array literal" );
-  // }
   consumeSpecificTokenOrThrow<MissingBracketException>( TokenType::RBRACKET, "array literal", BracketType::CLOSING );
   return std::make_unique<ArrayLiteralNode>( opening_bracket_marker.position_, std::move( array_positions ) );
 }

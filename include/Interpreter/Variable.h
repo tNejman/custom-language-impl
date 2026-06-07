@@ -24,7 +24,7 @@ struct Variable {
   [[nodiscard]] const std::shared_ptr<Value> getValue() const noexcept;
   [[nodiscard]] std::shared_ptr<Value> getValue() noexcept;
 
-  void setValue( std::shared_ptr<Value> new_val ) noexcept;  // mutability agnostic; just a dumb container
+  void setValue( std::shared_ptr<Value> new_val ) noexcept;  // mutability agnostic
 
   [[nodiscard]] bool operator==( const Variable& other ) const noexcept;
 };

@@ -170,8 +170,6 @@ std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept 
     case BinaryOperator::MUL: return "*";
     case BinaryOperator::DIV: return "/";
     case BinaryOperator::MOD: return "%";
-    // case BinaryOperator::FILTER: return "?";
-    // case BinaryOperator::MAP: return "->";
     case BinaryOperator::ACCESS: return "[]";
   }
 }

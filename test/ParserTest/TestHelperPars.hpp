@@ -61,23 +61,3 @@ bool isSameTokenTypeAsBaseType( TokenType tt, BaseType bt ) {
     default: throw std::runtime_error( "type error" );
   }
 }
-
-// void assertTokensTypeAndPos( std::string code, std::vector<Token> &&expected ) {
-//   std::stringstream ss{ code };
-//   Lexer lexer{ ss };
-//   for ( const auto &exp : expected ) {
-//     ASSERT_EQ( exp, lexer.getNextToken() );
-//   }
-// }
-
-// void assertTokensType( std::string &&code, std::vector<TokenType> &&expected ) {
-//   std::stringstream ss{ code };
-//   Lexer lexer{ ss };
-//   for ( const auto &exp : expected ) {
-//     ASSERT_EQ( exp, lexer.getNextToken().type_ );
-//   }
-// }
-
-// bool areFloatsKindaEqual( const float f1, const float f2 ) {
-//   return std::abs( f1 - f2 ) < 0.001;
-// }

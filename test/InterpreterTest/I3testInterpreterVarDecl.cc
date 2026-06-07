@@ -184,7 +184,6 @@ TEST_F( InterpreterVarDeclTest, fun_var_shadows_global_var ) {
           assertTopCallContextVarCount( IT, 1u );
           Variable var_comp{ "x", BaseType::INT, Mutability::IMMUTABLE, std::make_shared<Value>( 1 ) };
           ASSERT_EQ( var_comp, ITF::varsTop( IT )[0] );
-          // ASSERT_EQ( var_comp, ITF::varsGlob( IT )[0] );
           break;
         }
       }

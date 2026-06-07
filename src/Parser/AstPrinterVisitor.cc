@@ -7,23 +7,25 @@
 
 // AstPrinterVisitor::
 
-// void AstPrinterVisitor::printPrefix() const noexcept {
-//   for ( size_t i = 0; i < is_last_child_stack_.size(); ++i ) {
-//     if ( i == is_last_child_stack_.size() - 1 ) {
-//       if ( is_last_child_stack_[i] ) {
-//         std::cout << "└── ";
-//       } else {
-//         std::cout << "├── ";
-//       }
-//     } else {
-//       if ( is_last_child_stack_[i] ) {
-//         std::cout << "    ";
-//       } else {
-//         std::cout << "│   ";
-//       }
-//     }
-//   }
-// }
+/*
+void AstPrinterVisitor::printPrefix() const noexcept {
+  for ( size_t i = 0; i < is_last_child_stack_.size(); ++i ) {
+    if ( i == is_last_child_stack_.size() - 1 ) {
+      if ( is_last_child_stack_[i] ) {
+        std::cout << "└── ";
+      } else {
+        std::cout << "├── ";
+      }
+    } else {
+      if ( is_last_child_stack_[i] ) {
+        std::cout << "    ";
+      } else {
+        std::cout << "│   ";
+      }
+    }
+  }
+}
+  */
 
 void AstPrinterVisitor::printIndent() const noexcept {
   for ( int i = 0; i < indent_level_; ++i ) {
@@ -251,6 +253,5 @@ void AstPrinterVisitor::visit( const ProgramNode& node ) {
 }
 
 void AstPrinterVisitor::visit( const BuiltinFunction& ) {
-  // std::println("")
   throw std::runtime_error( "not implemented" );
 }

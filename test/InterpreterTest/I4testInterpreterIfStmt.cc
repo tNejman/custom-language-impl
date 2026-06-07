@@ -172,12 +172,6 @@ TEST_F( InterpreterIfStmtTest, can_mutate_outer_variables ) {
                             makeBlock( MAKE_ASSIGNMENT_EXPR( MAKE_ID( "x" ), MAKE_LITERAL( BaseType::INT, 2 ) ) ) ),
       makeBlock() );
 
-  // IT.setDebugHook( []( Interpreter& interpreter, const INode& node, DebugEvent event ) {
-  //   if ( dynamic_cast<const IfStatementNode*>( &node ) && event == DebugEvent::AFTER_NODE_VISIT ) {
-  //     Variable compr{ "x", BaseType::INT, Mutability::MUTABLE, std::make_shared<Value>( 2 ) };
-  //     ASSERT_EQ( compr, ITF::varsGlob( IT )[0] );
-  //   }
-  // } )
   Interpreter IT{ nullptr };
   ITF::addMockCallContext( IT, CallContext::ContextType::TOP_LEVEL, 10u );
   IT.visit( *decl );

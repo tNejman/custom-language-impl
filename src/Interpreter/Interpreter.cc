@@ -22,39 +22,15 @@
 /* Environment
   public
 
+
+
 */
-
-// std::vector<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionByIdentifier(
-//     const std::string_view identifier ) const noexcept {
-//   return functions_
-//          | std::views::filter( [&identifier]( const IFunction& ifun ) { return ifun.getIdentifier() == identifier; }
-//          ) | std::ranges::to<std::vector>();
-// }
-
-// std::optional<std::reference_wrapper<const BuiltinFunction>>
-// Interpreter::Environment::getBuiltinFunctionByIdentifier(
-//     const std::string identifier ) const noexcept {
-//   auto it = std::ranges::find_if( builtin_storage_,
-//                                   [&identifier]( const auto& fun ) { return fun.getIdentifier() == identifier; } );
-
-//   if ( it == builtin_storage_.end() ) {
-//     return std::nullopt;
-//   }
-//   return *it;
-// }
 
 std::optional<std::reference_wrapper<const IFunction>> Interpreter::Environment::getFunctionBySignature(
     const std::string_view identifier, const std::vector<ParameterDecl>& parameters ) noexcept {
   if ( identifier == "write" ) {
     tryAddBuiltinFunction( builtin_functions::buildBuiltinWrite( parameters ) );
   }
-  // auto it = std::ranges::find_if( functions_, [&]( const IFunction& fun ) {
-  //   return fun.getIdentifier() == identifier && fun.getParameters() == parameters;
-  // } );
-  // if ( it == functions_.end() ) {
-  //   return std::nullopt;
-  // }
-  // return *it;
   for ( const auto& fun : functions_ ) {
     if ( fun.get().getIdentifier() == identifier && fun.get().getParameters() == parameters ) {
       return fun;
@@ -287,9 +263,6 @@ void Interpreter::handleStatementList( const std::vector<std::unique_ptr<INode>>
                                        CallContext::ContextType context_type ) {
   CallContextGuard cc_guard{ environment_, context_type, statements.size() };
   for ( const auto& stmt_ptr : statements ) {
-    // if ( debug_hook_ ) {
-    //   debug_hook_( *this, *stmt_ptr );
-    // }
     AccumulatorGuard acc_guard{ accumulator_, environment_ };
     stmt_ptr->accept( *this );
     if ( environment_.getFlowControlType() != Environment::ControlFlow::NONE ) {
@@ -381,13 +354,7 @@ Interpreter::Interpreter( std::unique_ptr<const ProgramNode> program ) : program
 }
 
 void Interpreter::execute() {
-  // static bool was_executed = false;
-  // if ( !was_executed ) {
   this->program_->accept( *this );
-  //   was_executed = true;
-  // } else {
-  //   throw std::runtime_error( "cannot execute twice" );
-  // }
 }
 
 void Interpreter::visit( const FunctionDefNode& node ) {
@@ -512,9 +479,6 @@ void Interpreter::visit( const WhileStatementNode& node ) {
     CallContextGuard guard{ environment_, CallContext::ContextType::WHILE_BLOCK, node.getBlock().size() };
     bool should_break = false;
     for ( const auto& stmt : node.getBlock() ) {
-      // if ( debug_hook_ ) {
-      //   debug_hook_( *this, *stmt );
-      // }
       AccumulatorGuard acc_guard{ accumulator_, environment_ };
       stmt->accept( *this );
       acc_guard.validate( stmt->getPosition() );
@@ -643,8 +607,6 @@ void Interpreter::visit( const BinaryExprNode& node ) {
       return right_operand_rt_val.extractValue();
     }
   }();
-  // std::println( "\nlop binexpr:{}\n", l_operand );
-  // std::println( "\nrop binexpr:{}\n", r_operand );
 
   switch ( node.getOperator() ) {
     case BinaryOperator::AND: {
@@ -808,9 +770,7 @@ void Interpreter::visit( const FunctionCallNode& node ) {
 void Interpreter::visit( const ArrayLiteralNode& node ) {
   DebugGuard dbg_guard{ *this, node };
 
-  // assert( node.getPositions().size() > 0 && "empty literal is illegal [parser]" );
   if ( node.getPositions().empty() ) {
-    // throw VoidValueException( node.getPositions()[0]->getPosition(), "array literal position cannot be void" );
     putValInAcc( RuntimeValue{ Value::makeArray() } );
     return;
   }

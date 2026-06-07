@@ -24,7 +24,6 @@ struct Value {
   Value( bool val ) : data_( val ) {
   }
   Value( ArrayValue val ) : data_( std::move( val ) ) {
-    // assert( !std::get<ArrayValue>( data_ ).empty() && "ArrayValue must be initialized with a non-empty vector" );
   }
 
   Value( const Value& ) = delete;

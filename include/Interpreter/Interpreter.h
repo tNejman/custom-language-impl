@@ -20,7 +20,7 @@ class Interpreter;
 enum class DebugEvent {
   BEFORE_NODE_VISIT,
   AFTER_NODE_VISIT,
-};  // BEFORE_STATEMENT_LIST, AFTER_STATEMENT_LIST
+};
 using DebugHook = std::function<void( Interpreter&, const INode&, DebugEvent )>;
 
 class InterpreterTestFriend;
@@ -45,10 +45,6 @@ class Interpreter : public Visitor {
     ControlFlow loop_control_type_ = ControlFlow::NONE;
 
    public:
-    // std::vector<std::reference_wrapper<const IFunction>> getFunctionByIdentifier(
-    //     const std::string_view identifier ) const noexcept;
-    // std::optional<std::reference_wrapper<const BuiltinFunction>> getBuiltinFunctionByIdentifier(
-    //     const std::string identifier ) const noexcept;
     std::optional<std::reference_wrapper<const IFunction>> getFunctionBySignature(
         const std::string_view identifier, const std::vector<ParameterDecl>& parameters ) noexcept;
     std::optional<std::reference_wrapper<const IFunction>> getFunctionBySignature(
