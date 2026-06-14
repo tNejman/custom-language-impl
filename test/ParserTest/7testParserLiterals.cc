@@ -5,7 +5,6 @@
 
 #include "Exceptions/ParserExceptions/MissingExpressionException.hpp"
 #include "Lexer/Token.hpp"
-#include "Parser/AstSerializerVisitor.h"
 #include "Parser/Node.h"
 #include "Parser/Types.hpp"
 #include "Parser/Value.hpp"
@@ -79,13 +78,14 @@ TEST_F( ParserLiteralTest, base_type_bool ) {
 TEST_F( ParserLiteralTest, string ) {
   auto program_ptr = initTokensAndBuildProgram( { { TokenType::STRING_LITERAL, "abc" }, TokenType::NEWLINE } );
   assertProgramCastNodeAndAssertLiteralExpr( program_ptr.get(), 1, Type::buildTypeArrayTypeFromBase( BaseType::CHAR ),
-                                             Value{ { 'a', 'b', 'c' } } );
+                                             Value::makeArray( 'a', 'b', 'c' ) );
 }
 
 TEST_F( ParserLiteralTest, array_literal_empty ) {
-  ASSERT_THROW(
-      auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET, TokenType::RBRACKET, TokenType::NEWLINE } ),
-      MissingExpressionException );
+  auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET, TokenType::RBRACKET, TokenType::NEWLINE } );
+  std::vector<Type> expected_types;
+  expected_types.push_back( BaseType::VOID );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 0, expected_types, { Value::makeArray( 1 ) } );
 }
 
 TEST_F( ParserLiteralTest, int_array_1_elem ) {
@@ -94,8 +94,7 @@ TEST_F( ParserLiteralTest, int_array_1_elem ) {
 
   std::vector<Type> expected_types;
   expected_types.push_back( BaseType::INT );
-  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 1, expected_types,
-                                                  { Value::ArrayValue{ { 1 } } } );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 1, expected_types, { Value::makeArray( 1 ) } );
 }
 
 TEST_F( ParserLiteralTest, float_array_1_elem ) {
@@ -103,7 +102,7 @@ TEST_F( ParserLiteralTest, float_array_1_elem ) {
       { TokenType::LBRACKET, { TokenType::FLOAT_LITERAL, 1.f }, TokenType::RBRACKET, TokenType::NEWLINE } );
   std::vector<Type> expected_types;
   expected_types.push_back( BaseType::FLOAT );
-  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 1, expected_types, Value::ArrayValue{ 1.f } );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 1, expected_types, Value::makeArray( 1.f ) );
 }
 
 TEST_F( ParserLiteralTest, char_array_1_elem ) {
@@ -112,7 +111,7 @@ TEST_F( ParserLiteralTest, char_array_1_elem ) {
   std::vector<Type> expected_types;
   expected_types.push_back( BaseType::CHAR );
   assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 1, expected_types,
-                                                  { Value::ArrayValue{ { 'c' } } } );
+                                                  { Value::makeArray( 'c' ) } );
 }
 
 TEST_F( ParserLiteralTest, bool_array_1_elem ) {
@@ -121,12 +120,11 @@ TEST_F( ParserLiteralTest, bool_array_1_elem ) {
   std::vector<Type> expected_types;
   expected_types.push_back( BaseType::BOOL );
   assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 1, expected_types,
-                                                  { Value::ArrayValue{ { true } } } );
+                                                  { Value::makeArray( true ) } );
 }
 
 TEST_F( ParserLiteralTest, int_array_more_than_1_elem ) {
   // [1, 2]
-  //
   auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET,
                                                   { TokenType::INT_LITERAL, 1 },
                                                   TokenType::COMMA,
@@ -136,8 +134,7 @@ TEST_F( ParserLiteralTest, int_array_more_than_1_elem ) {
   std::vector<Type> expected_types;
   expected_types.push_back( BaseType::INT );
   expected_types.push_back( BaseType::INT );
-  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 2, expected_types,
-                                                  Value::ArrayValue{ { 1, 2 } } );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 2, expected_types, Value::makeArray( 1, 2 ) );
 }
 
 TEST_F( ParserLiteralTest, float_array_more_than_1_elem ) {
@@ -151,7 +148,7 @@ TEST_F( ParserLiteralTest, float_array_more_than_1_elem ) {
   expected_types.push_back( BaseType::FLOAT );
   expected_types.push_back( BaseType::FLOAT );
   assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 2, expected_types,
-                                                  Value::ArrayValue{ { 1.f, 2.f } } );
+                                                  Value::makeArray( 1.f, 2.f ) );
 }
 
 TEST_F( ParserLiteralTest, char_array_more_than_1_elem ) {
@@ -165,7 +162,7 @@ TEST_F( ParserLiteralTest, char_array_more_than_1_elem ) {
   expected_types.push_back( BaseType::CHAR );
   expected_types.push_back( BaseType::CHAR );
   assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 2, expected_types,
-                                                  Value::ArrayValue{ { 'c', 'd' } } );
+                                                  Value::makeArray( 'c', 'd' ) );
 }
 
 TEST_F( ParserLiteralTest, bool_array_more_than_1_elem ) {
@@ -179,7 +176,7 @@ TEST_F( ParserLiteralTest, bool_array_more_than_1_elem ) {
   expected_types.push_back( BaseType::BOOL );
   expected_types.push_back( BaseType::BOOL );
   assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1, 2, expected_types,
-                                                  Value::ArrayValue{ { true, false } } );
+                                                  Value::makeArray( true, false ) );
 }
 
 TEST_F( ParserLiteralTest, array_literal_very_many_elements ) {
@@ -211,7 +208,7 @@ TEST_F( ParserLiteralTest, array_literal_very_many_elements ) {
   }
   assertProgramCastNodeAndAssertArrayLiteralExpr(
       program_ptr.get(), 1, 20, expected_types,
-      Value::ArrayValue{ { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 } } );
+      Value::makeArray( 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ) );
 }
 
 TEST_F( ParserLiteralTest, array_literal_nested_many_elements ) {
@@ -240,13 +237,13 @@ TEST_F( ParserLiteralTest, array_literal_nested_many_elements ) {
   std::vector<Type> expected_types;
   expected_types.push_back( BaseType::INT );
   expected_types.push_back( BaseType::INT );
-  assertArrayLiteralExprLiteralsExprOnly( arr_pos_0, 2, expected_types, Value::ArrayValue{ { 1, 2 } } );
-  assertArrayLiteralExprLiteralsExprOnly( arr_pos_1, 2, expected_types, Value::ArrayValue{ { 3, 4 } } );
+  assertArrayLiteralExprLiteralsExprOnly( arr_pos_0, 2, expected_types, Value::makeArray( 1, 2 ) );
+  assertArrayLiteralExprLiteralsExprOnly( arr_pos_1, 2, expected_types, Value::makeArray( 3, 4 ) );
 }
 
 TEST_F( ParserLiteralTest, array_literal_nested_many_times ) {
   // [[[[1]]]]
-  // 3 array depth
+  // 4 array depth
   auto program_ptr = initTokensAndBuildProgram( { TokenType::LBRACKET,
                                                   TokenType::LBRACKET,
                                                   TokenType::LBRACKET,
@@ -267,10 +264,6 @@ TEST_F( ParserLiteralTest, array_literal_nested_many_times ) {
     ASSERT_EQ( 1, array_literal_ptr->getPositions().size() );
     ASSERT_NE( nullptr, array_literal_ptr->getPositions()[0] );
 
-    // AstSerializerVisitor astv{};
-    // array_literal_ptr->getPositions()[0]->accept( astv );
-    // std::cout << astv.getString() << '\n';
-
     underlying_literal = array_literal_ptr->getPositions()[0].get();
   }
 
@@ -278,25 +271,27 @@ TEST_F( ParserLiteralTest, array_literal_nested_many_times ) {
   assertLiteralExpr( literal, Type{ BaseType::INT }, Value{ 1 } );
 }
 
-// @TODO
-// TEST_F( ParserLiteralTest, array_literal_wrapped_in_parenthesis ) {
-//   // ([1])
-//   auto program_ptr = initTokensAndBuildProgram( { TokenType::LPAREN,
-//                                                   TokenType::LBRACKET,
-//                                                   { TokenType::INT_LITERAL, 1 },
-//                                                   TokenType::RBRACKET,
-//                                                   TokenType::RPAREN,
-//                                                   TokenType::NEWLINE } );
-//     assertProgramCastNodeAndAssertArrayLiteralExpr(program_ptr, 1, const unsigned int expected_elem_count, const
-//     std::vector<Type> &types, const Value &values)
-// }
+TEST_F( ParserLiteralTest, array_literal_wrapped_in_parenthesis ) {
+  // ([1])
+  auto program_ptr = initTokensAndBuildProgram( { TokenType::LPAREN,
+                                                  TokenType::LBRACKET,
+                                                  { TokenType::INT_LITERAL, 1 },
+                                                  TokenType::RBRACKET,
+                                                  TokenType::RPAREN,
+                                                  TokenType::NEWLINE } );
+  std::vector<Type> expected_types;
+  expected_types.push_back( BaseType::INT );
+  Value expected_value = Value::makeArray( 1 );
+  assertProgramCastNodeAndAssertArrayLiteralExpr( program_ptr.get(), 1u, 1u, expected_types, expected_value );
+}
 
-// TEST_F( ParserLiteralTest, array_literal_expression_as_value ) {
-//   // [getValue(), 1 + 2]
-//   std::vector<TokenInitializer> init = {
-//       TokenType::LBRACKET, { TokenType::IDENTIFIER, "getValue" }, TokenType::LPAREN,  TokenType::RPAREN,
-//       TokenType::COMMA,    { TokenType::INT_LITERAL, 1 },         TokenType::OP_PLUS, { TokenType::INT_LITERAL, 2 },
-//       TokenType::RBRACKET };
-//   std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
-//   ASSERT_EQ( "{[getValue(), {1 + 2}]}", std::move( res ) );
-// }
+TEST_F( ParserLiteralTest, array_literal_expression_as_value ) {
+  // [getValue(), 1 + 2]
+  std::vector<TokenInitializer> init = { TokenType::LBRACKET, { TokenType::IDENTIFIER, "getValue" },
+                                         TokenType::LPAREN,   TokenType::RPAREN,
+                                         TokenType::COMMA,    { TokenType::INT_LITERAL, 1 },
+                                         TokenType::OP_PLUS,  { TokenType::INT_LITERAL, 2 },
+                                         TokenType::RBRACKET, TokenType::NEWLINE };
+  std::string res = initTokensBuildProgramAndSerialize( std::move( init ) );
+  ASSERT_EQ( "{[getValue(), {1 + 2}]}", std::move( res ) );
+}

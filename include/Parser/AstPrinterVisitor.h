@@ -22,9 +22,11 @@ class AstPrinterVisitor : public Visitor {
   void visit( const BinaryExprNode& node ) override;
   void visit( const UnaryExprNode& node ) override;
   void visit( const CastExprNode& node ) override;
+  void visit( const ArrayIdentifierOpNode& node ) override;
   void visit( const FunctionCallNode& node ) override;
   void visit( const ArrayLiteralNode& node ) override;
   void visit( const LiteralExprNode& node ) override;
   void visit( const PrimaryIdentifierNode& node ) override;
   void visit( const ProgramNode& node ) override;
+  void visit( const BuiltinFunction& node ) override;
 };

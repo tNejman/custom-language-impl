@@ -14,10 +14,10 @@ if(NOT CLANG_TIDY_EXE)
     message(WARNING "clang-tidy not found. Linting disabled.")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -D_CRT_SECURE_NO_WARNINGS")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -D_CRT_SECURE_NO_WARNINGS")
-endif()
+# if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+#     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -D_CRT_SECURE_NO_WARNINGS")
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -D_CRT_SECURE_NO_WARNINGS")
+# endif()
 
 include(FetchContent)
 
@@ -48,6 +48,7 @@ FetchContent_MakeAvailable(argparse)
 set(MODULES
     Lexer
     Parser
+    Interpreter
     Drivers
 )
 
@@ -59,34 +60,42 @@ function(apply_compiler_flags target)
         target_compile_options(${target} PRIVATE
             -g -O0
             -Wall -Wextra -Wpedantic -Werror 
-            -Wcast-align=strict -Wcast-qual 
+            -Wcast-align -Wcast-qual 
             -Wconversion -Wsign-conversion -Wshadow 
             -Wdouble-promotion -Wnull-dereference 
-            -Wformat=2 -Wduplicated-cond -Wduplicated-branches 
-            -Wlogical-op -Wuseless-cast -Wzero-as-null-pointer-constant 
-            -Wvla -Wshift-overflow=2 -Wstringop-overflow=4 
-
+            -Wformat=2 
+            -Wzero-as-null-pointer-constant 
+            -Wvla -Wshift-overflow 
             -fno-omit-frame-pointer
-            # -fsanitize=address
-            # -fsanitize=undefined
+            
+            -fsanitize=address
+            -fsanitize=undefined
         )
+        
+        # target_link_options(${target} PRIVATE -fsanitize=address -fsanitize=undefined)
     else()
         message(WARNING "Target '${target}' not found - skipping compiler flags")
     endif()
 endfunction()
 
-# add_link_options(-fsanitize=address)
-# add_link_options(-fsanitize=undefined)
-# add_compile_options(-stdlib=libc++)
-# add_link_options(-stdlib=libc++)
+message(STATUS "Global CXX Flags: ${CMAKE_CXX_FLAGS}")
+message(STATUS "Debug CXX Flags: ${CMAKE_CXX_FLAGS_DEBUG}")
+
+add_link_options(-fsanitize=address)
+add_link_options(-fsanitize=undefined)
 
 foreach(module ${MODULES})
     add_subdirectory(src/${module})
     apply_compiler_flags(${module})
 endforeach()
 
+# add_compile_options(-stdlib=libc++)
+# add_link_options(-stdlib=libc++)
+
 add_subdirectory(app)
 
 enable_testing()
 add_subdirectory(test/LexerTest)
 add_subdirectory(test/ParserTest)
+add_subdirectory(test/InterpreterTest)
+add_subdirectory(test/AuxTest)

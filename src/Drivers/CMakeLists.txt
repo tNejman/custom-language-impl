@@ -1,4 +1,4 @@
-add_library(Drivers
+add_library(Drivers STATIC
     LexerDriver.cc
 )
 

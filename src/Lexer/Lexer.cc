@@ -2,12 +2,12 @@
 
 #include <array>
 #include <cctype>
-#include <limits>
 #include <optional>
 #include <ranges>
 #include <string>
 
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
+#include "Lexer/Limits.hpp"
 
 
 Token Lexer::makeToken( TokenType type, TokenVal value ) const {
@@ -222,15 +222,18 @@ std::optional<Token> Lexer::tryBuildCharLiteral() {
 std::optional<Token> Lexer::tryBuildNumericLiteral() {
   if ( !isdigit( current_char_ ) ) return std::nullopt;
 
-  std::string buf{ current_char_ };
   std::string buf_org{ current_char_ };
   bool is_float = false;
 
   int int_val = current_char_ - '0';
-  bool is_overflown = false;
+  float float_val = 0.0f;
+  float divisor = 10.0f;
 
-  constexpr int max_div_10 = std::numeric_limits<int>::max() / 10;
-  constexpr int max_mod_10 = std::numeric_limits<int>::max() % 10;
+  bool is_int_overflown = false;
+  bool is_float_overflown = false;
+
+  constexpr int max_div_10 = tkom_limits::MAX_INT / 10;
+  constexpr int max_mod_10 = tkom_limits::MAX_INT % 10;
 
   auto consume_digits_and_underscores = [&]() {
     while ( isdigit( peek() ) || peek() == '_' ) {
@@ -238,19 +241,27 @@ std::optional<Token> Lexer::tryBuildNumericLiteral() {
       buf_org += current_char_;
 
       if ( current_char_ != '_' ) {
-        buf += current_char_;
+        int cur_subdec_val = current_char_ - '0';
 
-        if ( !is_float && !is_overflown ) {
-          int cur_subdec_val = current_char_ - '0';
+        if ( !is_float ) {
+          if ( !is_int_overflown ) {
+            if ( int_val > max_div_10 || ( int_val == max_div_10 && cur_subdec_val > max_mod_10 ) ) {
+              is_int_overflown = true;
+            } else {
+              int_val = int_val * 10 + cur_subdec_val;
+            }
+          }
+        } else {
+          if ( !is_float_overflown ) {
+            float_val += static_cast<float>( cur_subdec_val ) / divisor;
+            divisor *= 10.0f;
 
-          if ( int_val > max_div_10 || ( int_val == max_div_10 && cur_subdec_val > max_mod_10 ) ) {
-            is_overflown = true;
-          } else {
-            int_val = int_val * 10 + cur_subdec_val;
+            if ( float_val > tkom_limits::MAX_FLOAT ) {
+              is_float_overflown = true;
+            }
           }
         }
       }
-      buf_org += current_char_;
     }
   };
 
@@ -259,8 +270,13 @@ std::optional<Token> Lexer::tryBuildNumericLiteral() {
   if ( peek() == '.' ) {
     nextChar();
     is_float = true;
-    buf += current_char_;
     buf_org += current_char_;
+
+    if ( is_int_overflown ) {
+      is_float_overflown = true;
+    } else {
+      float_val = static_cast<float>( int_val );
+    }
 
     consume_digits_and_underscores();
   }
@@ -271,13 +287,12 @@ std::optional<Token> Lexer::tryBuildNumericLiteral() {
   }
 
   if ( is_float ) {
-    try {
-      return makeToken( TokenType::FLOAT_LITERAL, std::stof( buf ) );
-    } catch ( const std::out_of_range & ) {
+    if ( is_float_overflown ) {
       throw FloatLiteralOutOfBoundsException( start_pos_, buf_org );
     }
+    return makeToken( TokenType::FLOAT_LITERAL, float_val );
   } else {
-    if ( is_overflown ) {
+    if ( is_int_overflown ) {
       throw IntLiteralOutOfBoundsException( start_pos_, buf_org );
     }
     return makeToken( TokenType::INT_LITERAL, int_val );
@@ -321,12 +336,12 @@ Token Lexer::getNextToken() {
   skipWhitespaces();
   this->start_pos_ = this->current_pos_;
 
-  if ( auto t = tryBuildSymbol() ) return std::move( *t );
-  if ( auto t = tryBuildStringLiteral() ) return std::move( *t );
-  if ( auto t = tryBuildCharLiteral() ) return std::move( *t );
-  if ( auto t = tryBuildNumericLiteral() ) return std::move( *t );
-  if ( auto t = tryBuildComment() ) return std::move( *t );
-  if ( auto t = tryBuildIdentifier() ) return std::move( *t );
+  if ( auto t = tryBuildSymbol() ) return *std::move( t );
+  if ( auto t = tryBuildStringLiteral() ) return *std::move( t );
+  if ( auto t = tryBuildCharLiteral() ) return *std::move( t );
+  if ( auto t = tryBuildNumericLiteral() ) return *std::move( t );
+  if ( auto t = tryBuildComment() ) return *std::move( t );
+  if ( auto t = tryBuildIdentifier() ) return *std::move( t );
 
   throw UnknownSymbolException( current_pos_, current_char_ );
 }

@@ -1,4 +1,4 @@
-add_library(Lexer
+add_library(Lexer STATIC
     Lexer.cc
 )
 

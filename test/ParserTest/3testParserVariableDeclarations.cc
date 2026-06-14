@@ -1,13 +1,8 @@
 #include <cstddef>
 
-#include "Exceptions/ParserExceptions/InvalidTypeException.hpp"
-#include "Exceptions/ParserExceptions/MissingExpressionException.hpp"
-#include "Exceptions/ParserExceptions/MissingIdentifierException.hpp"
-#include "Exceptions/ParserExceptions/MissingOperatorException.hpp"
-#include "Exceptions/ParserExceptions/NotConsumedTokensException.hpp"
+#include "Exceptions/ParserExceptions/_ParserExceptionInclude.hpp"
 #include "Lexer/Token.hpp"
 #include "Parser/Node.h"
-#include "Parser/Variable.h"
 #include "TestHelperPars.hpp"
 
 void assertVariableDeclaration( const VarOrConstDeclNode* node, const std::string identifier,

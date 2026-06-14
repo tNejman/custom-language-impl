@@ -5,7 +5,6 @@
 #include "Exceptions/LexerExceptions/_LexerExceptionInclude.hpp"
 #include "TestHelperLex.hpp"
 
-
 class LexerLiteralTest : public LexerTest {};
 
 TEST_F( LexerLiteralTest, IntLiteralWithUnderscore ) {
@@ -81,9 +80,7 @@ TEST_F( LexerLiteralTest, FloatLiteralDoubleDecimalPoint ) {
 }
 
 TEST_F( LexerLiteralTest, FloatLiteralOutOfBounds ) {
-  std::stringstream ss{
-      "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-      "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0" };
+  std::stringstream ss{ "1_000_000_000_000_000.0" };
   Lexer lexer{ ss };
   ASSERT_THROW( lexer.getNextToken(), FloatLiteralOutOfBoundsException );
 }

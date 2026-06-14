@@ -30,11 +30,11 @@ void AstSerializerVisitor::serializeBlock( const Block& block ) {
 void AstSerializerVisitor::visit( const FunctionDefNode& node ) {
   VIS_GUARD
 
-  string_builder_ << std::format( "def {} {}(", node.getType(), node.getIdentifier() );
+  string_builder_ << std::format( "def {} {}(", node.getReturnType(), node.getIdentifier() );
   bool is_first_param = true;
-  for ( const auto& param_ptr : node.getParameters() ) {
+  for ( const auto& param : node.getParameters() ) {
     if ( !is_first_param ) string_builder_ << ", ";
-    string_builder_ << std::format( "{}", *param_ptr );
+    string_builder_ << std::format( "{}", param );
     is_first_param = false;
   }
   string_builder_ << ") ";
@@ -138,6 +138,14 @@ void AstSerializerVisitor::visit( const CastExprNode& node ) {
   string_builder_ << " cast_to " << std::format( "{}", node.getType() );
 }
 
+void AstSerializerVisitor::visit( const ArrayIdentifierOpNode& node ) {
+  VIS_GUARD
+
+  node.getExpression().accept( *this );
+  string_builder_ << std::format( " {} ", magic_enum::enum_name( node.getType() ) );
+  string_builder_ << node.getIdentifier();
+}
+
 void AstSerializerVisitor::visit( const FunctionCallNode& node ) {
   string_builder_ << std::format( "{}(", node.getIdentifier() );
   bool is_first_arg = true;
@@ -170,6 +178,10 @@ void AstSerializerVisitor::visit( const PrimaryIdentifierNode& node ) {
 
 void AstSerializerVisitor::visit( const ProgramNode& node ) {
   serializeBlock( node.getStatementList() );
+}
+
+void AstSerializerVisitor::visit( const BuiltinFunction& ) {
+  throw std::runtime_error( "not implemented" );
 }
 
 std::string AstSerializerVisitor::getString() noexcept {

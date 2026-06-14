@@ -1,5 +1,8 @@
 #include "Parser/ParserHelper.h"
 
+#include <stdexcept>
+
+#include "Lexer/Token.hpp"
 #include "Parser/Node.h"
 
 namespace parser_helper {
@@ -88,7 +91,7 @@ bool isOperator( const TokenType token_type ) noexcept {
          || isAccesExprSufBeg( token_type );
 }
 
-AssignmentType translateTokenTypeToAssignmentType( const TokenType token_type ) noexcept {
+AssignmentType translateTokenTypeToAssignmentType( const TokenType token_type ) {
   switch ( token_type ) {
     case TokenType::OP_ASSIGN: return AssignmentType::ASSIGN;
     case TokenType::OP_ADD_ASSIGN: return AssignmentType::ADD_ASSIGN;
@@ -96,10 +99,11 @@ AssignmentType translateTokenTypeToAssignmentType( const TokenType token_type ) 
     case TokenType::OP_MUL_ASSIGN: return AssignmentType::MUL_ASSIGN;
     case TokenType::OP_DIV_ASSIGN: return AssignmentType::DIV_ASSIGN;
     case TokenType::OP_MOD_ASSIGN: return AssignmentType::MOD_ASSIGN;
+    default: throw std::runtime_error( "tt->as_type: cannot match type" );
   }
 }
 
-BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type ) noexcept {
+BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type ) {
   switch ( token_type ) {
     case TokenType::OP_OR: return BinaryOperator::OR;
     case TokenType::OP_AND: return BinaryOperator::AND;
@@ -116,18 +120,25 @@ BinaryOperator translateTokenTypeToBinaryOperator( const TokenType token_type ) 
     case TokenType::OP_MUL: return BinaryOperator::MUL;
     case TokenType::OP_DIV: return BinaryOperator::DIV;
     case TokenType::OP_MOD: return BinaryOperator::MOD;
-    case TokenType::OP_FILTER: return BinaryOperator::FILTER;
-    case TokenType::OP_MAP: return BinaryOperator::MAP;
-    case TokenType::KW_CAST_TO: return BinaryOperator::CAST_TO;
+    default: throw std::runtime_error( "tt->bin_op: cannot match type" );
   }
 }
 
-UnaryOperator translateTokenTypeToUnaryOperator( const TokenType token_type ) noexcept {
+UnaryOperator translateTokenTypeToUnaryOperator( const TokenType token_type ) {
   switch ( token_type ) {
     case TokenType::OP_MINUS: return UnaryOperator::NEG;
     case TokenType::OP_NOT: return UnaryOperator::NOT;
     case TokenType::OP_REV: return UnaryOperator::REV;
     case TokenType::OP_LEN: return UnaryOperator::LEN;
+    default: throw std::runtime_error( "tt->un_op: cannot match type" );
+  }
+}
+
+ArrayIdentifierOpType translateTokenTypeToArrayIdentifierOpType( const TokenType token_type ) {
+  switch ( token_type ) {
+    case TokenType::OP_FILTER: return ArrayIdentifierOpType::FILTER;
+    case TokenType::OP_MAP: return ArrayIdentifierOpType::MAP;
+    default: throw std::runtime_error( "tt->arr_id_op: cannot match type" );
   }
 }
 
@@ -159,10 +170,7 @@ std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept 
     case BinaryOperator::MUL: return "*";
     case BinaryOperator::DIV: return "/";
     case BinaryOperator::MOD: return "%";
-    case BinaryOperator::FILTER: return "?";
-    case BinaryOperator::MAP: return "->";
     case BinaryOperator::ACCESS: return "[]";
-    case BinaryOperator::CAST_TO: return "cast_to";
   }
 }
 

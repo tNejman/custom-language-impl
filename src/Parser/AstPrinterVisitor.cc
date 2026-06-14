@@ -1,31 +1,31 @@
 #include "Parser/AstPrinterVisitor.h"
 
-#include <cmath>
 #include <print>
-#include <stdexcept>
 
 #include "Drivers/Formatter.hpp"
 #include "Parser/Node.h"
 
 // AstPrinterVisitor::
 
-// void AstPrinterVisitor::printPrefix() const noexcept {
-//   for ( size_t i = 0; i < is_last_child_stack_.size(); ++i ) {
-//     if ( i == is_last_child_stack_.size() - 1 ) {
-//       if ( is_last_child_stack_[i] ) {
-//         std::cout << "└── ";
-//       } else {
-//         std::cout << "├── ";
-//       }
-//     } else {
-//       if ( is_last_child_stack_[i] ) {
-//         std::cout << "    ";
-//       } else {
-//         std::cout << "│   ";
-//       }
-//     }
-//   }
-// }
+/*
+void AstPrinterVisitor::printPrefix() const noexcept {
+  for ( size_t i = 0; i < is_last_child_stack_.size(); ++i ) {
+    if ( i == is_last_child_stack_.size() - 1 ) {
+      if ( is_last_child_stack_[i] ) {
+        std::cout << "└── ";
+      } else {
+        std::cout << "├── ";
+      }
+    } else {
+      if ( is_last_child_stack_[i] ) {
+        std::cout << "    ";
+      } else {
+        std::cout << "│   ";
+      }
+    }
+  }
+}
+  */
 
 void AstPrinterVisitor::printIndent() const noexcept {
   for ( int i = 0; i < indent_level_; ++i ) {
@@ -36,13 +36,13 @@ void AstPrinterVisitor::printIndent() const noexcept {
 
 void AstPrinterVisitor::visit( const FunctionDefNode& node ) {
   printIndent();
-  std::print( "Function Definition at pos {}: type: {} identifier: {}", node.getPosition(), node.getType(),
+  std::print( "Function Definition at pos {}: type: {} identifier: {}", node.getPosition(), node.getReturnType(),
               node.getIdentifier() );
   std::print( ", parameter list: (" );
   bool first = true;
-  for ( const auto& param_ptr : node.getParameters() ) {
+  for ( const auto& param : node.getParameters() ) {
     if ( !first ) std::print( ", " );
-    std::print( "{}", *param_ptr );
+    std::print( "{}", param );
     first = false;
   }
   std::println( ")" );
@@ -196,8 +196,11 @@ void AstPrinterVisitor::visit( const UnaryExprNode& node ) {
   --indent_level_;
 }
 
-void AstPrinterVisitor::visit( const CastExprNode& node ) {
-  throw std::runtime_error( "AstPrinterVisitor::visit(CastExprNode&) is not implemented" );
+void AstPrinterVisitor::visit( const CastExprNode& _ ) {
+  // throw std::runtime_error( std::format("AstPrinterVisitor::visit(CastExprNode&) is not implemented, {}", ) );
+}
+
+void AstPrinterVisitor::visit( const ArrayIdentifierOpNode& _ ) {
 }
 
 void AstPrinterVisitor::visit( const FunctionCallNode& node ) {
@@ -247,4 +250,8 @@ void AstPrinterVisitor::visit( const ProgramNode& node ) {
   for ( const auto& statement : node.getStatementList() ) {
     statement->accept( *this );
   }
+}
+
+void AstPrinterVisitor::visit( const BuiltinFunction& ) {
+  throw std::runtime_error( "not implemented" );
 }

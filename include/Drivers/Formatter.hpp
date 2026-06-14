@@ -1,11 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <format>
 #include <magic_enum/magic_enum.hpp>
 
 #include "Lexer/Token.hpp"
 #include "Parser/ParameterDecl.hpp"
 #include "Parser/Types.hpp"
+#include "Parser/Value.hpp"
 
 template <>
 struct std::formatter<TokenType> {
@@ -76,10 +78,10 @@ struct std::formatter<ParameterDecl> {
   }
 
   auto format( const ParameterDecl& param_decl, format_context& ctx ) const {
-    const std::string pass_mode_qunatifier = param_decl.pass_mode_ == PassMode::COPY ? "copy " : "";
-    const std::string mutability_quantifier = param_decl.mutability_ == Mutability::MUTABLE ? "mut " : "";
-    return std::format_to( ctx.out(), "{}{}{} {}", pass_mode_qunatifier, mutability_quantifier, param_decl.type_,
-                           param_decl.identifier_ );
+    const std::string pass_mode_qunatifier = param_decl.getPassMode() == PassMode::COPY ? "copy " : "";
+    const std::string mutability_quantifier = param_decl.getMutability() == Mutability::MUTABLE ? "mut " : "";
+    return std::format_to( ctx.out(), "{}{}{} {}", pass_mode_qunatifier, mutability_quantifier, param_decl.getType(),
+                           param_decl.getIdentifier() );
   }
 };
 
@@ -95,6 +97,18 @@ struct std::formatter<Value> {
           using T = std::decay_t<decltype( v )>;
 
           if constexpr ( std::is_same_v<T, Value::ArrayValue> ) {
+            bool is_char_array = !v.empty() && std::all_of( v.begin(), v.end(), []( const Value& el ) {
+              return std::holds_alternative<char>( el.getData() );
+            } );
+
+            if ( is_char_array ) {
+              auto out = std::format_to( ctx.out(), "\"" );
+              for ( const Value& el : v ) {
+                out = std::format_to( out, "{}", std::get<char>( el.getData() ) );
+              }
+              return std::format_to( out, "\"" );
+            }
+
             auto out = std::format_to( ctx.out(), "[" );
             for ( size_t i = 0; i < v.size(); ++i ) {
               if ( i > 0 ) {
@@ -104,7 +118,11 @@ struct std::formatter<Value> {
             }
             return std::format_to( out, "]" );
           } else if constexpr ( std::is_same_v<T, char> ) {
-            return std::format_to( ctx.out(), "'{}'", v );
+            if ( std::isspace( v ) ) {
+              return std::format_to( ctx.out(), "{}", v );
+            } else {
+              return std::format_to( ctx.out(), "'{}'", v );
+            }
           } else if constexpr ( std::is_same_v<T, float> ) {
             return std::format_to( ctx.out(), "{:#}", v );
           } else {

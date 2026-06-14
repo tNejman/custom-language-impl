@@ -89,7 +89,11 @@ struct Position {
     assert( line_ > 0 );
     assert( column_ >= 0 );
   }
-  auto operator<=>( const Position &other ) const = default;
+  constexpr Position( const Position& ) noexcept = default;
+  constexpr Position( Position&& ) noexcept = default;
+  Position& operator=( const Position& ) noexcept = default;
+  Position& operator=( Position&& ) noexcept = default;
+  auto operator<=>( const Position& other ) const noexcept = default;
 };
 
 using TokenVal = std::variant<std::monostate, int, float, bool, char, std::string>;
@@ -104,7 +108,16 @@ struct Token {
     validate();
   }
 
-  bool operator==( const Token &other ) const = default;
+  bool operator==( const Token& other ) const {
+    if ( position_ != other.position_ || type_ != other.type_ ) {
+      return false;
+    }
+    if ( std::holds_alternative<float>( value_ ) && std::holds_alternative<float>( other.value_ ) ) {
+      constexpr float epsilon = 1e-5f;
+      return abs( std::get<float>( value_ ) - std::get<float>( other.value_ ) ) < epsilon;
+    }
+    return value_ == other.value_;
+  }
 
  private:
   void validate() const {
