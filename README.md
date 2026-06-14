@@ -5,11 +5,8 @@
 ```bash
 cmake -S . -B build
 cmake --build build
-./build/bin/LexerApp
+./build/bin/Main
 ```
+## More info in docs
 
-For tooltips regarding launch:
-
-```bash
-./build/bin/LexerApp --help
-```
+tbd
