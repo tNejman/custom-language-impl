@@ -240,7 +240,7 @@ Variable Interpreter::buildVarFromParam( RuntimeValue& runtime_val, const Parame
                                      } },
                          runtime_val.peekData() );
     case PassMode::REFERENCE:
-      return std::visit( Overloaded{ [&]( const RValue& _ ) -> Variable {
+      return std::visit( Overloaded{ [&]( const RValue& ) -> Variable {
                                       throw InvalidAccessException( Position{ 1, 1 },
                                                                     "cannot make reference to an rvalue" );
                                     },

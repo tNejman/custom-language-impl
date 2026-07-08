@@ -304,7 +304,7 @@ class ValueEvaluator {
         return std::visit(
             Overloaded{ [&]( const int val ) -> Value { return clamp_to_int( -static_cast<long long>( val ) ); },
                         [&]( const float val ) -> Value { return clamp_to_float( -val ); },
-                        []( auto&& _ ) -> Value { std::unreachable(); } },
+                        []( auto&& ) -> Value { std::unreachable(); } },
             operand.getData() );
       }
       case UnaryOperator::NOT: {

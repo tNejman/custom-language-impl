@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <variant>
 #include <vector>
+#include <print>
 
 #include "Drivers/Formatter.hpp"                                              // IWYU pragma: keep
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"  // IWYU pragma: keep

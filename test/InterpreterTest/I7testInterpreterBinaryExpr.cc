@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <ranges>
+#include <climits>
 
 #include "Exceptions/InterpreterExceptions/_InterpreterExceptionInclude.hpp"
 #include "Interpreter/Interpreter.h"

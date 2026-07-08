@@ -142,7 +142,7 @@ ArrayIdentifierOpType translateTokenTypeToArrayIdentifierOpType( const TokenType
   }
 }
 
-std::string_view operatorToStr( const AssignmentType assignment_type ) noexcept {
+std::string_view operatorToStr( const AssignmentType assignment_type ) {
   switch ( assignment_type ) {
     case AssignmentType::ASSIGN: return "=";
     case AssignmentType::ADD_ASSIGN: return "+=";
@@ -150,10 +150,11 @@ std::string_view operatorToStr( const AssignmentType assignment_type ) noexcept 
     case AssignmentType::MUL_ASSIGN: return "*=";
     case AssignmentType::DIV_ASSIGN: return "/=";
     case AssignmentType::MOD_ASSIGN: return "%=";
+    default: throw std::runtime_error( "ass_t->str: cannot match type" );
   }
 }
 
-std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept {
+std::string_view operatorToStr( const BinaryOperator binary_operator ) {
   switch ( binary_operator ) {
     case BinaryOperator::OR: return "or";
     case BinaryOperator::AND: return "and";
@@ -171,15 +172,17 @@ std::string_view operatorToStr( const BinaryOperator binary_operator ) noexcept 
     case BinaryOperator::DIV: return "/";
     case BinaryOperator::MOD: return "%";
     case BinaryOperator::ACCESS: return "[]";
+    default: throw std::runtime_error( "bin_op->str: cannot match type" );
   }
 }
 
-std::string_view operatorToStr( const UnaryOperator unary_operator ) noexcept {
+std::string_view operatorToStr( const UnaryOperator unary_operator ) {
   switch ( unary_operator ) {
     case UnaryOperator::NEG: return "-";
     case UnaryOperator::NOT: return "not";
     case UnaryOperator::REV: return "@";
     case UnaryOperator::LEN: return "$";
+    default: throw std::runtime_error( "un_op->str: cannot match type" );
   }
 }
 

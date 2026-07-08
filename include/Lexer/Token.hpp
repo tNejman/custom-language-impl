@@ -3,6 +3,7 @@
 #include <cassert>
 #include <string>
 #include <variant>
+#include <cmath>
 
 constexpr int MAX_IDENTIFIER_LENGTH = 128u;
 constexpr int MAX_STRING_LITERAL_LENGTH = 128u;
@@ -114,7 +115,7 @@ struct Token {
     }
     if ( std::holds_alternative<float>( value_ ) && std::holds_alternative<float>( other.value_ ) ) {
       constexpr float epsilon = 1e-5f;
-      return abs( std::get<float>( value_ ) - std::get<float>( other.value_ ) ) < epsilon;
+      return std::abs( std::get<float>( value_ ) - std::get<float>( other.value_ ) ) < epsilon;
     }
     return value_ == other.value_;
   }

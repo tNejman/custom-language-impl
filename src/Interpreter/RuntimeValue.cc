@@ -39,10 +39,10 @@ std::variant<RValue, LValue, IndexRef, Void>& RuntimeValue::peekData() noexcept 
   return data_;
 }
 bool RuntimeValue::isAssignableTo() const noexcept {
-  return std::visit( Overloaded{ []( const RValue& _ ) { return false; },
-                                 [&]( const LValue& _ ) { return mutability_ == Mutability::MUTABLE; },
-                                 [&]( const IndexRef& _ ) { return mutability_ == Mutability::MUTABLE; },
-                                 []( const Void& _ ) { return false; } },
+  return std::visit( Overloaded{ []( const RValue& ) { return false; },
+                                 [&]( const LValue& ) { return mutability_ == Mutability::MUTABLE; },
+                                 [&]( const IndexRef& ) { return mutability_ == Mutability::MUTABLE; },
+                                 []( const Void& ) { return false; } },
                      data_ );
 }
 

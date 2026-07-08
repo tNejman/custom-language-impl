@@ -8,7 +8,10 @@
 
 #include "argparse/argparse.hpp"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 enum class LexerInputSource { FILE, CIN, ARG };
+#pragma GCC diagnostic pop
 
 struct ArgParseLexerResult {
   LexerInputSource mode = LexerInputSource::CIN;

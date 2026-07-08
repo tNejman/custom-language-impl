@@ -3,9 +3,12 @@
 #include <deque>
 #include <functional>
 #include <vector>
+#include <optional>
+
 
 #include "Interpreter/Variable.h"
 #include "Parser/Node.h"
+
 
 class CallContext {
  public:
